@@ -1,0 +1,205 @@
+2026-04-24 17:01:16 [INFO] main: === Single prompt mode ===
+2026-04-24 17:01:16 [INFO] main: Prompt: 1+2?
+2026-04-24 17:01:16 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-24 17:01:17 [INFO] QwenScraper: Discovered 1 account cookie file(s): ['account1.json']
+2026-04-24 17:01:17 [INFO] QwenScraper: Loaded 13 cookie(s) from account1.json
+2026-04-24 17:01:17 [INFO] QwenScraper: Attempt 1/2 using account 'account1'
+2026-04-24 17:01:17 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-24 17:01:37 [INFO] QwenScraper: Submitting prompt (4 chars)
+2026-04-24 17:01:41 [WARNING] QwenScraper: Using full page-text fallback for response extraction
+2026-04-24 17:01:44 [WARNING] QwenScraper: Using full page-text fallback for response extraction
+2026-04-24 17:01:47 [WARNING] QwenScraper: Using full page-text fallback for response extraction
+2026-04-24 17:01:50 [WARNING] QwenScraper: Using full page-text fallback for response extraction
+2026-04-24 17:01:53 [WARNING] QwenScraper: Using full page-text fallback for response extraction
+2026-04-24 17:01:53 [INFO] QwenScraper: Scrape successful – 976 char(s), 0 code block(s)
+2026-04-24 17:01:53 [INFO] QwenScraper: Closing browser
+2026-04-24 17:01:53 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-24 17:01:53 [INFO] main: RESPONSE (976 chars):
+2026-04-24 17:01:53 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-24 17:01:53 [INFO] main: Result JSON saved → C:\Users\SPIN\Desktop\tes\qwn2\output\12_20260424_170153.json
+2026-04-24 17:07:34 [INFO] main: === Single prompt mode ===
+2026-04-24 17:07:34 [INFO] main: Prompt: 1+2?
+2026-04-24 17:07:34 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-24 17:07:36 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-24 17:07:36 [INFO] QwenScraper: Loaded 13 cookie(s) from account1.json
+2026-04-24 17:07:36 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-24 17:07:36 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-24 17:07:55 [INFO] QwenScraper: Submitting prompt (4 chars)
+2026-04-24 17:08:14 [INFO] QwenScraper: Scrape successful – 9 char(s), 0 code block(s)
+2026-04-24 17:08:14 [INFO] QwenScraper: Closing browser
+2026-04-24 17:08:14 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-24 17:08:14 [INFO] main: RESPONSE (9 chars):
+2026-04-24 17:08:14 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-24 17:08:14 [INFO] main: Result JSON saved → C:\Users\SPIN\Desktop\tes\qwn2\output\12_20260424_170814.json
+2026-04-24 17:08:56 [INFO] main: === Single prompt mode ===
+2026-04-24 17:08:56 [INFO] main: Prompt: can you tell me price of IHSG and IDR/USD now?
+2026-04-24 17:08:56 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-24 17:08:57 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-24 17:08:57 [INFO] QwenScraper: Loaded 13 cookie(s) from account1.json
+2026-04-24 17:08:57 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-24 17:08:57 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-24 17:09:17 [INFO] QwenScraper: Submitting prompt (46 chars)
+2026-04-24 17:09:29 [INFO] QwenScraper: Scrape successful – 46 char(s), 0 code block(s)
+2026-04-24 17:09:29 [INFO] QwenScraper: Closing browser
+2026-04-24 17:09:29 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-24 17:09:29 [INFO] main: RESPONSE (46 chars):
+2026-04-24 17:09:29 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-24 17:09:29 [INFO] main: Result JSON saved → C:\Users\SPIN\Desktop\tes\qwn2\output\can_you_tell_me_price_of_ihsg__20260424_170929.json
+2026-04-24 17:23:02 [INFO] main: === Single prompt mode ===
+2026-04-24 17:23:02 [INFO] main: Prompt: can you tell me price of IHSG and IDR/USD now?
+2026-04-24 17:23:02 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-24 17:23:03 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-24 17:23:03 [INFO] QwenScraper: Loaded 13 cookie(s) from account1.json
+2026-04-24 17:23:03 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-24 17:23:03 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-24 17:23:11 [INFO] QwenScraper: Submitting prompt (46 chars)
+2026-04-24 17:28:17 [ERROR] QwenScraper: Timeout on attempt 1: Qwen did not finish responding within 300s
+2026-04-24 17:28:22 [INFO] QwenScraper: Attempt 2/4 using account 'account1'
+2026-04-24 17:28:22 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-24 17:28:26 [INFO] QwenScraper: Submitting prompt (46 chars)
+2026-04-24 17:28:46 [INFO] QwenScraper: Closing browser
+2026-04-24 17:31:34 [INFO] main: === Single prompt mode ===
+2026-04-24 17:31:34 [INFO] main: Prompt: explain me 1+9?
+2026-04-24 17:31:34 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-24 17:31:36 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-24 17:31:36 [INFO] QwenScraper: Loaded 13 cookie(s) from account1.json
+2026-04-24 17:31:36 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-24 17:31:36 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-24 17:31:56 [INFO] QwenScraper: Submitting prompt (15 chars)
+2026-04-24 17:32:12 [INFO] QwenScraper: Scrape successful – 58 char(s), 0 code block(s)
+2026-04-24 17:32:12 [INFO] QwenScraper: Closing browser
+2026-04-24 17:32:12 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-24 17:32:12 [INFO] main: RESPONSE (58 chars):
+2026-04-24 17:32:12 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-24 17:32:12 [INFO] main: Result JSON saved → C:\Users\SPIN\Desktop\tes\qwn2\output\explain_me_19_20260424_173212.json
+2026-04-24 17:35:07 [INFO] main: === Single prompt mode ===
+2026-04-24 17:35:07 [INFO] main: Prompt: explain me 1+999?
+2026-04-24 17:35:07 [INFO] QwenScraper: Launching browser (headless=False)
+2026-04-24 17:35:10 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-24 17:35:10 [INFO] QwenScraper: Loaded 13 cookie(s) from account1.json
+2026-04-24 17:35:10 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-24 17:35:10 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-24 17:35:29 [INFO] QwenScraper: Submitting prompt (17 chars)
+2026-04-24 17:35:48 [INFO] QwenScraper: Scrape successful – 66 char(s), 0 code block(s)
+2026-04-24 17:35:48 [INFO] QwenScraper: Closing browser
+2026-04-24 17:35:49 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-24 17:35:49 [INFO] main: RESPONSE (66 chars):
+2026-04-24 17:35:49 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-24 17:35:49 [INFO] main: Result JSON saved → C:\Users\SPIN\Desktop\tes\qwn2\output\explain_me_1999_20260424_173549.json
+2026-04-24 18:43:54 [INFO] main: === Single prompt mode ===
+2026-04-24 18:43:54 [INFO] main: Prompt: what is 2 * 999999 + 1
+2026-04-24 18:43:54 [INFO] QwenScraper: Launching browser (headless=False)
+2026-04-24 18:43:56 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-24 18:43:56 [INFO] QwenScraper: Loaded 13 cookie(s) from account1.json
+2026-04-24 18:43:56 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-24 18:43:56 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-24 18:44:01 [ERROR] QwenScraper: Error on attempt 1: name '_SEL' is not defined
+Traceback (most recent call last):
+  File "C:\Users\SPIN\Desktop\tes\qwn2\scrapers\base_scraper.py", line 368, in scrape
+    response_text = await self.send_prompt(prompt, mode)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\Desktop\tes\qwn2\scrapers\qwen_scraper.py", line 178, in send_prompt
+    input_el = await self._find_input()
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\Desktop\tes\qwn2\scrapers\qwen_scraper.py", line 97, in _find_input
+    sel = _SEL["prompt_textarea"]
+          ^^^^
+NameError: name '_SEL' is not defined
+2026-04-24 18:44:06 [INFO] QwenScraper: Attempt 2/4 using account 'account1'
+2026-04-24 18:44:06 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-24 18:44:09 [ERROR] QwenScraper: Error on attempt 2: name '_SEL' is not defined
+Traceback (most recent call last):
+  File "C:\Users\SPIN\Desktop\tes\qwn2\scrapers\base_scraper.py", line 368, in scrape
+    response_text = await self.send_prompt(prompt, mode)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\Desktop\tes\qwn2\scrapers\qwen_scraper.py", line 178, in send_prompt
+    input_el = await self._find_input()
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\Desktop\tes\qwn2\scrapers\qwen_scraper.py", line 97, in _find_input
+    sel = _SEL["prompt_textarea"]
+          ^^^^
+NameError: name '_SEL' is not defined
+2026-04-24 18:44:14 [INFO] QwenScraper: Attempt 3/4 using account 'account1'
+2026-04-24 18:44:14 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-24 18:44:18 [ERROR] QwenScraper: Error on attempt 3: name '_SEL' is not defined
+Traceback (most recent call last):
+  File "C:\Users\SPIN\Desktop\tes\qwn2\scrapers\base_scraper.py", line 368, in scrape
+    response_text = await self.send_prompt(prompt, mode)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\Desktop\tes\qwn2\scrapers\qwen_scraper.py", line 178, in send_prompt
+    input_el = await self._find_input()
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\Desktop\tes\qwn2\scrapers\qwen_scraper.py", line 97, in _find_input
+    sel = _SEL["prompt_textarea"]
+          ^^^^
+NameError: name '_SEL' is not defined
+2026-04-24 18:44:23 [INFO] QwenScraper: Attempt 4/4 using account 'account1'
+2026-04-24 18:44:23 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-24 18:44:23 [INFO] QwenScraper: Closing browser
+2026-04-24 18:45:57 [INFO] main: === Single prompt mode ===
+2026-04-24 18:45:57 [INFO] main: Prompt: what is 2 * 999999 + 1
+2026-04-24 18:45:57 [INFO] QwenScraper: Launching browser (headless=False)
+2026-04-24 18:45:59 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-24 18:45:59 [INFO] QwenScraper: Loaded 13 cookie(s) from account1.json
+2026-04-24 18:45:59 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-24 18:45:59 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-24 18:46:04 [INFO] QwenScraper: Submitting prompt (22 chars)
+2026-04-24 18:48:27 [INFO] QwenScraper: Closing browser
+2026-04-24 18:48:35 [INFO] main: === Single prompt mode ===
+2026-04-24 18:48:35 [INFO] main: Prompt: what is 2 * 999999 + 1
+2026-04-24 18:48:35 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-24 18:48:37 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-24 18:48:37 [INFO] QwenScraper: Loaded 13 cookie(s) from account1.json
+2026-04-24 18:48:37 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-24 18:48:37 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-24 18:48:44 [INFO] QwenScraper: Submitting prompt (22 chars)
+2026-04-24 18:53:49 [ERROR] QwenScraper: Timeout on attempt 1: Qwen did not finish responding within 300s
+2026-04-24 18:53:54 [INFO] QwenScraper: Attempt 2/4 using account 'account1'
+2026-04-24 18:53:54 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-24 18:53:57 [INFO] QwenScraper: Submitting prompt (22 chars)
+2026-04-24 18:55:34 [INFO] QwenScraper: Closing browser
+2026-04-24 19:20:45 [INFO] main: === Single prompt mode ===
+2026-04-24 19:20:45 [INFO] main: Prompt: what is 2 * 999999 + 1
+2026-04-24 19:20:45 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-24 19:20:51 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-24 19:20:51 [INFO] QwenScraper: Loaded 13 cookie(s) from account1.json
+2026-04-24 19:20:51 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-24 19:20:51 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-24 19:21:15 [INFO] QwenScraper: Submitting prompt (22 chars)
+2026-04-24 19:21:34 [INFO] QwenScraper: Response ready (117 chars)
+2026-04-24 19:21:34 [INFO] QwenScraper: Scrape successful – 117 char(s), 0 code block(s)
+2026-04-24 19:21:34 [INFO] QwenScraper: Closing browser
+2026-04-24 19:21:35 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-24 19:21:35 [INFO] main: RESPONSE (117 chars):
+2026-04-24 19:21:35 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-24 19:21:35 [INFO] main: Result JSON saved → C:\Users\SPIN\Desktop\tes\qwn2\output\what_is_2_999999_1_20260424_192135.json
+2026-04-24 19:22:50 [INFO] main: === Single prompt mode ===
+2026-04-24 19:22:50 [INFO] main: Prompt: can you gave me price of IHSG and IDR/USD
+2026-04-24 19:22:50 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-24 19:22:51 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-24 19:22:51 [INFO] QwenScraper: Loaded 13 cookie(s) from account1.json
+2026-04-24 19:22:51 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-24 19:22:51 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-24 19:23:12 [INFO] QwenScraper: Submitting prompt (41 chars)
+2026-04-24 19:24:04 [INFO] QwenScraper: Response ready (1057 chars)
+2026-04-24 19:24:04 [INFO] QwenScraper: Scrape successful – 1057 char(s), 0 code block(s)
+2026-04-24 19:24:04 [INFO] QwenScraper: Closing browser
+2026-04-24 19:24:04 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-24 19:24:04 [INFO] main: RESPONSE (1057 chars):
+2026-04-24 19:24:04 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-24 19:24:04 [INFO] main: Result JSON saved → C:\Users\SPIN\Desktop\tes\qwn2\output\can_you_gave_me_price_of_ihsg__20260424_192404.json
+2026-04-24 19:32:22 [INFO] main: === Single prompt mode ===
+2026-04-24 19:32:22 [INFO] main: Prompt: what is C++ in programming
+2026-04-24 19:32:22 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-24 19:32:23 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-24 19:32:23 [INFO] QwenScraper: Loaded 13 cookie(s) from account1.json
+2026-04-24 19:32:23 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-24 19:32:23 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-24 19:32:45 [INFO] QwenScraper: Submitting prompt (26 chars)
+2026-04-24 19:33:37 [INFO] QwenScraper: Response ready (3140 chars)
+2026-04-24 19:33:37 [INFO] QwenScraper: Scrape successful – 3140 char(s), 0 code block(s)
+2026-04-24 19:33:37 [INFO] QwenScraper: Closing browser
+2026-04-24 19:33:38 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-24 19:33:38 [INFO] main: RESPONSE (3140 chars):
+2026-04-24 19:33:38 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-24 19:33:38 [INFO] main: Result JSON saved → C:\Users\SPIN\Desktop\tes\qwn2\output\what_is_c_in_programming_20260424_193338.json
