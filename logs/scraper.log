@@ -203,3 +203,190 @@ NameError: name '_SEL' is not defined
 2026-04-24 19:33:38 [INFO] main: RESPONSE (3140 chars):
 2026-04-24 19:33:38 [INFO] main: ────────────────────────────────────────────────────────────
 2026-04-24 19:33:38 [INFO] main: Result JSON saved → C:\Users\SPIN\Desktop\tes\qwn2\output\what_is_c_in_programming_20260424_193338.json
+2026-04-24 20:04:21 [INFO] api_server: ============================================================
+2026-04-24 20:04:21 [INFO] api_server:   AIChatScraper – OpenAI-Compatible API Server
+2026-04-24 20:04:21 [INFO] api_server:   Host    : http://0.0.0.0:12345
+2026-04-24 20:04:21 [INFO] api_server:   Workers : 2 concurrent browser session(s)
+2026-04-24 20:04:21 [INFO] api_server:   Headless: True
+2026-04-24 20:04:21 [INFO] api_server:   Docs    : http://0.0.0.0:12345/docs
+2026-04-24 20:04:21 [INFO] api_server: ============================================================
+2026-04-24 20:04:21 [INFO] api_server: 🚀 AIChatScraper API Server starting up
+2026-04-24 20:13:01 [INFO] api_server: 🛑 AIChatScraper API Server shutting down
+2026-04-24 20:13:05 [INFO] api_server: ============================================================
+2026-04-24 20:13:05 [INFO] api_server:   AIChatScraper – OpenAI-Compatible API Server
+2026-04-24 20:13:05 [INFO] api_server:   Host    : http://0.0.0.0:12345
+2026-04-24 20:13:05 [INFO] api_server:   Workers : 2 concurrent browser session(s)
+2026-04-24 20:13:05 [INFO] api_server:   Headless: True
+2026-04-24 20:13:05 [INFO] api_server:   Docs    : http://0.0.0.0:12345/docs
+2026-04-24 20:13:05 [INFO] api_server: ============================================================
+2026-04-24 20:13:05 [INFO] api_server: 🚀 AIChatScraper API Server starting up
+2026-04-24 20:14:32 [INFO] api_server: 🛑 AIChatScraper API Server shutting down
+2026-04-24 20:14:43 [INFO] api_server: ============================================================
+2026-04-24 20:14:43 [INFO] api_server:   AIChatScraper – OpenAI-Compatible API Server
+2026-04-24 20:14:43 [INFO] api_server:   Host    : http://127.0.0.1:12345
+2026-04-24 20:14:43 [INFO] api_server:   Workers : 2 concurrent browser session(s)
+2026-04-24 20:14:43 [INFO] api_server:   Headless: True
+2026-04-24 20:14:43 [INFO] api_server:   Docs    : http://127.0.0.1:12345/docs
+2026-04-24 20:14:43 [INFO] api_server: ============================================================
+2026-04-24 20:14:43 [INFO] api_server: 🚀 AIChatScraper API Server starting up
+2026-04-25 06:36:58 [INFO] api_server: 🛑 AIChatScraper API Server shutting down
+2026-04-25 06:37:23 [INFO] api_server: ============================================================
+2026-04-25 06:37:23 [INFO] api_server:   AIChatScraper – OpenAI-Compatible API Server
+2026-04-25 06:37:23 [INFO] api_server:   Host    : http://127.0.0.1:12345
+2026-04-25 06:37:23 [INFO] api_server:   Workers : 2 concurrent browser session(s)
+2026-04-25 06:37:23 [INFO] api_server:   Headless: True
+2026-04-25 06:37:23 [INFO] api_server:   Docs    : http://127.0.0.1:12345/docs
+2026-04-25 06:37:23 [INFO] api_server: ============================================================
+2026-04-25 06:37:23 [INFO] api_server: 🚀 AIChatScraper API Server starting up (workers=1)
+2026-04-25 06:37:39 [INFO] api_server: Request [chatcmpl-75c84550858a450f88291d06] model=qwen mode=new stream=False prompt_len=53
+2026-04-25 06:37:39 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-25 06:37:49 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 06:37:49 [INFO] QwenScraper: Loaded 13 cookie(s) from account1.json
+2026-04-25 06:37:49 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 06:37:49 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 06:38:12 [INFO] QwenScraper: Submitting prompt (53 chars)
+2026-04-25 06:38:40 [INFO] QwenScraper: Response ready (770 chars)
+2026-04-25 06:38:40 [INFO] QwenScraper: Scrape successful – 770 char(s), 0 code block(s)
+2026-04-25 06:38:40 [INFO] QwenScraper: Closing browser
+2026-04-25 06:38:40 [INFO] api_server: Request [chatcmpl-75c84550858a450f88291d06] completed: 770 chars, 0 code blocks
+2026-04-25 06:38:40 [INFO] api_server: Request [chatcmpl-cfca48c6c28c4785b50e3061] model=qwen mode=new stream=True prompt_len=27
+2026-04-25 06:38:40 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-25 06:38:41 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 06:38:41 [INFO] QwenScraper: Loaded 13 cookie(s) from account1.json
+2026-04-25 06:38:41 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 06:38:41 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 06:39:02 [INFO] QwenScraper: Submitting prompt (27 chars)
+2026-04-25 06:40:05 [INFO] QwenScraper: Response ready (52 chars)
+2026-04-25 06:40:05 [INFO] QwenScraper: Scrape successful – 52 char(s), 0 code block(s)
+2026-04-25 06:40:05 [INFO] QwenScraper: Closing browser
+2026-04-25 06:40:05 [INFO] api_server: Request [chatcmpl-cfca48c6c28c4785b50e3061] completed: 52 chars, 0 code blocks
+2026-04-25 06:40:08 [INFO] api_server: Request [chatcmpl-343cdbcb723c4dcebb9c88f4] model=qwen mode=new stream=False prompt_len=45
+2026-04-25 06:40:08 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-25 06:40:10 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 06:40:10 [INFO] QwenScraper: Loaded 13 cookie(s) from account1.json
+2026-04-25 06:40:10 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 06:40:10 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 06:40:30 [INFO] QwenScraper: Submitting prompt (45 chars)
+2026-04-25 06:41:14 [INFO] QwenScraper: Response ready (2506 chars)
+2026-04-25 06:41:14 [INFO] QwenScraper: Scrape successful – 2506 char(s), 0 code block(s)
+2026-04-25 06:41:14 [INFO] QwenScraper: Closing browser
+2026-04-25 06:41:14 [INFO] api_server: Request [chatcmpl-343cdbcb723c4dcebb9c88f4] completed: 2506 chars, 0 code blocks
+2026-04-25 06:41:14 [INFO] api_server: Request [chatcmpl-934c0a59317449f8b7b4f03a] model=qwen mode=new stream=True prompt_len=50
+2026-04-25 06:41:14 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-25 06:41:16 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 06:41:16 [INFO] QwenScraper: Loaded 13 cookie(s) from account1.json
+2026-04-25 06:41:16 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 06:41:16 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 06:41:36 [INFO] QwenScraper: Submitting prompt (50 chars)
+2026-04-25 06:42:10 [INFO] QwenScraper: Response ready (1191 chars)
+2026-04-25 06:42:10 [INFO] QwenScraper: Scrape successful – 1191 char(s), 0 code block(s)
+2026-04-25 06:42:10 [INFO] QwenScraper: Closing browser
+2026-04-25 06:42:10 [INFO] api_server: Request [chatcmpl-934c0a59317449f8b7b4f03a] completed: 1191 chars, 0 code blocks
+2026-04-25 06:42:11 [INFO] api_server: Request [chatcmpl-882b6e9fcd274883bdd44cba] model=qwen mode=new stream=False prompt_len=27
+2026-04-25 06:42:11 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-25 06:42:13 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 06:42:13 [INFO] QwenScraper: Loaded 13 cookie(s) from account1.json
+2026-04-25 06:42:13 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 06:42:13 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 06:42:38 [INFO] QwenScraper: Submitting prompt (27 chars)
+2026-04-25 06:43:19 [INFO] QwenScraper: Response ready (2037 chars)
+2026-04-25 06:43:19 [INFO] QwenScraper: Scrape successful – 2037 char(s), 0 code block(s)
+2026-04-25 06:43:19 [INFO] QwenScraper: Closing browser
+2026-04-25 06:43:19 [INFO] api_server: Request [chatcmpl-882b6e9fcd274883bdd44cba] completed: 2037 chars, 0 code blocks
+2026-04-25 06:43:19 [INFO] api_server: Request [chatcmpl-0e9a1d00ea4a48ee8cd2cd39] model=qwen mode=continue stream=False prompt_len=35
+2026-04-25 06:43:19 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-25 06:43:21 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 06:43:21 [INFO] QwenScraper: Loaded 13 cookie(s) from account1.json
+2026-04-25 06:43:21 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 06:43:21 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 06:43:41 [INFO] QwenScraper: Submitting prompt (35 chars)
+2026-04-25 06:43:58 [INFO] QwenScraper: Response ready (594 chars)
+2026-04-25 06:43:58 [INFO] QwenScraper: Scrape successful – 594 char(s), 0 code block(s)
+2026-04-25 06:43:58 [INFO] QwenScraper: Closing browser
+2026-04-25 06:43:58 [INFO] api_server: Request [chatcmpl-0e9a1d00ea4a48ee8cd2cd39] completed: 594 chars, 0 code blocks
+2026-04-25 06:43:58 [INFO] api_server: Request [chatcmpl-cbd637924540488da013b4b1] model=qwen mode=new stream=False prompt_len=39
+2026-04-25 06:43:58 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-25 06:44:00 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 06:44:00 [INFO] QwenScraper: Loaded 13 cookie(s) from account1.json
+2026-04-25 06:44:00 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 06:44:00 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 06:44:21 [INFO] QwenScraper: Submitting prompt (39 chars)
+2026-04-25 06:45:19 [INFO] QwenScraper: Response ready (3877 chars)
+2026-04-25 06:45:19 [INFO] QwenScraper: Scrape successful – 3877 char(s), 0 code block(s)
+2026-04-25 06:45:19 [INFO] QwenScraper: Closing browser
+2026-04-25 06:45:20 [INFO] api_server: Request [chatcmpl-cbd637924540488da013b4b1] completed: 3877 chars, 0 code blocks
+2026-04-25 06:57:43 [INFO] api_server: Request [chatcmpl-53dfbc1a08654e0e9df5fdfc] model=qwen mode=new stream=False prompt_len=25
+2026-04-25 06:57:43 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-25 06:57:44 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 06:57:44 [INFO] QwenScraper: Loaded 13 cookie(s) from account1.json
+2026-04-25 06:57:44 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 06:57:44 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 06:58:07 [INFO] QwenScraper: Submitting prompt (25 chars)
+2026-04-25 06:59:27 [INFO] QwenScraper: Response ready (2849 chars)
+2026-04-25 06:59:27 [INFO] QwenScraper: Scrape successful – 2849 char(s), 0 code block(s)
+2026-04-25 06:59:27 [INFO] QwenScraper: Closing browser
+2026-04-25 06:59:28 [INFO] api_server: Request [chatcmpl-53dfbc1a08654e0e9df5fdfc] completed: 2849 chars, 0 code blocks
+2026-04-25 07:01:13 [INFO] api_server: 🛑 AIChatScraper API Server shutting down
+2026-04-25 07:01:16 [INFO] api_server: ============================================================
+2026-04-25 07:01:16 [INFO] api_server:   AIChatScraper – OpenAI-Compatible API Server
+2026-04-25 07:01:16 [INFO] api_server:   Host    : http://127.0.0.1:12345
+2026-04-25 07:01:16 [INFO] api_server:   Workers : 2 concurrent browser session(s)
+2026-04-25 07:01:16 [INFO] api_server:   Headless: True
+2026-04-25 07:01:16 [INFO] api_server:   Docs    : http://127.0.0.1:12345/docs
+2026-04-25 07:01:16 [INFO] api_server: ============================================================
+2026-04-25 07:01:16 [INFO] api_server: 🚀 AIChatScraper API Server starting up (workers=1)
+2026-04-25 07:01:48 [INFO] api_server: Request [chatcmpl-ccfde2090f484c78ba86e974] model=qwen mode=new stream=False prompt_len=20
+2026-04-25 07:01:48 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-25 07:01:49 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 07:01:49 [INFO] QwenScraper: Loaded 13 cookie(s) from account1.json
+2026-04-25 07:01:49 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 07:01:49 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 07:02:10 [INFO] QwenScraper: Submitting prompt (20 chars)
+2026-04-25 07:03:22 [INFO] QwenScraper: Response ready (2894 chars, truncated_flag=False)
+2026-04-25 07:03:22 [INFO] QwenScraper: Scrape successful – 2894 char(s), 0 code block(s)
+2026-04-25 07:03:22 [INFO] QwenScraper: Closing browser
+2026-04-25 07:03:22 [INFO] api_server: Request [chatcmpl-ccfde2090f484c78ba86e974] completed: 2894 chars, 0 code blocks
+2026-04-25 07:25:40 [INFO] api_server: Request [chatcmpl-789d1394908f4da3abcd5596] model=qwen mode=new stream=False prompt_len=48
+2026-04-25 07:25:40 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-25 07:25:41 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 07:25:41 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 07:25:41 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 07:25:41 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 07:26:04 [INFO] QwenScraper: Submitting prompt (48 chars)
+2026-04-25 07:27:08 [INFO] QwenScraper: Response ready (1178 chars, truncated_flag=False)
+2026-04-25 07:27:08 [INFO] QwenScraper: Scrape successful – 1178 char(s), 0 code block(s)
+2026-04-25 07:27:08 [INFO] QwenScraper: Closing browser
+2026-04-25 07:27:09 [INFO] api_server: Request [chatcmpl-789d1394908f4da3abcd5596] completed: 1178 chars, 0 code blocks
+2026-04-25 07:28:44 [INFO] api_server: Request [chatcmpl-850ebc964fdd469d9fed5546] model=qwen mode=continue stream=False prompt_len=40
+2026-04-25 07:28:44 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-25 07:28:46 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 07:28:46 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 07:28:46 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 07:28:46 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 07:29:07 [INFO] QwenScraper: Submitting prompt (40 chars)
+2026-04-25 07:30:21 [INFO] QwenScraper: Response ready (3322 chars, truncated_flag=False)
+2026-04-25 07:30:21 [INFO] QwenScraper: Scrape successful – 3322 char(s), 0 code block(s)
+2026-04-25 07:30:21 [INFO] QwenScraper: Closing browser
+2026-04-25 07:30:22 [INFO] api_server: Request [chatcmpl-850ebc964fdd469d9fed5546] completed: 3322 chars, 0 code blocks
+2026-04-25 08:16:29 [INFO] api_server: Request [chatcmpl-84f842ef30d24c23ac2cb358] model=qwen mode=new stream=False prompt_len=45
+2026-04-25 08:16:29 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-25 08:16:30 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 08:16:30 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 08:16:30 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 08:16:30 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 08:16:53 [INFO] QwenScraper: Submitting prompt (45 chars)
+2026-04-25 08:17:42 [INFO] QwenScraper: Response ready (2815 chars, truncated_flag=False)
+2026-04-25 08:17:42 [INFO] QwenScraper: Scrape successful – 2815 char(s), 0 code block(s)
+2026-04-25 08:17:42 [INFO] QwenScraper: Closing browser
+2026-04-25 08:17:42 [INFO] api_server: Request [chatcmpl-84f842ef30d24c23ac2cb358] completed: 2815 chars, 0 code blocks
+2026-04-25 08:40:50 [INFO] api_server: Request [chatcmpl-d4118c9501484f50a479bacb] model=qwen mode=new stream=True prompt_len=38
+2026-04-25 08:40:50 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-25 08:40:51 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 08:40:51 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 08:40:51 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 08:40:51 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 08:41:14 [INFO] QwenScraper: Submitting prompt (38 chars)
+2026-04-25 08:42:01 [INFO] QwenScraper: Response ready (1656 chars, truncated_flag=False)
+2026-04-25 08:42:01 [INFO] QwenScraper: Scrape successful – 1656 char(s), 0 code block(s)
+2026-04-25 08:42:01 [INFO] QwenScraper: Closing browser
+2026-04-25 08:42:02 [INFO] api_server: Request [chatcmpl-d4118c9501484f50a479bacb] completed: 1656 chars, 0 code blocks
