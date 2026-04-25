@@ -104,11 +104,14 @@ class BaseAIChatScraper(ABC):
 
     def _profile_seeded(self, profile_dir: Path) -> bool:
         """
-        Return True if this profile has already been bootstrapped.
-        We consider it seeded when the Chromium 'Default' sub-dir exists,
-        which Playwright creates on first launch_persistent_context() call.
+        Return True if this profile has already been bootstrapped with cookies.
+        We consider it seeded when:
+          1. The Chromium 'Default' sub-dir exists (created by Playwright on first launch), AND
+          2. A sentinel file 'cookies_seeded' exists (written after successful cookie injection).
+        This prevents re-seeding being skipped when the profile dir exists but cookies
+        were never injected (e.g. first run failed mid-way).
         """
-        return (profile_dir / "Default").exists()
+        return (profile_dir / "Default").exists() and (profile_dir / "cookies_seeded").exists()
 
     # ── Browser lifecycle ─────────────────────────────────────────────────────
 
@@ -156,10 +159,18 @@ class BaseAIChatScraper(ABC):
         self._page = self._context.pages[0] if self._context.pages else await self._context.new_page()
         self._browser = None  # not used in persistent mode
 
-        # Seed cookies into the profile on the very first run
+        # Seed cookies into the profile on the very first run.
+        # Navigate to the base domain first so cookies are accepted by the browser.
         if first_run and cookie_file and cookie_file.exists():
             self.logger.info("First run for profile '%s' – seeding cookies", profile_dir.name)
-            await self.load_cookies(cookie_file)
+            await self._page.goto("https://chat.qwen.ai", wait_until="domcontentloaded", timeout=30_000)
+            seeded = await self.load_cookies(cookie_file)
+            if seeded:
+                # Write sentinel so we know cookies were successfully injected
+                (profile_dir / "cookies_seeded").write_text("1", encoding="utf-8")
+                self.logger.info("Cookie seeding complete for profile '%s'", profile_dir.name)
+            # Reload so the seeded cookies take effect
+            await self._page.reload(wait_until="domcontentloaded", timeout=30_000)
         elif not first_run:
             self.logger.info("Reusing existing profile '%s'", profile_dir.name)
 
@@ -181,6 +192,8 @@ class BaseAIChatScraper(ABC):
             timezone_id=BROWSER_CONFIG["timezone_id"],
         )
         self._page = await self._context.new_page()
+        # Navigate to base domain first so cookies are accepted
+        await self._page.goto("https://chat.qwen.ai", wait_until="domcontentloaded", timeout=30_000)
 
     async def close_browser(self) -> None:
         """Gracefully close the context / browser and stop Playwright."""
@@ -293,7 +306,7 @@ class BaseAIChatScraper(ABC):
                 await self._context.close()
             await self._launch_persistent(next_cookie_file)
         else:
-            # Ephemeral: recreate context and inject cookies
+            # Ephemeral: recreate context and inject cookies after navigating to domain
             if self._context:
                 await self._context.close()
             self._context = await self._browser.new_context(
@@ -303,6 +316,7 @@ class BaseAIChatScraper(ABC):
                 timezone_id=BROWSER_CONFIG["timezone_id"],
             )
             self._page = await self._context.new_page()
+            await self._page.goto("https://chat.qwen.ai", wait_until="domcontentloaded", timeout=30_000)
             await self.load_cookies(next_cookie_file)
 
         return True
@@ -407,10 +421,9 @@ class BaseAIChatScraper(ABC):
     # ── High-level scrape with auto-rotation ─────────────────────────────────
 
     async def scrape(self, prompt: str, mode: str = "new") -> dict:
-        self._discover_accounts()
-
+        # _discover_accounts() is already called in __aenter__ before browser launch.
         # In persistent mode, launch_browser() already handled cookie seeding.
-        # In ephemeral mode, inject cookies manually.
+        # In ephemeral mode, inject cookies manually after navigating to the domain.
         if not self._persistent_mode:
             initial_cookie = self._current_cookie_file or self.cookies_path
             if initial_cookie:
@@ -489,6 +502,8 @@ class BaseAIChatScraper(ABC):
     # ── Context manager ───────────────────────────────────────────────────────
 
     async def __aenter__(self) -> "BaseAIChatScraper":
+        # Discover accounts FIRST so _cookie_files is populated before launch
+        self._discover_accounts()
         # Pass the initial cookie file so the correct profile is opened
         initial_cookie = self.cookies_path or (
             self._cookie_files[self._cookie_index]

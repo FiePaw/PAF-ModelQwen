@@ -51,7 +51,6 @@ class QwenScraper(BaseAIChatScraper):
     # ── Context manager override ──────────────────────────────────────────────
 
     async def __aenter__(self) -> "QwenScraper":
-        self._discover_accounts()
         return await super().__aenter__()
 
     def _extra_send_kwargs(self) -> dict:

@@ -396,8 +396,8 @@ def build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-    p.add_argument("--host",    default="127.0.0.1", help="Host server (default: 127.0.0.1)")
-    p.add_argument("--port",    default=12345, type=int, help="Port server (default: 8000)")
+    p.add_argument("--host",    default="108.137.15.61", help="Host server (default: 127.0.0.1)")
+    p.add_argument("--port",    default=9000, type=int, help="Port server (default: 8000)")
     p.add_argument("--stream",  action="store_true", help="Aktifkan streaming output")
     p.add_argument("--timeout", default=300, type=int, help="Timeout request dalam detik (default: 300)")
     p.add_argument(

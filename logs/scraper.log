@@ -1912,3 +1912,131 @@ playwright._impl._errors.TargetClosedError: Page.goto: Target page, context or b
 2026-04-25 14:41:09 [INFO] api_server:   Session TTL: 3600s
 2026-04-25 14:41:09 [INFO] api_server:   Docs       : http://127.0.0.1:12345/docs
 2026-04-25 14:41:09 [INFO] api_server: ============================================================
+2026-04-25 14:41:09 [INFO] api_server: CookieRotator: 2 file(s) available: ['account1.json', 'account2.json']
+2026-04-25 14:41:09 [INFO] api_server: Server ready (workers=1, session_ttl=3600s)
+2026-04-25 14:41:36 [INFO] api_server: NEW [chatcmpl] — cookie rotation will assign a file
+2026-04-25 14:41:36 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-04-25 14:41:37 [INFO] QwenScraper: Reusing existing profile 'account1'
+2026-04-25 14:41:37 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 14:41:37 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 14:41:37 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 14:41:41 [WARNING] QwenScraper: Timeout waiting for input ready: Timeout 100ms exceeded.
+2026-04-25 14:41:42 [INFO] QwenScraper: Setting think mode → 'fast'
+2026-04-25 14:41:43 [INFO] QwenScraper: Think mode confirmed → 'fast' ✓
+2026-04-25 14:41:46 [INFO] QwenScraper: Submitting prompt (52 chars) [think_mode=fast]
+2026-04-25 14:42:11 [INFO] QwenScraper: Response ready (132 chars)
+2026-04-25 14:42:11 [INFO] QwenScraper: Scrape successful – 132 char(s), 0 code block(s)
+2026-04-25 14:42:11 [INFO] QwenScraper: Closing browser
+2026-04-25 14:42:11 [INFO] api_server: Session created [4044353a] cookie=account1.json
+2026-04-25 14:42:11 [INFO] api_server: Done [chatcmpl] 132 chars | session=4044353a | cookie=account1.json | url=https://chat.qwen.ai/c/e29ce7cc-15d1-4185-bbcb-90bf76f164ff
+2026-04-25 14:42:35 [INFO] api_server: CONTINUE [chatcmpl] session=4044353a cookie=account1.json url=https://chat.qwen.ai/c/e29ce7cc-15d1-4185-bbcb-90bf76f164ff
+2026-04-25 14:42:35 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-04-25 14:42:36 [INFO] QwenScraper: Reusing existing profile 'account1'
+2026-04-25 14:42:36 [INFO] api_server: Navigating to conversation: https://chat.qwen.ai/c/e29ce7cc-15d1-4185-bbcb-90bf76f164ff
+2026-04-25 14:42:40 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 14:42:40 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 14:42:43 [INFO] QwenScraper: Submitting prompt (21 chars) [think_mode=fast]
+2026-04-25 14:42:56 [INFO] QwenScraper: Response ready (18 chars)
+2026-04-25 14:42:56 [INFO] QwenScraper: Scrape successful – 18 char(s), 0 code block(s)
+2026-04-25 14:42:56 [INFO] QwenScraper: Closing browser
+2026-04-25 14:42:56 [INFO] api_server: Done [chatcmpl] 18 chars | session=4044353a | cookie=account1.json | url=https://chat.qwen.ai/c/e29ce7cc-15d1-4185-bbcb-90bf76f164ff
+2026-04-25 14:43:17 [INFO] api_server: CONTINUE [chatcmpl] session=4044353a cookie=account1.json url=https://chat.qwen.ai/c/e29ce7cc-15d1-4185-bbcb-90bf76f164ff
+2026-04-25 14:43:17 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-04-25 14:43:19 [INFO] QwenScraper: Reusing existing profile 'account1'
+2026-04-25 14:43:19 [INFO] api_server: Navigating to conversation: https://chat.qwen.ai/c/e29ce7cc-15d1-4185-bbcb-90bf76f164ff
+2026-04-25 14:43:22 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 14:43:22 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 14:43:25 [INFO] QwenScraper: Submitting prompt (13 chars) [think_mode=fast]
+2026-04-25 14:43:32 [INFO] QwenScraper: Response ready (51 chars)
+2026-04-25 14:43:32 [INFO] QwenScraper: Scrape successful – 51 char(s), 0 code block(s)
+2026-04-25 14:43:32 [INFO] QwenScraper: Closing browser
+2026-04-25 14:43:32 [INFO] api_server: Done [chatcmpl] 51 chars | session=4044353a | cookie=account1.json | url=https://chat.qwen.ai/c/e29ce7cc-15d1-4185-bbcb-90bf76f164ff
+2026-04-25 14:44:27 [INFO] api_server: CONTINUE [chatcmpl] session=4044353a cookie=account1.json url=https://chat.qwen.ai/c/e29ce7cc-15d1-4185-bbcb-90bf76f164ff
+2026-04-25 14:44:27 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-04-25 14:44:29 [INFO] QwenScraper: Reusing existing profile 'account1'
+2026-04-25 14:44:29 [INFO] api_server: Navigating to conversation: https://chat.qwen.ai/c/e29ce7cc-15d1-4185-bbcb-90bf76f164ff
+2026-04-25 14:44:32 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 14:44:32 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 14:44:35 [INFO] QwenScraper: Submitting prompt (9 chars) [think_mode=fast]
+2026-04-25 14:44:41 [INFO] QwenScraper: Response ready (5 chars)
+2026-04-25 14:44:41 [INFO] QwenScraper: Scrape successful – 5 char(s), 0 code block(s)
+2026-04-25 14:44:41 [INFO] QwenScraper: Closing browser
+2026-04-25 14:44:41 [INFO] api_server: Done [chatcmpl] 5 chars | session=4044353a | cookie=account1.json | url=https://chat.qwen.ai/c/e29ce7cc-15d1-4185-bbcb-90bf76f164ff
+2026-04-25 15:33:05 [INFO] api_server: Server shutting down
+2026-04-25 16:21:31 [INFO] main: === Single prompt mode ===
+2026-04-25 16:21:31 [INFO] main: Prompt: Hello apakabar berapa 1 + 20929
+2026-04-25 16:21:31 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 16:21:31 [INFO] QwenScraper: Launching browser (headless=False, persistent=True)
+2026-04-25 16:21:33 [INFO] QwenScraper: Reusing existing profile 'account1'
+2026-04-25 16:21:33 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 16:21:33 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 16:21:33 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 16:21:35 [WARNING] QwenScraper: Timeout waiting for input ready: Timeout 100ms exceeded.
+2026-04-25 16:21:35 [INFO] QwenScraper: Setting think mode → 'fast'
+2026-04-25 16:21:37 [INFO] QwenScraper: Think mode confirmed → 'fast' ✓
+2026-04-25 16:21:40 [INFO] QwenScraper: Submitting prompt (31 chars) [think_mode=fast]
+2026-04-25 16:21:49 [INFO] QwenScraper: Response ready (151 chars)
+2026-04-25 16:21:49 [INFO] QwenScraper: Scrape successful – 151 char(s), 0 code block(s)
+2026-04-25 16:21:49 [INFO] QwenScraper: Closing browser
+2026-04-25 16:21:49 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-25 16:21:49 [INFO] main: RESPONSE (151 chars):
+2026-04-25 16:21:49 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-25 16:21:49 [INFO] main: Result JSON saved → C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\output\hello_apakabar_berapa_1_20929_20260425_162149.json
+2026-04-25 16:22:29 [INFO] main: === Single prompt mode ===
+2026-04-25 16:22:29 [INFO] main: Prompt: Hello apakabar berapa 1 + 20929
+2026-04-25 16:22:29 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 16:22:29 [INFO] QwenScraper: Launching browser (headless=False, persistent=True)
+2026-04-25 16:22:31 [INFO] QwenScraper: Reusing existing profile 'account1'
+2026-04-25 16:22:31 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 16:22:31 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 16:22:31 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 16:22:33 [WARNING] QwenScraper: Timeout waiting for input ready: Timeout 100ms exceeded.
+2026-04-25 16:22:33 [INFO] QwenScraper: Setting think mode → 'fast'
+2026-04-25 16:22:35 [INFO] QwenScraper: Think mode confirmed → 'fast' ✓
+2026-04-25 16:22:38 [INFO] QwenScraper: Submitting prompt (31 chars) [think_mode=fast]
+2026-04-25 16:22:46 [INFO] QwenScraper: Response ready (56 chars)
+2026-04-25 16:22:46 [INFO] QwenScraper: Scrape successful – 56 char(s), 0 code block(s)
+2026-04-25 16:22:46 [INFO] QwenScraper: Closing browser
+2026-04-25 16:22:46 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-25 16:22:46 [INFO] main: RESPONSE (56 chars):
+2026-04-25 16:22:46 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-25 16:22:46 [INFO] main: Result JSON saved → C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\output\hello_apakabar_berapa_1_20929_20260425_162246.json
+2026-04-25 16:23:12 [INFO] main: === Single prompt mode ===
+2026-04-25 16:23:12 [INFO] main: Prompt: Hello apakabar berapa 1 + 20922329
+2026-04-25 16:23:12 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 16:23:12 [INFO] QwenScraper: Launching browser (headless=False, persistent=True)
+2026-04-25 16:23:13 [INFO] QwenScraper: Reusing existing profile 'account1'
+2026-04-25 16:23:13 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 16:23:13 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 16:23:13 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 16:23:15 [WARNING] QwenScraper: Timeout waiting for input ready: Timeout 100ms exceeded.
+2026-04-25 16:23:16 [INFO] QwenScraper: Setting think mode → 'fast'
+2026-04-25 16:23:17 [INFO] QwenScraper: Think mode confirmed → 'fast' ✓
+2026-04-25 16:23:20 [INFO] QwenScraper: Submitting prompt (34 chars) [think_mode=fast]
+2026-04-25 16:23:29 [INFO] QwenScraper: Response ready (97 chars)
+2026-04-25 16:23:29 [INFO] QwenScraper: Scrape successful – 97 char(s), 0 code block(s)
+2026-04-25 16:23:29 [INFO] QwenScraper: Closing browser
+2026-04-25 16:23:29 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-25 16:23:29 [INFO] main: RESPONSE (97 chars):
+2026-04-25 16:23:29 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-25 16:23:29 [INFO] main: Result JSON saved → C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\output\hello_apakabar_berapa_1_209223_20260425_162329.json
+2026-04-25 17:41:31 [INFO] main: === Single prompt mode ===
+2026-04-25 17:41:31 [INFO] main: Prompt: Hello apakabar berapa 1 + 20922329
+2026-04-25 17:41:31 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 17:41:31 [INFO] QwenScraper: Launching browser (headless=False, persistent=True)
+2026-04-25 17:41:33 [INFO] QwenScraper: First run for profile 'account1' – seeding cookies
+2026-04-25 17:41:35 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 17:41:35 [INFO] QwenScraper: Cookie seeding complete for profile 'account1'
+2026-04-25 17:41:36 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 17:41:36 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 17:41:37 [WARNING] QwenScraper: Timeout waiting for input ready: Timeout 100ms exceeded.
+2026-04-25 17:41:37 [INFO] QwenScraper: Setting think mode → 'fast'
+2026-04-25 17:41:38 [INFO] QwenScraper: Think mode confirmed → 'fast' ✓
+2026-04-25 17:41:41 [INFO] QwenScraper: Submitting prompt (34 chars) [think_mode=fast]
+2026-04-25 17:41:50 [INFO] QwenScraper: Response ready (189 chars)
+2026-04-25 17:41:50 [INFO] QwenScraper: Scrape successful – 189 char(s), 0 code block(s)
+2026-04-25 17:41:50 [INFO] QwenScraper: Closing browser
+2026-04-25 17:41:50 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-25 17:41:50 [INFO] main: RESPONSE (189 chars):
+2026-04-25 17:41:50 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-25 17:41:50 [INFO] main: Result JSON saved → C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\output\hello_apakabar_berapa_1_209223_20260425_174150.json

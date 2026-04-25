@@ -1,8 +1,0 @@
-2026/04/25-13:42:52.045 39a8 Reusing MANIFEST C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\profiles\default\Default\Local Storage\leveldb/MANIFEST-000001
-2026/04/25-13:42:52.054 39a8 Recovering log #3
-2026/04/25-13:42:52.057 39a8 Level-0 table #3: started
-2026/04/25-13:42:52.064 39a8 Level-0 table #3: 138804 bytes OK
-2026/04/25-13:42:52.065 39a8 Recovering log #4
-2026/04/25-13:42:52.065 39a8 Reusing old log C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\profiles\default\Default\Local Storage\leveldb/000004.log 
-2026/04/25-13:42:52.071 39a8 Delete type=0 #3
-2026/04/25-13:42:52.071 39a8 Delete type=2 #5
