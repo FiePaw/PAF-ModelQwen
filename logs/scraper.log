@@ -390,3 +390,11 @@ NameError: name '_SEL' is not defined
 2026-04-25 08:42:01 [INFO] QwenScraper: Scrape successful – 1656 char(s), 0 code block(s)
 2026-04-25 08:42:01 [INFO] QwenScraper: Closing browser
 2026-04-25 08:42:02 [INFO] api_server: Request [chatcmpl-d4118c9501484f50a479bacb] completed: 1656 chars, 0 code blocks
+2026-04-25 12:01:24 [INFO] api_server: 🛑 AIChatScraper API Server shutting down
+2026-04-25 12:01:29 [INFO] api_server: ============================================================
+2026-04-25 12:01:29 [INFO] api_server:   AIChatScraper – OpenAI-Compatible API Server v2.0
+2026-04-25 12:01:29 [INFO] api_server:   Host       : http://127.0.0.1:12345
+2026-04-25 12:01:29 [INFO] api_server:   Workers    : 2
+2026-04-25 12:01:29 [INFO] api_server:   Session TTL: 3600s
+2026-04-25 12:01:29 [INFO] api_server:   Docs       : http://127.0.0.1:12345/docs
+2026-04-25 12:01:29 [INFO] api_server: ============================================================

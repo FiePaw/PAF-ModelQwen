@@ -13,12 +13,14 @@
 - [Menjalankan Server](#menjalankan-server)
 - [Referensi CLI](#referensi-cli)
 - [Endpoint API](#endpoint-api)
+- [Session & Continue Mode](#session--continue-mode)
+- [Cookie Rotation](#cookie-rotation)
 - [Panduan Client](#panduan-client)
   - [curl](#1-curl)
   - [Python requests](#2-python-requests)
   - [OpenAI Python SDK](#3-openai-python-sdk)
   - [Streaming](#4-streaming)
-  - [Percakapan Multi-turn](#5-percakapan-multi-turn)
+  - [Percakapan Continue Mode](#5-percakapan-continue-mode)
   - [Async httpx](#6-async-httpx)
 - [Format Request & Response](#format-request--response)
 - [Penanganan Error](#penanganan-error)
@@ -32,23 +34,36 @@
 Client (OpenAI SDK / curl / requests)
         │
         │  POST /v1/chat/completions
+        │  Header: X-Session-ID: <id>  ← opsional, untuk continue mode
         ▼
-  ┌─────────────────┐
-  │   api_server.py │  ← FastAPI + uvicorn
-  │   (port 8000)   │
-  └────────┬────────┘
-           │  ScraperPool (semaphore)
-           ▼
-  ┌─────────────────┐
-  │  QwenScraper    │  ← Playwright (Chromium headless)
-  │  base_scraper   │
-  └────────┬────────┘
-           │  Browser automation
-           ▼
-     chat.qwen.ai
+  ┌──────────────────────────────┐
+  │       api_server.py          │  FastAPI + uvicorn
+  │                              │
+  │  SessionStore                │  ← menyimpan session_id → cookie_file
+  │    session_id                │                           + conv_url
+  │    cookie_file  ─────────────┼─→ mode: continue (cookie & URL terkunci)
+  │    conversation_url          │
+  │                              │
+  │  CookieRotator               │  ← round-robin, hanya untuk mode: new
+  │    account1.json             │
+  │    account2.json  ───────────┼─→ mode: new (pilih cookie berikutnya)
+  │    account3.json             │
+  └──────────────┬───────────────┘
+                 │  ScraperPool (semaphore)
+                 ▼
+  ┌──────────────────────────────┐
+  │  QwenScraper (Playwright)    │  ← Chromium headless
+  │  load_cookies(cookie_file)   │
+  │  goto(conversation_url)?     │  ← hanya jika continue mode
+  └──────────────┬───────────────┘
+                 │
+                 ▼
+           chat.qwen.ai
 ```
 
-Server menerima request format OpenAI, menerjemahkannya ke browser automation via Playwright, lalu mengembalikan response dalam format OpenAI yang sama.
+**Mode `new`** — cookie dipilih otomatis oleh rotator (round-robin), conversation URL baru dibuat, session baru dikembalikan ke client lewat header `X-Session-ID`.
+
+**Mode `continue`** — client mengirim `X-Session-ID`, server mencari session yang tersimpan, mengunci ke cookie file yang sama, dan menavigasi browser ke conversation URL percakapan sebelumnya.
 
 ---
 
@@ -57,14 +72,17 @@ Server menerima request format OpenAI, menerjemahkannya ke browser automation vi
 ```
 project/
 ├── api_server.py              ← Server utama (entry point)
-├── main.py                    ← CLI scraper (terpisah dari server)
+├── main.py                    ← CLI scraper (terpisah)
 ├── config.py                  ← Konfigurasi global
-├── requirements_api.txt       ← Dependencies server
+├── requirements_api.txt       ← Dependencies
 ├── cookies/                   ← Letakkan file cookie di sini
 │   ├── account1.json
 │   └── account2.json
-├── output/                    ← Hasil scrape tersimpan di sini
+├── output/                    ← Hasil scrape
 ├── logs/                      ← Log file
+├── examples/
+│   ├── chat_cli.py            ← CLI chatbot interaktif
+│   └── client_examples.py    ← Contoh berbagai client
 └── scrapers/
     ├── base_scraper.py
     ├── qwen_scraper.py
@@ -75,36 +93,8 @@ project/
 
 ## Instalasi
 
-### 1. Clone / salin proyek
-
-```bash
-git clone <repo-url>
-cd project
-```
-
-### 2. Install Python dependencies
-
 ```bash
 pip install -r requirements_api.txt
-```
-
-Isi `requirements_api.txt`:
-
-```
-playwright>=1.44.0
-fastapi>=0.111.0
-uvicorn[standard]>=0.29.0
-pydantic>=2.7.0
-
-# Untuk client examples (opsional)
-openai>=1.30.0
-requests>=2.31.0
-httpx>=0.27.0
-```
-
-### 3. Install browser Playwright
-
-```bash
 playwright install chromium
 ```
 
@@ -112,18 +102,14 @@ playwright install chromium
 
 ## Konfigurasi Cookie
 
-Server memerlukan cookie dari akun Qwen AI yang sudah login agar bisa mengirim prompt.
-
 ### Cara export cookie
 
 1. Login ke [chat.qwen.ai](https://chat.qwen.ai) di browser
 2. Install ekstensi **Cookie-Editor** (Chrome/Firefox)
 3. Klik ekstensi → **Export** → **Export as JSON**
-4. Simpan file ke folder `cookies/` dengan nama bebas, misal `account1.json`
+4. Simpan file ke folder `cookies/`, misal `account1.json`
 
-### Multi-akun (rotasi otomatis)
-
-Simpan beberapa file cookie di folder `cookies/`:
+### Multi-akun (untuk cookie rotation)
 
 ```
 cookies/
@@ -132,51 +118,37 @@ cookies/
 └── account3.json
 ```
 
-Server akan otomatis berotasi ke akun berikutnya jika terkena rate limit atau session expired.
+Rotasi berjalan **round-robin** dan hanya aktif untuk request **mode `new`**. Request **mode `continue`** selalu menggunakan cookie file yang sama dengan sesi pertama.
 
 ---
 
 ## Menjalankan Server
 
-### Perintah dasar
-
 ```bash
+# Default (localhost:8000, 1 worker)
 python api_server.py
-```
 
-Server berjalan di `http://127.0.0.1:8000` secara default.
-
-### Dengan opsi lengkap
-
-```bash
-# Akses dari jaringan lokal (semua interface)
+# Akses dari jaringan lokal
 python api_server.py --host 0.0.0.0 --port 8000
 
-# Tampilkan jendela browser (non-headless, untuk debugging)
-python api_server.py --no-headless
-
-# Izinkan 3 request bersamaan
+# 3 sesi browser bersamaan
 python api_server.py --workers 3
 
-# Gunakan folder cookie kustom
-python api_server.py --cookies-dir /path/to/cookies
+# Tampilkan jendela browser (debugging)
+python api_server.py --no-headless
+
+# Session TTL 2 jam (default: 1 jam)
+python api_server.py --session-ttl 7200
 
 # Log lebih detail
 python api_server.py --log-level debug
-
-# Dev mode (auto-reload saat kode berubah)
-python api_server.py --reload
 ```
 
-### Verifikasi server berjalan
+### Verifikasi
 
 ```bash
 curl http://127.0.0.1:8000/health
-```
-
-Response:
-```json
-{"status": "ok", "timestamp": 1748000000}
+# {"status": "ok", "timestamp": 1748000000}
 ```
 
 ---
@@ -190,84 +162,129 @@ Response:
 | `--workers` | `1` | Jumlah sesi browser bersamaan |
 | `--no-headless` | `False` | Tampilkan jendela browser |
 | `--cookies-dir` | `./cookies` | Folder file cookie JSON |
+| `--session-ttl` | `3600` | Detik sebelum sesi idle kedaluwarsa |
 | `--reload` | `False` | Auto-reload (mode dev) |
-| `--log-level` | `info` | Level log: `debug/info/warning/error` |
+| `--log-level` | `info` | `debug/info/warning/error` |
 
 ---
 
 ## Endpoint API
 
 ### `GET /`
-Info server dan statistik pool.
-
-```bash
-curl http://127.0.0.1:8000/
-```
-
-```json
-{
-  "status": "ok",
-  "service": "AIChatScraper – OpenAI-Compatible API",
-  "backend": "Qwen AI (chat.qwen.ai)",
-  "pool": {
-    "max_workers": 1,
-    "active_sessions": 0,
-    "total_requests": 42
-  }
-}
-```
-
----
+Info server, statistik pool, dan jumlah sesi aktif.
 
 ### `GET /health`
 Health check minimal.
 
-```bash
-curl http://127.0.0.1:8000/health
-```
-
-```json
-{"status": "ok", "timestamp": 1748000000}
-```
-
----
-
 ### `GET /v1/models`
 Daftar model yang tersedia (format OpenAI).
 
+### `GET /v1/sessions`
+Daftar semua sesi continue-mode yang aktif.
+
 ```bash
-curl http://127.0.0.1:8000/v1/models
+curl http://127.0.0.1:8000/v1/sessions
 ```
 
 ```json
 {
   "object": "list",
+  "count": 2,
   "data": [
-    {"id": "qwen", "object": "model", "owned_by": "qwen-ai"},
-    {"id": "qwen-turbo", "object": "model", "owned_by": "qwen-ai"}
+    {
+      "session_id": "a1b2c3d4...",
+      "cookie_file": "account1.json",
+      "conversation_url": "https://chat.qwen.ai/c/abc123",
+      "created_at": "2025-01-01T10:00:00",
+      "last_used": "2025-01-01T10:05:00",
+      "turn_count": 3
+    }
   ]
 }
 ```
 
----
+### `DELETE /v1/sessions/{session_id}`
+Hapus sesi. Request berikutnya dengan ID ini akan memulai percakapan baru.
+
+```bash
+curl -X DELETE http://127.0.0.1:8000/v1/sessions/a1b2c3d4...
+```
 
 ### `POST /v1/chat/completions`
-Endpoint utama. Menerima format OpenAI Chat Completions.
+Endpoint utama chat — lihat detail di bawah.
 
-**Request body:**
+---
 
-| Field | Tipe | Wajib | Keterangan |
-|---|---|---|---|
-| `model` | string | ✅ | Gunakan `"qwen"` |
-| `messages` | array | ✅ | Array objek `{role, content}` |
-| `stream` | boolean | ❌ | `true` untuk streaming SSE |
-| `temperature` | float | ❌ | Diterima tapi diabaikan |
-| `max_tokens` | int | ❌ | Diterima tapi diabaikan |
+## Session & Continue Mode
 
-**Role yang didukung:**
-- `"system"` — instruksi sistem (digabung ke prompt)
-- `"user"` — pesan pengguna (prompt yang dikirim)
-- `"assistant"` — riwayat jawaban (mengaktifkan mode `continue`)
+Setiap percakapan memiliki **session** yang menyimpan:
+- `session_id` — pengenal unik sesi
+- `cookie_file` — cookie account yang digunakan (dikunci sejak awal sesi)
+- `conversation_url` — URL percakapan Qwen yang aktif
+
+### Alur lengkap
+
+**Request pertama (mode new — tanpa `X-Session-ID`):**
+
+```
+Client → POST /v1/chat/completions
+         (tanpa X-Session-ID)
+              ↓
+         CookieRotator pilih: account2.json
+         Buka browser baru → chat.qwen.ai
+         Kirim prompt → tunggu respons
+         Simpan URL: chat.qwen.ai/c/xyz789
+         Buat session baru
+              ↓
+Client ← Response + Headers:
+         X-Session-ID: abc...
+         X-Cookie-File: account2.json
+         X-Conversation-URL: https://chat.qwen.ai/c/xyz789
+```
+
+**Request berikutnya (mode continue — dengan `X-Session-ID`):**
+
+```
+Client → POST /v1/chat/completions
+         Header: X-Session-ID: abc...
+              ↓
+         Cari session "abc..." → ditemukan
+         Gunakan: account2.json (dikunci, tidak dirotasi)
+         Buka browser → goto(chat.qwen.ai/c/xyz789)
+         Kirim prompt → tunggu respons
+              ↓
+Client ← Response + Headers:
+         X-Session-ID: abc...          (sama)
+         X-Cookie-File: account2.json  (sama)
+         X-Conversation-URL: ...       (sama)
+```
+
+### Session TTL
+
+Sesi kedaluwarsa otomatis setelah `--session-ttl` detik tidak digunakan (default 1 jam). Jika ID yang dikirim sudah expired, server otomatis membuat sesi baru.
+
+---
+
+## Cookie Rotation
+
+Rotasi berjalan **round-robin** di antara semua file `.json` di folder `cookies/`:
+
+```
+Request 1 (new) → account1.json  → Session A terkunci ke account1.json
+Request 2 (new) → account2.json  → Session B terkunci ke account2.json
+Request 3 (new) → account3.json  → Session C terkunci ke account3.json
+Request 4 (new) → account1.json  → (mulai ulang)
+
+Request 5 (continue, Session A) → account1.json  ← dikunci, tidak dirotasi
+Request 6 (continue, Session B) → account2.json  ← dikunci, tidak dirotasi
+```
+
+Cek cookie yang tersedia:
+
+```bash
+curl http://127.0.0.1:8000/
+# response.pool.available_cookies: ["account1.json", "account2.json"]
+```
 
 ---
 
@@ -275,116 +292,90 @@ Endpoint utama. Menerima format OpenAI Chat Completions.
 
 ### 1. curl
 
-**Non-streaming:**
+**Mode new (pertama kali):**
 
 ```bash
 curl http://127.0.0.1:8000/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -d '{
-    "model": "qwen",
-    "messages": [
-      {"role": "user", "content": "Jelaskan apa itu recursion dalam pemrograman."}
-    ]
-  }'
+  -D - \
+  -d '{"model":"qwen","messages":[{"role":"user","content":"Apa itu asyncio?"}]}'
 ```
 
-**Streaming:**
+Catat `X-Session-ID` dari response header, lalu:
+
+**Mode continue:**
 
 ```bash
 curl http://127.0.0.1:8000/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -N \
-  -d '{
-    "model": "qwen",
-    "stream": true,
-    "messages": [
-      {"role": "user", "content": "Tulis fungsi Python untuk bubble sort."}
-    ]
-  }'
+  -H "X-Session-ID: a1b2c3d4..." \
+  -d '{"model":"qwen","messages":[{"role":"user","content":"Berikan contoh kode."}]}'
 ```
-
-> `-N` menonaktifkan buffering agar output streaming langsung tampil.
 
 ---
 
-### 2. Python `requests`
-
-**Non-streaming:**
+### 2. Python requests
 
 ```python
 import requests
 
-response = requests.post(
-    "http://127.0.0.1:8000/v1/chat/completions",
-    json={
-        "model": "qwen",
-        "messages": [
-            {"role": "user", "content": "Apa itu decorator di Python?"}
-        ],
-    },
-    timeout=120,
-)
+BASE = "http://127.0.0.1:8000"
+session_id = None
 
-data = response.json()
-print(data["choices"][0]["message"]["content"])
-print("Token digunakan:", data["usage"]["total_tokens"])
-```
+def chat(prompt: str) -> str:
+    global session_id
+    headers = {}
+    if session_id:
+        headers["X-Session-ID"] = session_id
 
-**Streaming:**
+    r = requests.post(
+        f"{BASE}/v1/chat/completions",
+        headers=headers,
+        json={"model": "qwen", "messages": [{"role": "user", "content": prompt}]},
+        timeout=120,
+    )
+    r.raise_for_status()
+    session_id = r.headers.get("X-Session-ID", session_id)
+    return r.json()["choices"][0]["message"]["content"]
 
-```python
-import json
-import requests
-
-with requests.post(
-    "http://127.0.0.1:8000/v1/chat/completions",
-    json={
-        "model": "qwen",
-        "stream": True,
-        "messages": [{"role": "user", "content": "Jelaskan asyncio."}],
-    },
-    stream=True,
-    timeout=180,
-) as resp:
-    for line in resp.iter_lines():
-        if line:
-            line = line.decode("utf-8")
-            if line.startswith("data: ") and line != "data: [DONE]":
-                chunk = json.loads(line[6:])
-                delta = chunk["choices"][0]["delta"].get("content", "")
-                print(delta, end="", flush=True)
+print(chat("Jelaskan list comprehension."))
+print(chat("Dan generator expression?"))   # continue mode otomatis
 ```
 
 ---
 
 ### 3. OpenAI Python SDK
 
-Install SDK-nya terlebih dahulu:
-
-```bash
-pip install openai
-```
-
-**Basic:**
+Gunakan `x_meta.session_id` dari body response untuk membaca session tanpa akses langsung ke response headers:
 
 ```python
-from openai import OpenAI
+import requests
 
-client = OpenAI(
-    base_url="http://127.0.0.1:8000/v1",
-    api_key="tidak-diperlukan",   # server tidak memvalidasi API key
-)
+BASE = "http://127.0.0.1:8000"
+session_id = None
 
-completion = client.chat.completions.create(
-    model="qwen",
-    messages=[
-        {"role": "system", "content": "Kamu adalah asisten pemrograman yang helpful."},
-        {"role": "user",   "content": "Berikan contoh penggunaan context manager di Python."},
-    ],
-)
+def chat(prompt: str) -> str:
+    global session_id
+    headers = {}
+    if session_id:
+        headers["X-Session-ID"] = session_id
 
-print(completion.choices[0].message.content)
-print(f"Tokens: {completion.usage.total_tokens}")
+    r = requests.post(
+        f"{BASE}/v1/chat/completions",
+        headers=headers,
+        json={"model": "qwen", "messages": [{"role": "user", "content": prompt}]},
+        timeout=120,
+    )
+    r.raise_for_status()
+    data = r.json()
+
+    # Ambil session dari body (x_meta) atau header
+    session_id = data.get("x_meta", {}).get("session_id") or \
+                 r.headers.get("X-Session-ID", session_id)
+    return data["choices"][0]["message"]["content"]
+
+print(chat("Apa itu context manager?"))
+print(chat("Contoh custom context manager?"))
 ```
 
 ---
@@ -392,124 +383,170 @@ print(f"Tokens: {completion.usage.total_tokens}")
 ### 4. Streaming
 
 ```python
-from openai import OpenAI
+import json, requests
 
-client = OpenAI(
-    base_url="http://127.0.0.1:8000/v1",
-    api_key="tidak-diperlukan",
-)
+BASE = "http://127.0.0.1:8000"
+session_id = None
 
-print("Response: ", end="", flush=True)
+def chat_stream(prompt: str) -> str:
+    global session_id
+    headers = {}
+    if session_id:
+        headers["X-Session-ID"] = session_id
 
-with client.chat.completions.create(
-    model="qwen",
-    stream=True,
-    messages=[
-        {"role": "user", "content": "Tulis class Python untuk stack data structure."},
-    ],
-) as stream:
-    for chunk in stream:
-        delta = chunk.choices[0].delta.content or ""
-        print(delta, end="", flush=True)
+    full_text = ""
+    with requests.post(
+        f"{BASE}/v1/chat/completions",
+        headers=headers,
+        json={"model": "qwen", "stream": True,
+              "messages": [{"role": "user", "content": prompt}]},
+        stream=True, timeout=180,
+    ) as resp:
+        resp.raise_for_status()
+        session_id = resp.headers.get("X-Session-ID", session_id)
+        for raw in resp.iter_lines():
+            if not raw:
+                continue
+            line = raw.decode() if isinstance(raw, bytes) else raw
+            if not line.startswith("data: ") or line == "data: [DONE]":
+                continue
+            delta = json.loads(line[6:])["choices"][0]["delta"].get("content", "")
+            print(delta, end="", flush=True)
+            full_text += delta
+    print()
+    return full_text
 
-print()  # newline di akhir
+print(chat_stream("Jelaskan asyncio event loop."))
+print(chat_stream("Contoh kode sederhana?"))   # continue
 ```
 
 ---
 
-### 5. Percakapan Multi-turn
+### 5. Percakapan Continue Mode
 
-Server secara otomatis mendeteksi mode percakapan:
-- Jika ada pesan `"assistant"` dalam history → mode `continue` (lanjut chat yang sama)
-- Jika tidak ada → mode `new` (buka chat baru)
+Contoh kelas wrapper lengkap:
 
 ```python
-from openai import OpenAI
+import requests
 
-client = OpenAI(
-    base_url="http://127.0.0.1:8000/v1",
-    api_key="tidak-diperlukan",
-)
+class QwenChat:
+    def __init__(self, base_url="http://127.0.0.1:8000"):
+        self.base_url = base_url
+        self.session_id = None
+        self.cookie_file = None
+        self.conv_url = None
 
-# Simpan history percakapan secara manual
-messages = [
-    {"role": "system", "content": "Kamu adalah tutor Python yang sabar."},
-]
+    def send(self, prompt: str) -> str:
+        headers = {}
+        if self.session_id:
+            headers["X-Session-ID"] = self.session_id
 
-def chat(user_input: str) -> str:
-    messages.append({"role": "user", "content": user_input})
-
-    response = client.chat.completions.create(
-        model="qwen",
-        messages=messages,
-    )
-
-    reply = response.choices[0].message.content
-    messages.append({"role": "assistant", "content": reply})
-    return reply
-
-# Simulasi percakapan
-print(chat("Apa itu list comprehension?"))
-print(chat("Berikan 3 contoh nyatanya."))
-print(chat("Bagaimana bedanya dengan generator expression?"))
-```
-
----
-
-### 6. Async `httpx`
-
-```python
-import asyncio
-import httpx
-
-async def ask_qwen(prompt: str) -> str:
-    async with httpx.AsyncClient(timeout=180) as client:
-        response = await client.post(
-            "http://127.0.0.1:8000/v1/chat/completions",
-            json={
-                "model": "qwen",
-                "messages": [{"role": "user", "content": prompt}],
-            },
+        r = requests.post(
+            f"{self.base_url}/v1/chat/completions",
+            headers=headers,
+            json={"model": "qwen", "messages": [{"role": "user", "content": prompt}]},
+            timeout=180,
         )
-        response.raise_for_status()
-        data = response.json()
-        return data["choices"][0]["message"]["content"]
+        r.raise_for_status()
+
+        self.session_id = r.headers.get("X-Session-ID", self.session_id)
+        self.cookie_file = r.headers.get("X-Cookie-File", self.cookie_file)
+        self.conv_url = r.headers.get("X-Conversation-URL", self.conv_url)
+        return r.json()["choices"][0]["message"]["content"]
+
+    def info(self):
+        print(f"Session  : {self.session_id}")
+        print(f"Cookie   : {self.cookie_file}")
+        print(f"Conv URL : {self.conv_url}")
+
+    def reset(self):
+        """Hapus sesi, mulai percakapan baru."""
+        if self.session_id:
+            requests.delete(f"{self.base_url}/v1/sessions/{self.session_id}")
+        self.session_id = None
+        self.cookie_file = None
+        self.conv_url = None
+
+# Penggunaan
+qwen = QwenChat()
+
+print(qwen.send("Apa itu design pattern?"))
+qwen.info()
+
+print(qwen.send("Jelaskan Singleton."))      # continue
+print(qwen.send("Contoh di Python."))         # continue
+
+qwen.reset()
+print(qwen.send("Apa itu Docker?"))          # new session
+qwen.info()                                   # cookie & URL baru
+```
+
+---
+
+### 6. Async httpx
+
+```python
+import asyncio, httpx
+
+BASE = "http://127.0.0.1:8000"
+
+async def ask_qwen(prompt: str, session_id: str | None = None) -> tuple[str, str]:
+    headers = {}
+    if session_id:
+        headers["X-Session-ID"] = session_id
+
+    async with httpx.AsyncClient(timeout=180) as client:
+        r = await client.post(
+            f"{BASE}/v1/chat/completions",
+            headers=headers,
+            json={"model": "qwen", "messages": [{"role": "user", "content": prompt}]},
+        )
+        r.raise_for_status()
+    return r.json()["choices"][0]["message"]["content"], r.headers.get("X-Session-ID", "")
 
 async def main():
-    # Kirim beberapa prompt secara bersamaan
-    prompts = [
-        "Apa itu Python GIL?",
-        "Jelaskan perbedaan list dan tuple.",
-        "Apa kegunaan __slots__ di Python?",
-    ]
-    results = await asyncio.gather(*[ask_qwen(p) for p in prompts])
-    for prompt, result in zip(prompts, results):
-        print(f"Q: {prompt}")
-        print(f"A: {result[:200]}\n")
+    reply1, sid = await ask_qwen("Apa itu Rust?")
+    print(f"[{sid[:8]}] {reply1[:200]}")
+
+    reply2, sid = await ask_qwen("Mengapa memory-safe?", session_id=sid)
+    print(f"[{sid[:8]}] {reply2[:200]}")
 
 asyncio.run(main())
 ```
-
-> **Catatan:** Concurrent request dibatasi oleh `--workers` di server. Jika `--workers 1`, request akan diproses satu per satu secara antrian.
 
 ---
 
 ## Format Request & Response
 
-### Request (POST `/v1/chat/completions`)
+### Request headers
+
+| Header | Keterangan |
+|---|---|
+| `Content-Type: application/json` | Wajib |
+| `X-Session-ID` | Opsional — kirim untuk mode continue |
+
+### Request body
 
 ```json
 {
   "model": "qwen",
   "messages": [
     {"role": "system", "content": "Instruksi sistem (opsional)"},
-    {"role": "user",   "content": "Pertanyaan atau prompt kamu di sini"}
+    {"role": "user",   "content": "Pertanyaan kamu di sini"}
   ],
   "stream": false
 }
 ```
 
-### Response (non-streaming)
+### Response headers
+
+| Header | Keterangan |
+|---|---|
+| `X-Session-ID` | **Simpan ini** — kirim kembali untuk continue mode |
+| `X-Cookie-File` | Nama cookie file yang dikunci ke sesi ini |
+| `X-Conversation-URL` | URL percakapan Qwen yang aktif |
+
+### Response body (non-streaming)
 
 ```json
 {
@@ -520,10 +557,7 @@ asyncio.run(main())
   "choices": [
     {
       "index": 0,
-      "message": {
-        "role": "assistant",
-        "content": "Jawaban dari Qwen AI di sini..."
-      },
+      "message": {"role": "assistant", "content": "Jawaban dari Qwen..."},
       "finish_reason": "stop"
     }
   ],
@@ -531,25 +565,17 @@ asyncio.run(main())
     "prompt_tokens": 12,
     "completion_tokens": 148,
     "total_tokens": 160
+  },
+  "x_meta": {
+    "session_id": "a1b2c3d4...",
+    "cookie_file": "account1.json",
+    "conversation_url": "https://chat.qwen.ai/c/xyz789",
+    "account_used": "account1"
   }
 }
 ```
 
-> Token dihitung dengan estimasi kasar (~4 karakter per token), bukan tokenizer asli.
-
-### Response (streaming)
-
-Server mengirim Server-Sent Events (SSE):
-
-```
-data: {"id":"chatcmpl-...","choices":[{"delta":{"role":"assistant","content":""},...}]}
-
-data: {"id":"chatcmpl-...","choices":[{"delta":{"content":"Jawaban"},...}]}
-
-data: {"id":"chatcmpl-...","choices":[{"delta":{},"finish_reason":"stop"}]}
-
-data: [DONE]
-```
+> `x_meta` adalah ekstensi non-standar — berguna untuk client yang tidak bisa membaca response headers secara langsung (misal beberapa OpenAI SDK wrapper).
 
 ---
 
@@ -557,36 +583,30 @@ data: [DONE]
 
 | HTTP Status | Penyebab | Solusi |
 |---|---|---|
-| `400` | Tidak ada pesan `user` dalam `messages` | Pastikan ada minimal satu `{"role":"user","content":"..."}` |
-| `500` | Error internal server | Cek log di `logs/scraper.log` |
-| `502` | Scraper gagal (Qwen tidak merespons) | Cek koneksi internet dan status cookie |
-| `503` | Pool belum siap | Tunggu beberapa detik, server mungkin baru start |
-| `504` | Qwen tidak merespons dalam batas waktu | Coba lagi; Qwen mungkin lambat saat ini |
-
-**Contoh error response:**
-
-```json
-{
-  "error": {
-    "message": "Scraper error: All attempts exhausted",
-    "type": "internal_server_error",
-    "code": 502
-  }
-}
-```
+| `400` | Tidak ada pesan `user` | Pastikan ada `{"role":"user","content":"..."}` |
+| `404` | Session ID tidak ditemukan | Session expired atau ID salah |
+| `500` | Error internal | Cek `logs/scraper.log` |
+| `502` | Scraper gagal | Cek koneksi dan cookie |
+| `503` | Pool belum siap | Tunggu beberapa detik |
+| `504` | Qwen timeout | Coba lagi |
 
 ---
 
 ## Tips & Catatan
 
-**Cookie expired** — Jika server terus mengembalikan 502, kemungkinan cookie sudah expired. Export ulang cookie dari browser dan ganti file di folder `cookies/`.
+**Session expired** — Jika session ID tidak ditemukan, server otomatis membuat sesi baru dan mengembalikan `X-Session-ID` baru. Client perlu memperbarui ID yang disimpan.
 
-**Timeout panjang** — Qwen AI bisa butuh waktu lama untuk menjawab prompt yang kompleks. Default timeout adalah 5 menit. Sesuaikan `timeout` di sisi client jika perlu.
+**Cookie rotation hanya untuk mode new** — Setiap sesi baru dipasangkan ke satu cookie file secara permanen. Rotasi terjadi di antara sesi-sesi baru, bukan di dalam satu sesi yang sama.
 
-**Concurrent workers** — Setiap worker membuka satu instance browser Chromium. Jangan set `--workers` terlalu tinggi karena setiap browser mengkonsumsi RAM (~200–400 MB per instance).
+**`x_meta` dalam response body** — Berisi `session_id`, `cookie_file`, dan `conversation_url` di dalam body JSON — alternatif bagi client yang tidak bisa membaca response headers.
 
-**Swagger UI** — Dokumentasi interaktif tersedia otomatis di `http://127.0.0.1:8000/docs` selama server berjalan.
+**Concurrent workers** — Setiap worker membuka satu instance Chromium (~200–400 MB RAM). Jangan set `--workers` terlalu tinggi.
 
-**`api_key` tidak divalidasi** — Server menerima nilai apapun untuk field `api_key`. Isi string sembarang agar SDK tidak error.
+**Swagger UI** — Tersedia di `http://127.0.0.1:8000/docs` selama server berjalan.
 
-**Mode `system`** — Pesan dengan role `"system"` diterima oleh server, namun saat ini tidak diteruskan secara terpisah ke Qwen — hanya pesan `user` terakhir yang dikirim sebagai prompt aktif.
+**CLI chatbot** — `examples/chat_cli.py` mengelola session secara otomatis dan menampilkan info cookie + session setelah giliran pertama:
+
+```bash
+python examples/chat_cli.py --stream
+python examples/chat_cli.py --system "Kamu adalah tutor Python."
+```

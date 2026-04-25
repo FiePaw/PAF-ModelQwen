@@ -73,12 +73,16 @@ CLEAR_COMMANDS = {"/clear", "/reset", "/baru"}
 
 class QwenChatClient:
     def __init__(self, base_url: str, stream: bool = False, timeout: int = 300):
-        self.base_url  = base_url.rstrip("/")
-        self.stream    = stream
-        self.timeout   = timeout
+        self.base_url       = base_url.rstrip("/")
+        self.stream         = stream
+        self.timeout        = timeout
         self.messages: list[dict] = []
-        self.session   = requests.Session()
+        self.session        = requests.Session()
         self.session.headers.update({"Content-Type": "application/json"})
+        # Session tracking (continue mode)
+        self.session_id: str | None = None
+        self.cookie_file: str | None = None
+        self.conversation_url: str | None = None
 
     # ── Koneksi ───────────────────────────────────────────────────────────────
 
@@ -111,6 +115,9 @@ class QwenChatClient:
             "stream": self.stream,
             "messages": self._build_messages(system_prompt),
         }
+        # Attach session ID header jika sudah ada (mode continue)
+        if self.session_id:
+            self.session.headers["X-Session-ID"] = self.session_id
 
         try:
             if self.stream:
@@ -129,6 +136,18 @@ class QwenChatClient:
 
         return reply
 
+    def _save_session_headers(self, resp: "requests.Response") -> None:
+        """Simpan X-Session-ID, X-Cookie-File, X-Conversation-URL dari response."""
+        sid = resp.headers.get("X-Session-ID", "")
+        if sid:
+            self.session_id = sid
+        cf = resp.headers.get("X-Cookie-File", "")
+        if cf:
+            self.cookie_file = cf
+        cu = resp.headers.get("X-Conversation-URL", "")
+        if cu:
+            self.conversation_url = cu
+
     def _build_messages(self, system_prompt: str) -> list[dict]:
         msgs = []
         if system_prompt:
@@ -143,6 +162,7 @@ class QwenChatClient:
             timeout=self.timeout,
         )
         r.raise_for_status()
+        self._save_session_headers(r)
         return r.json()["choices"][0]["message"]["content"]
 
     def _send_streaming(self, payload: dict) -> str:
@@ -155,6 +175,7 @@ class QwenChatClient:
             timeout=self.timeout,
         ) as resp:
             resp.raise_for_status()
+            self._save_session_headers(resp)
             for raw_line in resp.iter_lines():
                 if not raw_line:
                     continue
@@ -179,6 +200,11 @@ class QwenChatClient:
 
     def clear_history(self) -> None:
         self.messages.clear()
+        self.session_id = None
+        self.cookie_file = None
+        self.conversation_url = None
+        if "X-Session-ID" in self.session.headers:
+            del self.session.headers["X-Session-ID"]
 
     def _pop_last_user(self) -> None:
         if self.messages and self.messages[-1]["role"] == "user":
@@ -300,6 +326,10 @@ def run_chat(args: argparse.Namespace) -> None:
             print(f"  Active       : {pool.get('active_sessions', '?')}/{pool.get('max_workers', '?')}")
             print(f"  Total req    : {pool.get('total_requests', '?')}")
             print(f"  Pesan history: {len(client.messages)}")
+            print(f"\n{GRAY}  Sesi aktif:{RESET}")
+            print(f"  Session ID   : {client.session_id or '(belum ada)'}")
+            print(f"  Cookie file  : {client.cookie_file or '(belum ada)'}")
+            print(f"  Conv URL     : {client.conversation_url or '(belum ada)'}")
             print()
             continue
 
@@ -343,9 +373,13 @@ def run_chat(args: argparse.Namespace) -> None:
                 print(f"\n{GREEN}{BOLD}Qwen{RESET} {GRAY}[{timestamp()}] ({elapsed:.1f}s){RESET}")
                 print(format_response(reply))
             else:
-                # Pada streaming, teks sudah dicetak di _send_streaming
-                # Hanya cetak footer waktu
                 print(f"{GRAY}  ── selesai dalam {elapsed:.1f}s{RESET}")
+            if turn == 1 and client.session_id:
+                print(
+                    f"{GRAY}  ● Sesi dimulai │ "
+                    f"cookie: {client.cookie_file} │ "
+                    f"session: {client.session_id[:12]}...{RESET}"
+                )
             print()
         else:
             print(f"\n{RED}  [ERROR] Tidak ada respons dari server.{RESET}\n")
