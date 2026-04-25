@@ -6,13 +6,18 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
+from typing import Literal
 
 from config import QWEN_CONFIG, ROTATION_CONFIG
 from scrapers.base_scraper import BaseAIChatScraper
-from scrapers.utils import contains_any
+from scrapers.utils import contains_any, discover_cookie_files
 
 
 _TIMEOUT = QWEN_CONFIG["timeouts"]
+_SELECTORS = QWEN_CONFIG["selectors"]
+_THINK_LABELS = QWEN_CONFIG["think_mode_labels"]
+
+ThinkMode = Literal["auto", "thinking", "fast"]
 
 
 class QwenScraper(BaseAIChatScraper):
@@ -30,6 +35,7 @@ class QwenScraper(BaseAIChatScraper):
         headless: bool = True,
         cookies_path: Path | str | None = None,
         cookies_dir: Path | str | None = None,
+        think_mode: ThinkMode | None = None,
     ) -> None:
         super().__init__(
             headless=headless,
@@ -38,6 +44,18 @@ class QwenScraper(BaseAIChatScraper):
         )
         self._conversation_started = False
         self._last_prompt = ""
+        # Use provided think_mode or fall back to config default
+        self._think_mode: ThinkMode = think_mode or QWEN_CONFIG["default_think_mode"]
+        self._think_mode_applied = False   # reset when a new chat page is loaded
+
+    # ── Context manager override ──────────────────────────────────────────────
+
+    async def __aenter__(self) -> "QwenScraper":
+        self._discover_accounts()
+        return await super().__aenter__()
+
+    def _extra_send_kwargs(self) -> dict:
+        return {"think_mode": self._think_mode}
 
     # ── Navigation ────────────────────────────────────────────────────────────
 
@@ -46,15 +64,265 @@ class QwenScraper(BaseAIChatScraper):
         await self._page.goto(
             self.BASE_URL, wait_until="domcontentloaded", timeout=_TIMEOUT["page_load"]
         )
-        await asyncio.sleep(3)
+        
+        # Tunggu input field siap (bukan sleep blind)
+        try:
+            await self._page.wait_for_selector(
+                self._SEL_TEXTAREA, 
+                timeout=_TIMEOUT["between_actions"] * 3
+            )
+            await self._page.wait_for_load_state("networkidle", timeout=100)
+        except Exception as e:
+            self.logger.warning("Timeout waiting for input ready: %s", e)
+        
         self._conversation_started = False
+        self._think_mode_applied = False
         self.logger.debug("Landed on new-chat page")
+
+    async def _rotate_and_reset(self) -> bool:
+        """Rotate account and reset think-mode state for the new session."""
+        rotated = await self._rotate_account()
+        if rotated:
+            self._think_mode_applied = False
+        return rotated
 
     async def _ensure_page_ready(self, mode: str) -> None:
         if mode == "new" or not self._conversation_started:
             await self._goto_new_chat()
         else:
             self.logger.debug("Continuing existing conversation")
+
+    # ── Think mode ────────────────────────────────────────────────────────────
+
+    async def _get_current_think_mode(self) -> str:
+        """Read the currently active think mode label from the UI."""
+        _CURRENT_MODE_CANDIDATES = [
+            _SELECTORS["think_mode_selected"],       # .qwen-select-option-selected-label-container
+            _SELECTORS["think_mode_trigger"],        # .qwen-select-thinking-label
+            "[class*='thinking-label']",
+            "[class*='think-mode-label']",
+            "[class*='selected-label']",
+        ]
+        for sel in _CURRENT_MODE_CANDIDATES:
+            try:
+                el = await self._page.query_selector(sel)
+                if el and await el.is_visible():
+                    text = (await el.inner_text()).strip().lower()
+                    if text in ("auto", "thinking", "fast"):
+                        return text
+                    for label in ("thinking", "fast", "auto"):
+                        if label in text:
+                            return label
+            except Exception:
+                continue
+        return ""
+
+    async def debug_think_mode_selectors(self) -> dict:
+        """
+        Diagnostic helper: scan the page for any elements that might be
+        related to the think-mode UI. Run with --no-headless to inspect.
+        Returns a dict of selector → matched element info.
+        """
+        result = await self._page.evaluate("""
+        () => {
+            const knownLabels = ['auto', 'thinking', 'fast'];
+            const found = [];
+            const walker = document.createTreeWalker(
+                document.body, NodeFilter.SHOW_ELEMENT
+            );
+            let node;
+            while ((node = walker.nextNode())) {
+                const text = (node.innerText || '').trim().toLowerCase();
+                if (knownLabels.includes(text) && node.offsetParent !== null) {
+                    found.push({
+                        tag: node.tagName,
+                        className: node.className,
+                        text: text,
+                        id: node.id,
+                        parentClass: node.parentElement
+                            ? node.parentElement.className : '',
+                    });
+                }
+            }
+            return found;
+        }
+        """)
+        self.logger.info("Think-mode debug scan found %d element(s): %s", len(result), result)
+        return {"elements": result}
+
+    async def _set_think_mode(self, mode: ThinkMode) -> bool:
+        """
+        Select *mode* in the Qwen think-mode dropdown.
+        Returns True if the selection was applied (or already correct).
+
+        Strategy (cascading fallbacks):
+          1. Skip if the UI already shows the correct mode.
+          2. Try multiple trigger selectors to open the dropdown.
+          3. Wait briefly for the dropdown/popover to appear.
+          4. Attempt to click the matching option via several selector patterns.
+          5. JS brute-force fallback scanning all visible text nodes.
+          6. Verify and mark as applied regardless (don't block scraping).
+        """
+        target_label = _THINK_LABELS.get(mode, mode).lower()
+
+        # ── Step 1: skip if already correct ──────────────────────────────────
+        current = await self._get_current_think_mode()
+        if current and target_label in current:
+            self.logger.debug("Think mode already '%s' – skipping", mode)
+            self._think_mode_applied = True
+            return True
+
+        self.logger.info("Setting think mode → '%s'", mode)
+
+        # ── Step 2: open the dropdown via multiple trigger candidates ─────────
+        _TRIGGER_CANDIDATES = [
+            # Confirmed class names seen on chat.qwen.ai
+            ".qwen-select-thinking-label",
+            "[class*='thinking-label']",
+            "[class*='think-mode']",
+            "[class*='qwen-select']",
+            # Generic fallbacks: buttons / divs near the textarea
+            "button[class*='think']",
+            "div[class*='think']",
+            # Any element whose visible text matches known mode labels
+        ]
+
+        trigger_clicked = False
+        for sel in _TRIGGER_CANDIDATES:
+            try:
+                el = await self._page.query_selector(sel)
+                if el and await el.is_visible():
+                    await el.click()
+                    trigger_clicked = True
+                    self.logger.debug("Opened think-mode dropdown via selector: %s", sel)
+                    break
+            except Exception:
+                continue
+
+        # JS fallback: find any visible element whose text is a known mode label
+        if not trigger_clicked:
+            trigger_clicked = await self._page.evaluate("""
+            () => {
+                const knownLabels = ['auto', 'thinking', 'fast'];
+                const walk = document.createTreeWalker(
+                    document.body, NodeFilter.SHOW_ELEMENT
+                );
+                let node;
+                while ((node = walk.nextNode())) {
+                    const text = (node.innerText || '').trim().toLowerCase();
+                    if (
+                        knownLabels.includes(text) &&
+                        node.offsetParent !== null &&
+                        !['INPUT','TEXTAREA'].includes(node.tagName)
+                    ) {
+                        node.click();
+                        return true;
+                    }
+                }
+                return false;
+            }
+            """)
+            if trigger_clicked:
+                self.logger.debug("Opened think-mode dropdown via JS label scan")
+
+        if not trigger_clicked:
+            self.logger.warning("Could not locate think-mode trigger – skipping mode set")
+            return False
+
+        await asyncio.sleep(0.5)  # allow dropdown animation to complete
+
+        # ── Step 3 & 4: find and click the target option ──────────────────────
+        _OPTION_SELECTORS = [
+            # rc-select virtual list (Ant Design)
+            ".rc-virtual-list-holder-inner > *",
+            ".rc-virtual-list-holder-inner li",
+            # Ant Design Select options
+            ".ant-select-item",
+            ".ant-select-item-option",
+            # Generic dropdown patterns
+            "[class*='option-item']",
+            "[class*='select-option']",
+            "[class*='dropdown-item']",
+            "[role='option']",
+            "[role='menuitem']",
+        ]
+
+        clicked = False
+        for sel in _OPTION_SELECTORS:
+            try:
+                items = await self._page.query_selector_all(sel)
+                for item in items:
+                    try:
+                        if not await item.is_visible():
+                            continue
+                        text = (await item.inner_text()).strip().lower()
+                        if target_label in text:
+                            await item.click()
+                            clicked = True
+                            self.logger.debug("Clicked option '%s' via selector: %s", text, sel)
+                            break
+                    except Exception:
+                        continue
+                if clicked:
+                    break
+            except Exception:
+                continue
+
+        # ── Step 5: JS brute-force scan all visible text nodes ────────────────
+        if not clicked:
+            clicked = await self._page.evaluate(f"""
+            () => {{
+                const target = '{target_label}';
+                // Prefer elements with role=option or inside a listbox/popover
+                const candidates = [
+                    ...document.querySelectorAll('[role="option"],[role="menuitem"],[role="listitem"]'),
+                    ...document.querySelectorAll('[class*="option"],[class*="item"],[class*="list"] > *'),
+                ];
+                for (const el of candidates) {{
+                    const text = (el.innerText || el.textContent || '').trim().toLowerCase();
+                    if (text === target && el.offsetParent !== null) {{
+                        el.click();
+                        return true;
+                    }}
+                }}
+                // Wider scan: any element whose exact text matches
+                const walker = document.createTreeWalker(
+                    document.body, NodeFilter.SHOW_ELEMENT
+                );
+                let node;
+                while ((node = walker.nextNode())) {{
+                    const text = (node.innerText || '').trim().toLowerCase();
+                    if (text === target && node.offsetParent !== null &&
+                        !['INPUT','TEXTAREA','BODY','HTML'].includes(node.tagName)) {{
+                        node.click();
+                        return true;
+                    }}
+                }}
+                return false;
+            }}
+            """)
+            if clicked:
+                self.logger.debug("Clicked option via JS brute-force scan")
+
+        if not clicked:
+            self.logger.warning("Could not click think mode option '%s' – proceeding anyway", mode)
+            # Don't return False; mark applied so we don't retry on every prompt
+            self._think_mode_applied = True
+            return False
+
+        await asyncio.sleep(0.4)
+
+        # ── Step 6: verify ────────────────────────────────────────────────────
+        new_label = await self._get_current_think_mode()
+        if target_label in new_label:
+            self.logger.info("Think mode confirmed → '%s' ✓", mode)
+        else:
+            self.logger.warning(
+                "Think mode may not have applied (expected '%s', got '%s') – proceeding",
+                target_label, new_label,
+            )
+        self._think_mode_applied = True
+        return True
 
     # ── Input ─────────────────────────────────────────────────────────────────
 
@@ -69,7 +337,7 @@ class QwenScraper(BaseAIChatScraper):
         ]
         for sel in candidates:
             try:
-                el = await self._page.wait_for_selector(sel, timeout=5_000, state="visible")
+                el = await self._page.wait_for_selector(sel, timeout=1_000, state="visible")
                 if el:
                     self.logger.debug("Found input: %s", sel)
                     return el
@@ -180,20 +448,35 @@ class QwenScraper(BaseAIChatScraper):
 
     # ── Core send_prompt ──────────────────────────────────────────────────────
 
-    async def send_prompt(self, prompt: str, mode: str = "new") -> str:
+    async def send_prompt(
+        self,
+        prompt: str,
+        mode: str = "new",
+        think_mode: ThinkMode | None = None,
+    ) -> str:
         await self._ensure_page_ready(mode)
         self._last_prompt = prompt
 
+        effective_think = think_mode or self._think_mode
+
+        # Apply think mode whenever: new page loaded, explicit per-call override,
+        # or not yet applied in this session.
+        if not self._think_mode_applied or think_mode is not None:
+            success = await self._set_think_mode(effective_think)
+            if not success:
+                # Run diagnostic scan so the user can identify correct selectors
+                await self.debug_think_mode_selectors()
+
         input_el = await self._find_input()
 
-        self.logger.info("Submitting prompt (%d chars)", len(prompt))
+        self.logger.info(
+            "Submitting prompt (%d chars) [think_mode=%s]", len(prompt), effective_think
+        )
         await input_el.click()
-        await asyncio.sleep(0.5)
         await input_el.fill("")
         await input_el.type(prompt, delay=30)
         await asyncio.sleep(0.5)
 
-        # Snapshot count of response elements before submitting
         pre_count = await self._page.evaluate("""
         () => document.querySelectorAll(
             '.chat-message-container .chat-response-message, .qwen-markdown-loose, .qwen-markdown'
@@ -208,16 +491,9 @@ class QwenScraper(BaseAIChatScraper):
             self.logger.debug("Used Enter key to submit")
 
         self._conversation_started = True
-        response_text = await self._wait_for_generation(pre_count)
-        return response_text
+        return await self._wait_for_generation(pre_count)
 
     async def _wait_for_generation(self, pre_count: int = 0) -> str:
-        """
-        Wait until:
-          1. A new response element appeared (count > pre_count)
-          2. Qwen stopped generating (no stop/stream indicators)
-          3. Text is stable for two consecutive intervals
-        """
         timeout_s = _TIMEOUT["response_wait"] // 1000
         stability_interval = _TIMEOUT["stability_check"] / 1000
         stability_needed = 2
@@ -228,7 +504,6 @@ class QwenScraper(BaseAIChatScraper):
         appeared = False
 
         while asyncio.get_event_loop().time() < deadline:
-            # Phase 1: wait for a new response element
             if not appeared:
                 cur_count = await self._page.evaluate("""
                 () => document.querySelectorAll(
@@ -237,12 +512,13 @@ class QwenScraper(BaseAIChatScraper):
                 """)
                 if cur_count > pre_count:
                     appeared = True
-                    self.logger.debug("New response element appeared (count: %d → %d)", pre_count, cur_count)
+                    self.logger.debug(
+                        "New response element appeared (count: %d → %d)", pre_count, cur_count
+                    )
                 else:
                     await asyncio.sleep(0.5)
                     continue
 
-            # Phase 2: stability check
             generating = await self._is_generating()
             current_text = await self._extract_last_response()
 
@@ -293,6 +569,7 @@ class QwenScraper(BaseAIChatScraper):
         cls,
         prompts: list[str],
         mode: str = "new",
+        think_mode: ThinkMode | None = None,
         headless: bool = True,
         cookies_dir: Path | str | None = None,
         max_concurrent: int = 3,
@@ -301,7 +578,11 @@ class QwenScraper(BaseAIChatScraper):
 
         async def _single(prompt: str) -> dict:
             async with semaphore:
-                async with cls(headless=headless, cookies_dir=cookies_dir) as scraper:
+                async with cls(
+                    headless=headless,
+                    cookies_dir=cookies_dir,
+                    think_mode=think_mode,
+                ) as scraper:
                     return await scraper.scrape(prompt, mode=mode)
 
         tasks = [_single(p) for p in prompts]

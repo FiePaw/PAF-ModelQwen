@@ -2,8 +2,9 @@
 BaseAIChatScraper – abstract async base class for AI chat scrapers.
 
 Provides:
-  • Browser lifecycle  (launch / close)
-  • Cookie management  (load / save)
+  • Browser lifecycle  (launch / close) – supports both persistent-context
+                        and legacy ephemeral-context modes
+  • Cookie management  (load / save / seed into profile)
   • Dynamic-content waiting with stability detection
   • Output helpers     (JSON, code files)
   • Account-rotation   framework
@@ -31,6 +32,8 @@ from config import (
     COOKIES_DIR,
     OUTPUT_DIR,
     OUTPUT_CONFIG,
+    PERSISTENT_CONTEXT_CONFIG,
+    PROFILES_DIR,
     ROTATION_CONFIG,
 )
 from scrapers.utils import (
@@ -53,13 +56,18 @@ class BaseAIChatScraper(ABC):
     """
     Abstract base class for async AI-chat scrapers.
 
-    Subclasses must implement:
-        • send_prompt(prompt)   → str      (raw AI response text)
-        • is_rate_limited()     → bool
-        • is_session_expired()  → bool
+    Persistent-context mode (default, PERSISTENT_CONTEXT_CONFIG["enabled"]=True):
+        • Playwright's launch_persistent_context() is used.
+        • Each account maps to a dedicated profile directory under PROFILES_DIR.
+        • On the very first run for an account the cookie file is seeded into
+          the profile; subsequent runs reuse the stored browser state directly
+          (no cookie injection needed → faster startup, cookies/localStorage
+          survive across restarts).
+        • self._browser is None in this mode; self._context is the persistent
+          BrowserContext returned by Playwright.
 
-    Optional override:
-        • wait_for_response()   (if selector logic differs)
+    Ephemeral mode (PERSISTENT_CONTEXT_CONFIG["enabled"]=False):
+        • Original Browser + BrowserContext flow; no state is persisted.
     """
 
     # ── Construction ──────────────────────────────────────────────────────────
@@ -74,26 +82,89 @@ class BaseAIChatScraper(ABC):
         self.logger = setup_logger(self.__class__.__name__)
         self.headless = headless
 
-        # Single-cookie-file mode
         self.cookies_path: Path | None = Path(cookies_path) if cookies_path else None
-
-        # Multi-account rotation mode
         self.cookies_dir: Path = Path(cookies_dir) if cookies_dir else COOKIES_DIR
         self._cookie_files: list[Path] = []
-        self._cookie_index: int = 0          # which account is active
+        self._cookie_index: int = 0
 
-        # Playwright objects
         self._playwright = None
-        self._browser: Browser | None = None
+        self._browser: Browser | None = None       # None in persistent mode
         self._context: BrowserContext | None = None
         self._page: Page | None = None
 
+        self._persistent_mode: bool = PERSISTENT_CONTEXT_CONFIG["enabled"]
+
+    # ── Profile path helpers ──────────────────────────────────────────────────
+
+    def _profile_dir_for(self, cookie_file: Path | None) -> Path:
+        """Return the profile directory that corresponds to *cookie_file*."""
+        if cookie_file:
+            return PROFILES_DIR / cookie_file.stem
+        return PROFILES_DIR / PERSISTENT_CONTEXT_CONFIG["default_profile"]
+
+    def _profile_seeded(self, profile_dir: Path) -> bool:
+        """
+        Return True if this profile has already been bootstrapped.
+        We consider it seeded when the Chromium 'Default' sub-dir exists,
+        which Playwright creates on first launch_persistent_context() call.
+        """
+        return (profile_dir / "Default").exists()
+
     # ── Browser lifecycle ─────────────────────────────────────────────────────
 
-    async def launch_browser(self) -> None:
-        """Start Playwright, launch Chromium and create a fresh context."""
-        self.logger.info("Launching browser (headless=%s)", self.headless)
+    async def launch_browser(self, cookie_file: Path | None = None) -> None:
+        """
+        Start Playwright and either:
+          • Open a persistent context for *cookie_file*'s profile (default), or
+          • Launch an ephemeral browser + context (legacy mode).
+
+        *cookie_file* is used only to determine which profile directory to open;
+        if None the default profile is used.
+        """
+        self.logger.info(
+            "Launching browser (headless=%s, persistent=%s)",
+            self.headless, self._persistent_mode,
+        )
         self._playwright = await async_playwright().start()
+
+        if self._persistent_mode:
+            await self._launch_persistent(cookie_file)
+        else:
+            await self._launch_ephemeral()
+
+        self.logger.debug("Browser launched successfully")
+
+    async def _launch_persistent(self, cookie_file: Path | None) -> None:
+        """Launch a persistent browser context, seeding cookies on first run."""
+        cfg = PERSISTENT_CONTEXT_CONFIG
+        profile_dir = self._profile_dir_for(cookie_file)
+        profile_dir.mkdir(parents=True, exist_ok=True)
+
+        first_run = not self._profile_seeded(profile_dir)
+
+        self._context = await self._playwright.chromium.launch_persistent_context(
+            user_data_dir=str(profile_dir),
+            headless=self.headless,
+            slow_mo=BROWSER_CONFIG["slow_mo"],
+            viewport=BROWSER_CONFIG["viewport"],
+            user_agent=BROWSER_CONFIG["user_agent"],
+            locale=BROWSER_CONFIG["locale"],
+            timezone_id=BROWSER_CONFIG["timezone_id"],
+            args=cfg["args"],
+        )
+        # Reuse existing page or open a new one
+        self._page = self._context.pages[0] if self._context.pages else await self._context.new_page()
+        self._browser = None  # not used in persistent mode
+
+        # Seed cookies into the profile on the very first run
+        if first_run and cookie_file and cookie_file.exists():
+            self.logger.info("First run for profile '%s' – seeding cookies", profile_dir.name)
+            await self.load_cookies(cookie_file)
+        elif not first_run:
+            self.logger.info("Reusing existing profile '%s'", profile_dir.name)
+
+    async def _launch_ephemeral(self) -> None:
+        """Original ephemeral browser + context launch."""
         self._browser = await self._playwright.chromium.launch(
             headless=self.headless,
             slow_mo=BROWSER_CONFIG["slow_mo"],
@@ -110,14 +181,13 @@ class BaseAIChatScraper(ABC):
             timezone_id=BROWSER_CONFIG["timezone_id"],
         )
         self._page = await self._context.new_page()
-        self.logger.debug("Browser launched successfully")
 
     async def close_browser(self) -> None:
-        """Gracefully close browser and Playwright."""
+        """Gracefully close the context / browser and stop Playwright."""
         self.logger.info("Closing browser")
         if self._context:
             await self._context.close()
-        if self._browser:
+        if self._browser:          # None in persistent mode – skip
             await self._browser.close()
         if self._playwright:
             await self._playwright.stop()
@@ -126,7 +196,8 @@ class BaseAIChatScraper(ABC):
 
     async def load_cookies(self, path: Path | str | None = None) -> bool:
         """
-        Load cookies from *path* (or self.cookies_path) into the current context.
+        Inject cookies from *path* into the current context.
+        In persistent mode this is only needed once (profile seeding).
         Returns True on success.
         """
         target = Path(path) if path else self.cookies_path
@@ -150,6 +221,8 @@ class BaseAIChatScraper(ABC):
     async def save_cookies(self, path: Path | str | None = None) -> bool:
         """
         Dump current browser cookies to *path* (or self.cookies_path).
+        In persistent mode the profile already persists cookies automatically;
+        this method is kept for explicit export / debugging.
         Returns True on success.
         """
         target = Path(path) if path else self.cookies_path
@@ -169,7 +242,6 @@ class BaseAIChatScraper(ABC):
     # ── Multi-account rotation ────────────────────────────────────────────────
 
     def _discover_accounts(self) -> None:
-        """Discover all .json cookie files in cookies_dir."""
         self._cookie_files = discover_cookie_files(self.cookies_dir)
         if not self._cookie_files:
             self.logger.warning("No cookie files found in %s", self.cookies_dir)
@@ -188,8 +260,12 @@ class BaseAIChatScraper(ABC):
 
     async def _rotate_account(self) -> bool:
         """
-        Switch to the next available cookie file and reload.
-        Returns False if we have cycled through all accounts.
+        Switch to the next available account.
+        In persistent mode: close the current context and open the next
+        account's profile directory.
+        In ephemeral mode: close the current context and inject the next
+        account's cookies into a fresh context.
+        Returns False if all accounts are exhausted.
         """
         total = len(self._cookie_files)
         if total <= 1:
@@ -209,17 +285,26 @@ class BaseAIChatScraper(ABC):
         self._cookie_index = next_index
         retry_sleep(ROTATION_CONFIG["rotation_delay"])
 
-        # Re-create context with new cookies
-        if self._context:
-            await self._context.close()
-        self._context = await self._browser.new_context(
-            viewport=BROWSER_CONFIG["viewport"],
-            user_agent=BROWSER_CONFIG["user_agent"],
-            locale=BROWSER_CONFIG["locale"],
-            timezone_id=BROWSER_CONFIG["timezone_id"],
-        )
-        self._page = await self._context.new_page()
-        await self.load_cookies(self._current_cookie_file)
+        next_cookie_file = self._cookie_files[self._cookie_index]
+
+        if self._persistent_mode:
+            # Close current persistent context and open the next profile
+            if self._context:
+                await self._context.close()
+            await self._launch_persistent(next_cookie_file)
+        else:
+            # Ephemeral: recreate context and inject cookies
+            if self._context:
+                await self._context.close()
+            self._context = await self._browser.new_context(
+                viewport=BROWSER_CONFIG["viewport"],
+                user_agent=BROWSER_CONFIG["user_agent"],
+                locale=BROWSER_CONFIG["locale"],
+                timezone_id=BROWSER_CONFIG["timezone_id"],
+            )
+            self._page = await self._context.new_page()
+            await self.load_cookies(next_cookie_file)
+
         return True
 
     # ── Waiting helpers ───────────────────────────────────────────────────────
@@ -232,41 +317,23 @@ class BaseAIChatScraper(ABC):
         stability_checks: int = 2,
         stability_interval: float = 3.0,
     ) -> str:
-        """
-        Poll the page until the AI has finished generating a response.
-
-        Strategy:
-          1. Wait for the loading indicator to disappear (if selector given).
-          2. Capture response-container text.
-          3. Compare across *stability_checks* intervals; if stable → done.
-
-        Returns the final response text.
-        Raises TimeoutError if *timeout* seconds elapse.
-        """
         self.logger.debug("Waiting for response (timeout=%ds)", timeout)
         deadline = asyncio.get_event_loop().time() + timeout
         prev_texts: list[str] = []
         stable_count = 0
 
         while asyncio.get_event_loop().time() < deadline:
-            # Check if loading indicator is gone
             if loading_selector:
                 try:
                     await self._page.wait_for_selector(
-                        loading_selector,
-                        state="hidden",
-                        timeout=5_000,
+                        loading_selector, state="hidden", timeout=5_000,
                     )
                 except Exception:
-                    pass  # Selector might not exist at all – that's fine
+                    pass
 
-            # Grab current text of all response containers
             try:
                 elements = await self._page.query_selector_all(response_selector)
-                texts = []
-                for el in elements:
-                    t = await el.inner_text()
-                    texts.append(t.strip())
+                texts = [((await el.inner_text()) or "").strip() for el in elements]
                 current_text = "\n".join(texts)
             except Exception:
                 current_text = ""
@@ -287,7 +354,8 @@ class BaseAIChatScraper(ABC):
             await asyncio.sleep(stability_interval)
 
         raise TimeoutError(
-            f"Response not stable after {timeout}s – last text length: {len(prev_texts[-1]) if prev_texts else 0}"
+            f"Response not stable after {timeout}s – "
+            f"last text length: {len(prev_texts[-1]) if prev_texts else 0}"
         )
 
     # ── Output helpers ────────────────────────────────────────────────────────
@@ -306,50 +374,47 @@ class BaseAIChatScraper(ABC):
         self.logger.info("Saved JSON → %s", path)
         return path
 
-    def save_code_files(self, blocks: list[dict], output_dir: Path | None = None, prefix: str = "snippet") -> list[Path]:
+    def save_code_files(
+        self,
+        blocks: list[dict],
+        output_dir: Path | None = None,
+        prefix: str = "snippet",
+    ) -> list[Path]:
         target = output_dir or CODE_OUTPUT_DIR
         paths = save_code_files(blocks, target, prefix)
         self.logger.info("Saved %d code file(s) to %s", len(paths), target)
         return paths
 
-    # ── Abstract interface (subclasses implement these) ───────────────────────
+    # ── Abstract interface ────────────────────────────────────────────────────
 
     @abstractmethod
-    async def send_prompt(self, prompt: str, mode: str = "new") -> str:
+    async def send_prompt(self, prompt: str, mode: str = "new", **kwargs) -> str: ...
+
+    @abstractmethod
+    async def is_rate_limited(self) -> bool: ...
+
+    @abstractmethod
+    async def is_session_expired(self) -> bool: ...
+
+    def _extra_send_kwargs(self) -> dict:
         """
-        Send *prompt* to the AI chat and return the raw response text.
-        *mode* is 'new' or 'continue'.
+        Subclasses can override this to inject extra keyword arguments into
+        the send_prompt() call made by scrape(). For example, QwenScraper
+        returns {"think_mode": self._think_mode}.
         """
-        ...
-
-    @abstractmethod
-    async def is_rate_limited(self) -> bool:
-        """Return True if the current page/response signals a rate limit."""
-        ...
-
-    @abstractmethod
-    async def is_session_expired(self) -> bool:
-        """Return True if the session has expired and re-login is required."""
-        ...
+        return {}
 
     # ── High-level scrape with auto-rotation ─────────────────────────────────
 
     async def scrape(self, prompt: str, mode: str = "new") -> dict:
-        """
-        Full scrape cycle with automatic account rotation on failure.
-
-        Returns a result dict:
-          {
-            prompt, response, file_type, code_blocks,
-            account_used, timestamp, success, error
-          }
-        """
         self._discover_accounts()
 
-        # Load cookies (multi-account or single)
-        initial_cookie = self._current_cookie_file or self.cookies_path
-        if initial_cookie:
-            await self.load_cookies(initial_cookie)
+        # In persistent mode, launch_browser() already handled cookie seeding.
+        # In ephemeral mode, inject cookies manually.
+        if not self._persistent_mode:
+            initial_cookie = self._current_cookie_file or self.cookies_path
+            if initial_cookie:
+                await self.load_cookies(initial_cookie)
 
         max_total_attempts = max(len(self._cookie_files), 1) * ROTATION_CONFIG["max_retries_per_account"]
         attempt = 0
@@ -365,22 +430,20 @@ class BaseAIChatScraper(ABC):
             )
 
             try:
-                response_text = await self.send_prompt(prompt, mode)
+                response_text = await self.send_prompt(prompt, mode, **self._extra_send_kwargs())
 
-                # Check for soft errors embedded in the response
                 if contains_any(response_text, ROTATION_CONFIG["rate_limit_phrases"]):
-                    self.logger.warning("Rate limit detected in response – rotating account")
+                    self.logger.warning("Rate limit detected – rotating account")
                     if not await self._rotate_account():
                         break
                     continue
 
                 if contains_any(response_text, ROTATION_CONFIG["session_expired_phrases"]):
-                    self.logger.warning("Session expired detected – rotating account")
+                    self.logger.warning("Session expired – rotating account")
                     if not await self._rotate_account():
                         break
                     continue
 
-                # Success!
                 blocks = self.extract_code_blocks(response_text)
                 result = {
                     "prompt": prompt,
@@ -405,8 +468,6 @@ class BaseAIChatScraper(ABC):
 
             except Exception as exc:
                 self.logger.error("Error on attempt %d: %s", attempt, exc, exc_info=True)
-
-                # Check if this looks like a rate-limit / auth error
                 if await self.is_rate_limited() or await self.is_session_expired():
                     if not await self._rotate_account():
                         break
@@ -428,7 +489,13 @@ class BaseAIChatScraper(ABC):
     # ── Context manager ───────────────────────────────────────────────────────
 
     async def __aenter__(self) -> "BaseAIChatScraper":
-        await self.launch_browser()
+        # Pass the initial cookie file so the correct profile is opened
+        initial_cookie = self.cookies_path or (
+            self._cookie_files[self._cookie_index]
+            if self._cookie_files
+            else None
+        )
+        await self.launch_browser(cookie_file=initial_cookie)
         return self
 
     async def __aexit__(self, *_) -> None:

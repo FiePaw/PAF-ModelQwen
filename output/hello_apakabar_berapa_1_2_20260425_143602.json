@@ -1,0 +1,11 @@
+{
+  "prompt": "Hello apakabar berapa 1 + 2",
+  "response": "Halo! Apa kabar? 😊\n1 + 2 = 3\nAda yang bisa saya bantu lagi?",
+  "file_type": "text",
+  "code_blocks": [],
+  "code_block_count": 0,
+  "account_used": "account1",
+  "timestamp": "2026-04-25T14:36:01.993782",
+  "success": true,
+  "error": null
+}

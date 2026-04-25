@@ -398,3 +398,1517 @@ NameError: name '_SEL' is not defined
 2026-04-25 12:01:29 [INFO] api_server:   Session TTL: 3600s
 2026-04-25 12:01:29 [INFO] api_server:   Docs       : http://127.0.0.1:12345/docs
 2026-04-25 12:01:29 [INFO] api_server: ============================================================
+2026-04-25 12:01:29 [INFO] api_server: CookieRotator: 2 file(s) available: ['account1.json', 'account2.json']
+2026-04-25 12:01:29 [INFO] api_server: Server ready (workers=1, session_ttl=3600s)
+2026-04-25 12:02:51 [INFO] api_server: NEW [chatcmpl] — cookie rotation will assign a file
+2026-04-25 12:02:51 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-25 12:03:02 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 12:03:02 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 12:03:02 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 12:03:02 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 12:03:02 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 12:03:24 [INFO] QwenScraper: Submitting prompt (59 chars)
+2026-04-25 12:04:51 [INFO] QwenScraper: Response ready (2860 chars)
+2026-04-25 12:04:51 [INFO] QwenScraper: Scrape successful – 2860 char(s), 0 code block(s)
+2026-04-25 12:04:51 [INFO] QwenScraper: Closing browser
+2026-04-25 12:04:51 [INFO] api_server: Session created [1a725a0e] cookie=account1.json
+2026-04-25 12:04:51 [INFO] api_server: Done [chatcmpl] 2860 chars | session=1a725a0e | cookie=account1.json | url=https://chat.qwen.ai/c/b8a40f67-3251-437c-b6c4-e2c84fe669aa
+2026-04-25 12:07:29 [INFO] api_server: CONTINUE [chatcmpl] session=1a725a0e cookie=account1.json url=https://chat.qwen.ai/c/b8a40f67-3251-437c-b6c4-e2c84fe669aa
+2026-04-25 12:07:29 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-25 12:07:30 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 12:07:30 [INFO] api_server: Navigating to conversation: https://chat.qwen.ai/c/b8a40f67-3251-437c-b6c4-e2c84fe669aa
+2026-04-25 12:07:35 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 12:07:35 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 12:07:35 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 12:07:50 [INFO] QwenScraper: Submitting prompt (84 chars)
+2026-04-25 12:09:23 [INFO] QwenScraper: Response ready (4500 chars)
+2026-04-25 12:09:23 [INFO] QwenScraper: Scrape successful – 4500 char(s), 0 code block(s)
+2026-04-25 12:09:23 [INFO] QwenScraper: Closing browser
+2026-04-25 12:09:23 [INFO] api_server: Done [chatcmpl] 4500 chars | session=1a725a0e | cookie=account1.json | url=https://chat.qwen.ai/c/b8a40f67-3251-437c-b6c4-e2c84fe669aa
+2026-04-25 12:10:08 [INFO] api_server: NEW [chatcmpl] — cookie rotation will assign a file
+2026-04-25 12:10:08 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-25 12:10:10 [INFO] QwenScraper: Loaded 13 cookie(s) from account2.json
+2026-04-25 12:10:10 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 12:10:10 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 12:10:10 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 12:10:10 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 12:10:29 [INFO] QwenScraper: Submitting prompt (16 chars)
+2026-04-25 12:10:42 [INFO] QwenScraper: Response ready (33 chars)
+2026-04-25 12:10:42 [INFO] QwenScraper: Scrape successful – 33 char(s), 0 code block(s)
+2026-04-25 12:10:42 [INFO] QwenScraper: Closing browser
+2026-04-25 12:10:42 [INFO] api_server: Session created [a58942bc] cookie=account1.json
+2026-04-25 12:10:42 [INFO] api_server: Done [chatcmpl] 33 chars | session=a58942bc | cookie=account1.json | url=https://chat.qwen.ai/c/9adc44fd-adda-4e79-a7dc-290849cbe01d
+2026-04-25 12:11:37 [INFO] api_server: CONTINUE [chatcmpl] session=a58942bc cookie=account1.json url=https://chat.qwen.ai/c/9adc44fd-adda-4e79-a7dc-290849cbe01d
+2026-04-25 12:11:37 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-25 12:11:38 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 12:11:38 [INFO] api_server: Navigating to conversation: https://chat.qwen.ai/c/9adc44fd-adda-4e79-a7dc-290849cbe01d
+2026-04-25 12:11:42 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 12:11:42 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 12:11:42 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 12:11:58 [INFO] QwenScraper: Submitting prompt (40 chars)
+2026-04-25 12:12:13 [INFO] QwenScraper: Response ready (115 chars)
+2026-04-25 12:12:13 [INFO] QwenScraper: Scrape successful – 115 char(s), 0 code block(s)
+2026-04-25 12:12:13 [INFO] QwenScraper: Closing browser
+2026-04-25 12:12:13 [INFO] api_server: Done [chatcmpl] 115 chars | session=a58942bc | cookie=account1.json | url=https://chat.qwen.ai/c/9adc44fd-adda-4e79-a7dc-290849cbe01d
+2026-04-25 12:22:57 [INFO] api_server: Server shutting down
+2026-04-25 12:23:01 [INFO] api_server: ============================================================
+2026-04-25 12:23:01 [INFO] api_server:   AIChatScraper – OpenAI-Compatible API Server v2.0
+2026-04-25 12:23:01 [INFO] api_server:   Host       : http://127.0.0.1:12345
+2026-04-25 12:23:01 [INFO] api_server:   Workers    : 2
+2026-04-25 12:23:01 [INFO] api_server:   Session TTL: 3600s
+2026-04-25 12:23:01 [INFO] api_server:   Docs       : http://127.0.0.1:12345/docs
+2026-04-25 12:23:01 [INFO] api_server: ============================================================
+2026-04-25 12:23:01 [INFO] api_server: CookieRotator: 2 file(s) available: ['account1.json', 'account2.json']
+2026-04-25 12:23:01 [INFO] api_server: Server ready (workers=1, session_ttl=3600s)
+2026-04-25 12:23:57 [INFO] api_server: NEW [chatcmpl] — cookie rotation will assign a file
+2026-04-25 12:23:57 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-25 12:23:58 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 12:23:58 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 12:23:58 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 12:23:58 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 12:23:58 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 12:24:04 [INFO] QwenScraper: Submitting prompt (30 chars)
+2026-04-25 12:24:05 [ERROR] QwenScraper: Error on attempt 1: ElementHandle.click: Element is not attached to the DOM
+Call log:
+  - attempting click action
+    2 × waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <div class="message-input">…</div> intercepts pointer events
+    - retrying click action
+    - waiting 20ms
+    - waiting for element to be visible, enabled and stable
+    - element is visible, enabled and stable
+    - scrolling into view if needed
+    - done scrolling
+    - <div class="message-input">…</div> intercepts pointer events
+  - retrying click action
+    - waiting 100ms
+    - waiting for element to be visible, enabled and stable
+Traceback (most recent call last):
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\base_scraper.py", line 368, in scrape
+    response_text = await self.send_prompt(prompt, mode)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 241, in send_prompt
+    await input_el.click()
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\async_api\_generated.py", line 2157, in click
+    await self._impl_obj.click(
+    ...<10 lines>...
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_element_handle.py", line 143, in click
+    await self._channel.send(
+        "click", self._frame._timeout, locals_to_params(locals())
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 69, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 559, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+playwright._impl._errors.Error: ElementHandle.click: Element is not attached to the DOM
+Call log:
+  - attempting click action
+    2 × waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <div class="message-input">…</div> intercepts pointer events
+    - retrying click action
+    - waiting 20ms
+    - waiting for element to be visible, enabled and stable
+    - element is visible, enabled and stable
+    - scrolling into view if needed
+    - done scrolling
+    - <div class="message-input">…</div> intercepts pointer events
+  - retrying click action
+    - waiting 100ms
+    - waiting for element to be visible, enabled and stable
+
+2026-04-25 12:24:10 [INFO] QwenScraper: Attempt 2/4 using account 'account1'
+2026-04-25 12:24:10 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 12:24:11 [INFO] QwenScraper: Submitting prompt (30 chars)
+2026-04-25 12:24:27 [INFO] QwenScraper: Response ready (276 chars)
+2026-04-25 12:24:29 [INFO] QwenScraper: Scrape successful – 276 char(s), 0 code block(s)
+2026-04-25 12:24:29 [INFO] QwenScraper: Closing browser
+2026-04-25 12:24:29 [INFO] api_server: Session created [2271e2e4] cookie=account1.json
+2026-04-25 12:24:29 [INFO] api_server: Done [chatcmpl] 276 chars | session=2271e2e4 | cookie=account1.json | url=https://chat.qwen.ai/c/98e961a0-b74d-4a44-b82f-cd92c9b5990a
+2026-04-25 12:25:25 [INFO] api_server: CONTINUE [chatcmpl] session=2271e2e4 cookie=account1.json url=https://chat.qwen.ai/c/98e961a0-b74d-4a44-b82f-cd92c9b5990a
+2026-04-25 12:25:25 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-25 12:25:26 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 12:25:26 [INFO] api_server: Navigating to conversation: https://chat.qwen.ai/c/98e961a0-b74d-4a44-b82f-cd92c9b5990a
+2026-04-25 12:25:31 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 12:25:31 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 12:25:31 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 12:25:31 [INFO] QwenScraper: Submitting prompt (49 chars)
+2026-04-25 12:25:44 [INFO] QwenScraper: Response ready (498 chars)
+2026-04-25 12:25:44 [INFO] QwenScraper: Scrape successful – 498 char(s), 0 code block(s)
+2026-04-25 12:25:44 [INFO] QwenScraper: Closing browser
+2026-04-25 12:25:44 [INFO] api_server: Done [chatcmpl] 498 chars | session=2271e2e4 | cookie=account1.json | url=https://chat.qwen.ai/c/98e961a0-b74d-4a44-b82f-cd92c9b5990a
+2026-04-25 12:27:32 [INFO] api_server: CONTINUE [chatcmpl] session=2271e2e4 cookie=account1.json url=https://chat.qwen.ai/c/98e961a0-b74d-4a44-b82f-cd92c9b5990a
+2026-04-25 12:27:32 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-25 12:27:34 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 12:27:34 [INFO] api_server: Navigating to conversation: https://chat.qwen.ai/c/98e961a0-b74d-4a44-b82f-cd92c9b5990a
+2026-04-25 12:27:38 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 12:27:38 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 12:27:38 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 12:27:38 [INFO] QwenScraper: Submitting prompt (53 chars)
+2026-04-25 12:28:10 [INFO] QwenScraper: Response ready (787 chars)
+2026-04-25 12:28:10 [INFO] QwenScraper: Scrape successful – 787 char(s), 0 code block(s)
+2026-04-25 12:28:10 [INFO] QwenScraper: Closing browser
+2026-04-25 12:28:10 [INFO] api_server: Done [chatcmpl] 787 chars | session=2271e2e4 | cookie=account1.json | url=https://chat.qwen.ai/c/98e961a0-b74d-4a44-b82f-cd92c9b5990a
+2026-04-25 12:29:13 [INFO] api_server: Server shutting down
+2026-04-25 12:29:16 [INFO] api_server: ============================================================
+2026-04-25 12:29:16 [INFO] api_server:   AIChatScraper – OpenAI-Compatible API Server v2.0
+2026-04-25 12:29:16 [INFO] api_server:   Host       : http://127.0.0.1:12345
+2026-04-25 12:29:16 [INFO] api_server:   Workers    : 2
+2026-04-25 12:29:16 [INFO] api_server:   Session TTL: 3600s
+2026-04-25 12:29:16 [INFO] api_server:   Docs       : http://127.0.0.1:12345/docs
+2026-04-25 12:29:16 [INFO] api_server: ============================================================
+2026-04-25 12:29:16 [INFO] api_server: CookieRotator: 2 file(s) available: ['account1.json', 'account2.json']
+2026-04-25 12:29:16 [INFO] api_server: Server ready (workers=1, session_ttl=3600s)
+2026-04-25 12:30:02 [INFO] api_server: NEW [chatcmpl] — cookie rotation will assign a file
+2026-04-25 12:30:02 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-25 12:30:03 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 12:30:03 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 12:30:03 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 12:30:03 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 12:30:03 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 12:30:06 [INFO] QwenScraper: Submitting prompt (92 chars)
+2026-04-25 12:30:07 [ERROR] QwenScraper: Error on attempt 1: ElementHandle.fill: Element is not attached to the DOM
+Call log:
+    - fill("berikan output secara plain teks. apakah indonesia bisa menjadi negara maju pada tahun 2030?")
+  - attempting fill action
+    - waiting for element to be visible, enabled and editable
+Traceback (most recent call last):
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\base_scraper.py", line 368, in scrape
+    response_text = await self.send_prompt(prompt, mode)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 217, in send_prompt
+    await input_el.fill(prompt)   # inject seluruh teks sekaligus
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\async_api\_generated.py", line 2413, in fill
+    await self._impl_obj.fill(
+        value=value, timeout=timeout, noWaitAfter=no_wait_after, force=force
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_element_handle.py", line 202, in fill
+    await self._channel.send(
+        "fill", self._frame._timeout, locals_to_params(locals())
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 69, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 559, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+playwright._impl._errors.Error: ElementHandle.fill: Element is not attached to the DOM
+Call log:
+    - fill("berikan output secara plain teks. apakah indonesia bisa menjadi negara maju pada tahun 2030?")
+  - attempting fill action
+    - waiting for element to be visible, enabled and editable
+
+2026-04-25 12:30:12 [INFO] QwenScraper: Attempt 2/4 using account 'account1'
+2026-04-25 12:30:12 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 12:30:13 [INFO] QwenScraper: Submitting prompt (92 chars)
+2026-04-25 12:31:53 [INFO] QwenScraper: Response ready (3063 chars)
+2026-04-25 12:31:53 [INFO] QwenScraper: Scrape successful – 3063 char(s), 0 code block(s)
+2026-04-25 12:31:53 [INFO] QwenScraper: Closing browser
+2026-04-25 12:31:53 [INFO] api_server: Session created [ddf6f1e6] cookie=account1.json
+2026-04-25 12:31:53 [INFO] api_server: Done [chatcmpl] 3063 chars | session=ddf6f1e6 | cookie=account1.json | url=https://chat.qwen.ai/c/6389add6-c8ab-479a-ad1b-e50272729759
+2026-04-25 12:32:53 [INFO] api_server: CONTINUE [chatcmpl] session=ddf6f1e6 cookie=account1.json url=https://chat.qwen.ai/c/6389add6-c8ab-479a-ad1b-e50272729759
+2026-04-25 12:32:53 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-25 12:32:55 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 12:32:55 [INFO] api_server: Navigating to conversation: https://chat.qwen.ai/c/6389add6-c8ab-479a-ad1b-e50272729759
+2026-04-25 12:32:59 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 12:32:59 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 12:32:59 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 12:32:59 [INFO] QwenScraper: Submitting prompt (63 chars)
+2026-04-25 12:33:24 [INFO] QwenScraper: Response ready (1034 chars)
+2026-04-25 12:33:24 [INFO] QwenScraper: Scrape successful – 1034 char(s), 0 code block(s)
+2026-04-25 12:33:24 [INFO] QwenScraper: Closing browser
+2026-04-25 12:33:24 [INFO] api_server: Done [chatcmpl] 1034 chars | session=ddf6f1e6 | cookie=account1.json | url=https://chat.qwen.ai/c/6389add6-c8ab-479a-ad1b-e50272729759
+2026-04-25 12:34:48 [INFO] api_server: Server shutting down
+2026-04-25 12:34:52 [INFO] api_server: ============================================================
+2026-04-25 12:34:52 [INFO] api_server:   AIChatScraper – OpenAI-Compatible API Server v2.0
+2026-04-25 12:34:52 [INFO] api_server:   Host       : http://127.0.0.1:12345
+2026-04-25 12:34:52 [INFO] api_server:   Workers    : 2
+2026-04-25 12:34:52 [INFO] api_server:   Session TTL: 3600s
+2026-04-25 12:34:52 [INFO] api_server:   Docs       : http://127.0.0.1:12345/docs
+2026-04-25 12:34:52 [INFO] api_server: ============================================================
+2026-04-25 12:34:52 [INFO] api_server: CookieRotator: 2 file(s) available: ['account1.json', 'account2.json']
+2026-04-25 12:34:52 [INFO] api_server: Server ready (workers=1, session_ttl=3600s)
+2026-04-25 12:36:04 [INFO] api_server: Server shutting down
+2026-04-25 12:37:45 [INFO] api_server: ============================================================
+2026-04-25 12:37:45 [INFO] api_server:   AIChatScraper – OpenAI-Compatible API Server v2.0
+2026-04-25 12:37:45 [INFO] api_server:   Host       : http://127.0.0.1:12345
+2026-04-25 12:37:45 [INFO] api_server:   Workers    : 2
+2026-04-25 12:37:45 [INFO] api_server:   Session TTL: 3600s
+2026-04-25 12:37:45 [INFO] api_server:   Docs       : http://127.0.0.1:12345/docs
+2026-04-25 12:37:45 [INFO] api_server: ============================================================
+2026-04-25 12:37:46 [INFO] api_server: CookieRotator: 2 file(s) available: ['account1.json', 'account2.json']
+2026-04-25 12:37:46 [INFO] api_server: Server ready (workers=1, session_ttl=3600s)
+2026-04-25 12:37:49 [INFO] api_server: Server shutting down
+2026-04-25 12:38:02 [INFO] api_server: ============================================================
+2026-04-25 12:38:02 [INFO] api_server:   AIChatScraper – OpenAI-Compatible API Server v2.0
+2026-04-25 12:38:02 [INFO] api_server:   Host       : http://127.0.0.1:12345
+2026-04-25 12:38:02 [INFO] api_server:   Workers    : 2
+2026-04-25 12:38:02 [INFO] api_server:   Session TTL: 3600s
+2026-04-25 12:38:02 [INFO] api_server:   Docs       : http://127.0.0.1:12345/docs
+2026-04-25 12:38:02 [INFO] api_server: ============================================================
+2026-04-25 12:38:02 [INFO] api_server: CookieRotator: 2 file(s) available: ['account1.json', 'account2.json']
+2026-04-25 12:38:02 [INFO] api_server: Server ready (workers=1, session_ttl=3600s)
+2026-04-25 12:39:46 [INFO] api_server: ============================================================
+2026-04-25 12:39:46 [INFO] api_server:   AIChatScraper – OpenAI-Compatible API Server v2.0
+2026-04-25 12:39:46 [INFO] api_server:   Host       : http://127.0.0.1:12345
+2026-04-25 12:39:46 [INFO] api_server:   Workers    : 2
+2026-04-25 12:39:46 [INFO] api_server:   Session TTL: 3600s
+2026-04-25 12:39:46 [INFO] api_server:   Docs       : http://127.0.0.1:12345/docs
+2026-04-25 12:39:46 [INFO] api_server: ============================================================
+2026-04-25 12:39:46 [INFO] api_server: CookieRotator: 2 file(s) available: ['account1.json', 'account2.json']
+2026-04-25 12:39:46 [INFO] api_server: Server ready (workers=1, session_ttl=3600s)
+2026-04-25 12:40:22 [INFO] api_server: NEW [chatcmpl] — cookie rotation will assign a file
+2026-04-25 12:40:22 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-25 12:40:23 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 12:40:23 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 12:40:23 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 12:40:23 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 12:40:23 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 12:41:05 [INFO] QwenScraper: Submitting prompt (85 chars)
+2026-04-25 12:42:25 [ERROR] QwenScraper: Error on attempt 1: Page.evaluate: Connection closed while reading from the driver
+Traceback (most recent call last):
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\base_scraper.py", line 368, in scrape
+    response_text = await self.send_prompt(prompt, mode)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 237, in send_prompt
+    response_text = await self._wait_for_generation(pre_count)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 259, in _wait_for_generation
+    cur_count = await self._page.evaluate(
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+        f"() => document.querySelectorAll('{_RESPONSE_COUNT_SEL}').length"
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\async_api\_generated.py", line 8567, in evaluate
+    await self._impl_obj.evaluate(
+        expression=expression, arg=mapping.to_impl(arg)
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_page.py", line 464, in evaluate
+    return await self._main_frame.evaluate(expression, arg)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_frame.py", line 320, in evaluate
+    await self._channel.send(
+    ...<6 lines>...
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 69, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 559, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+Exception: Page.evaluate: Connection closed while reading from the driver
+2026-04-25 12:42:30 [INFO] QwenScraper: Attempt 2/4 using account 'account1'
+2026-04-25 12:42:30 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 12:42:31 [ERROR] QwenScraper: Error on attempt 2: Page.goto: Connection closed while reading from the driver
+Traceback (most recent call last):
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\base_scraper.py", line 368, in scrape
+    response_text = await self.send_prompt(prompt, mode)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 194, in send_prompt
+    await self._ensure_page_ready(mode)
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 86, in _ensure_page_ready
+    await self._goto_new_chat()
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 68, in _goto_new_chat
+    await self._page.goto(
+        self.BASE_URL, wait_until="domcontentloaded", timeout=_TIMEOUT["page_load"]
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\async_api\_generated.py", line 9045, in goto
+    await self._impl_obj.goto(
+        url=url, timeout=timeout, waitUntil=wait_until, referer=referer
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_page.py", line 552, in goto
+    return await self._main_frame.goto(**locals_to_params(locals()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_frame.py", line 153, in goto
+    await self._channel.send(
+        "goto", self._navigation_timeout, locals_to_params(locals())
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 69, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 559, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+Exception: Page.goto: Connection closed while reading from the driver
+2026-04-25 12:42:36 [INFO] QwenScraper: Attempt 3/4 using account 'account1'
+2026-04-25 12:42:36 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 12:42:36 [ERROR] QwenScraper: Error on attempt 3: Page.goto: Connection closed while reading from the driver
+Traceback (most recent call last):
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\base_scraper.py", line 368, in scrape
+    response_text = await self.send_prompt(prompt, mode)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 194, in send_prompt
+    await self._ensure_page_ready(mode)
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 86, in _ensure_page_ready
+    await self._goto_new_chat()
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 68, in _goto_new_chat
+    await self._page.goto(
+        self.BASE_URL, wait_until="domcontentloaded", timeout=_TIMEOUT["page_load"]
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\async_api\_generated.py", line 9045, in goto
+    await self._impl_obj.goto(
+        url=url, timeout=timeout, waitUntil=wait_until, referer=referer
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_page.py", line 552, in goto
+    return await self._main_frame.goto(**locals_to_params(locals()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_frame.py", line 153, in goto
+    await self._channel.send(
+        "goto", self._navigation_timeout, locals_to_params(locals())
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 69, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 559, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+Exception: Page.goto: Connection closed while reading from the driver
+2026-04-25 12:42:41 [INFO] QwenScraper: Attempt 4/4 using account 'account1'
+2026-04-25 12:42:41 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 12:42:41 [ERROR] QwenScraper: Error on attempt 4: Page.goto: Connection closed while reading from the driver
+Traceback (most recent call last):
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\base_scraper.py", line 368, in scrape
+    response_text = await self.send_prompt(prompt, mode)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 194, in send_prompt
+    await self._ensure_page_ready(mode)
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 86, in _ensure_page_ready
+    await self._goto_new_chat()
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 68, in _goto_new_chat
+    await self._page.goto(
+        self.BASE_URL, wait_until="domcontentloaded", timeout=_TIMEOUT["page_load"]
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\async_api\_generated.py", line 9045, in goto
+    await self._impl_obj.goto(
+        url=url, timeout=timeout, waitUntil=wait_until, referer=referer
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_page.py", line 552, in goto
+    return await self._main_frame.goto(**locals_to_params(locals()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_frame.py", line 153, in goto
+    await self._channel.send(
+        "goto", self._navigation_timeout, locals_to_params(locals())
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 69, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 559, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+Exception: Page.goto: Connection closed while reading from the driver
+2026-04-25 12:42:46 [INFO] QwenScraper: Closing browser
+2026-04-25 12:42:46 [ERROR] api_server: Error [chatcmpl-8580dedee8d04f219dedfec8]: Browser.close: Connection closed while reading from the driver
+Traceback (most recent call last):
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\api_server.py", line 477, in chat_completions
+    async with pool.get_scraper(
+               ~~~~~~~~~~~~~~~~^
+        cookie_file=cookie_file,
+        ^^^^^^^^^^^^^^^^^^^^^^^^
+        conversation_url=conv_url,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ) as scraper:
+    ^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\contextlib.py", line 221, in __aexit__
+    await anext(self.gen)
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\api_server.py", line 237, in get_scraper
+    await scraper.close_browser()
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\base_scraper.py", line 121, in close_browser
+    await self._browser.close()
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\async_api\_generated.py", line 14322, in close
+    return mapping.from_maybe_impl(await self._impl_obj.close(reason=reason))
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_browser.py", line 241, in close
+    raise e
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_browser.py", line 238, in close
+    await self._channel.send("close", None, {"reason": reason})
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 69, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 559, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+Exception: Browser.close: Connection closed while reading from the driver
+2026-04-25 12:45:37 [INFO] api_server: ============================================================
+2026-04-25 12:45:37 [INFO] api_server:   AIChatScraper – OpenAI-Compatible API Server v2.0
+2026-04-25 12:45:37 [INFO] api_server:   Host       : http://127.0.0.1:12345
+2026-04-25 12:45:37 [INFO] api_server:   Workers    : 2
+2026-04-25 12:45:37 [INFO] api_server:   Session TTL: 3600s
+2026-04-25 12:45:37 [INFO] api_server:   Docs       : http://127.0.0.1:12345/docs
+2026-04-25 12:45:37 [INFO] api_server: ============================================================
+2026-04-25 12:45:37 [INFO] api_server: CookieRotator: 2 file(s) available: ['account1.json', 'account2.json']
+2026-04-25 12:45:37 [INFO] api_server: Server ready (workers=1, session_ttl=3600s)
+2026-04-25 12:46:03 [INFO] api_server: NEW [chatcmpl] — cookie rotation will assign a file
+2026-04-25 12:46:03 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-25 12:46:04 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 12:46:04 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 12:46:04 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 12:46:04 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 12:46:04 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 12:46:45 [INFO] QwenScraper: Submitting prompt (105 chars) via type()
+2026-04-25 12:46:49 [ERROR] QwenScraper: Error on attempt 1: ElementHandle.click: Element is not attached to the DOM
+Call log:
+  - attempting click action
+    - waiting for element to be visible, enabled and stable
+Traceback (most recent call last):
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\base_scraper.py", line 368, in scrape
+    response_text = await self.send_prompt(prompt, mode)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 261, in send_prompt
+    await send_btn.click()
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\async_api\_generated.py", line 2157, in click
+    await self._impl_obj.click(
+    ...<10 lines>...
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_element_handle.py", line 143, in click
+    await self._channel.send(
+        "click", self._frame._timeout, locals_to_params(locals())
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 69, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 559, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+playwright._impl._errors.Error: ElementHandle.click: Element is not attached to the DOM
+Call log:
+  - attempting click action
+    - waiting for element to be visible, enabled and stable
+
+2026-04-25 12:46:54 [INFO] QwenScraper: Attempt 2/4 using account 'account1'
+2026-04-25 12:46:54 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 12:47:34 [INFO] QwenScraper: Submitting prompt (105 chars) via type()
+2026-04-25 12:47:38 [ERROR] QwenScraper: Error on attempt 2: ElementHandle.click: Element is not attached to the DOM
+Call log:
+  - attempting click action
+    - waiting for element to be visible, enabled and stable
+Traceback (most recent call last):
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\base_scraper.py", line 368, in scrape
+    response_text = await self.send_prompt(prompt, mode)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 261, in send_prompt
+    await send_btn.click()
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\async_api\_generated.py", line 2157, in click
+    await self._impl_obj.click(
+    ...<10 lines>...
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_element_handle.py", line 143, in click
+    await self._channel.send(
+        "click", self._frame._timeout, locals_to_params(locals())
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 69, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 559, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+playwright._impl._errors.Error: ElementHandle.click: Element is not attached to the DOM
+Call log:
+  - attempting click action
+    - waiting for element to be visible, enabled and stable
+
+2026-04-25 12:47:43 [INFO] QwenScraper: Attempt 3/4 using account 'account1'
+2026-04-25 12:47:43 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 12:47:53 [ERROR] QwenScraper: Error on attempt 3: Could not locate chat input field
+Traceback (most recent call last):
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\base_scraper.py", line 368, in scrape
+    response_text = await self.send_prompt(prompt, mode)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 216, in send_prompt
+    input_sel = await self._resolve_input_selector()
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 124, in _resolve_input_selector
+    raise RuntimeError("Could not locate chat input field")
+RuntimeError: Could not locate chat input field
+2026-04-25 12:47:58 [INFO] QwenScraper: Attempt 4/4 using account 'account1'
+2026-04-25 12:47:58 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 12:47:58 [ERROR] QwenScraper: Error on attempt 4: Page.goto: Connection closed while reading from the driver
+Traceback (most recent call last):
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\base_scraper.py", line 368, in scrape
+    response_text = await self.send_prompt(prompt, mode)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 213, in send_prompt
+    await self._ensure_page_ready(mode)
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 90, in _ensure_page_ready
+    await self._goto_new_chat()
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 71, in _goto_new_chat
+    await self._page.goto(
+        self.BASE_URL, wait_until="domcontentloaded", timeout=_TIMEOUT["page_load"]
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\async_api\_generated.py", line 9045, in goto
+    await self._impl_obj.goto(
+        url=url, timeout=timeout, waitUntil=wait_until, referer=referer
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_page.py", line 552, in goto
+    return await self._main_frame.goto(**locals_to_params(locals()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_frame.py", line 153, in goto
+    await self._channel.send(
+        "goto", self._navigation_timeout, locals_to_params(locals())
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 69, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 559, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+Exception: Page.goto: Connection closed while reading from the driver
+2026-04-25 12:48:03 [INFO] QwenScraper: Closing browser
+2026-04-25 12:48:03 [ERROR] api_server: Error [chatcmpl-4c9ea6252ac84a0cb0f0f594]: Browser.close: Connection closed while reading from the driver
+Traceback (most recent call last):
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\api_server.py", line 477, in chat_completions
+    async with pool.get_scraper(
+               ~~~~~~~~~~~~~~~~^
+        cookie_file=cookie_file,
+        ^^^^^^^^^^^^^^^^^^^^^^^^
+        conversation_url=conv_url,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ) as scraper:
+    ^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\contextlib.py", line 221, in __aexit__
+    await anext(self.gen)
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\api_server.py", line 237, in get_scraper
+    await scraper.close_browser()
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\base_scraper.py", line 121, in close_browser
+    await self._browser.close()
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\async_api\_generated.py", line 14322, in close
+    return mapping.from_maybe_impl(await self._impl_obj.close(reason=reason))
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_browser.py", line 241, in close
+    raise e
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_browser.py", line 238, in close
+    await self._channel.send("close", None, {"reason": reason})
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 69, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 559, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+Exception: Browser.close: Connection closed while reading from the driver
+2026-04-25 12:48:03 [INFO] api_server: Server shutting down
+2026-04-25 12:52:39 [INFO] api_server: ============================================================
+2026-04-25 12:52:39 [INFO] api_server:   AIChatScraper – OpenAI-Compatible API Server v2.0
+2026-04-25 12:52:39 [INFO] api_server:   Host       : http://127.0.0.1:12345
+2026-04-25 12:52:39 [INFO] api_server:   Workers    : 2
+2026-04-25 12:52:39 [INFO] api_server:   Session TTL: 3600s
+2026-04-25 12:52:39 [INFO] api_server:   Docs       : http://127.0.0.1:12345/docs
+2026-04-25 12:52:39 [INFO] api_server: ============================================================
+2026-04-25 12:52:39 [INFO] api_server: CookieRotator: 2 file(s) available: ['account1.json', 'account2.json']
+2026-04-25 12:52:39 [INFO] api_server: Server ready (workers=1, session_ttl=3600s)
+2026-04-25 12:52:57 [INFO] api_server: NEW [chatcmpl] — cookie rotation will assign a file
+2026-04-25 12:52:57 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-25 12:52:58 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 12:52:58 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 12:52:58 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 12:52:58 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 12:52:58 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 12:53:36 [INFO] QwenScraper: Submitting prompt (15 chars)
+2026-04-25 12:53:48 [INFO] QwenScraper: Response ready (31 chars)
+2026-04-25 12:53:48 [INFO] QwenScraper: Scrape successful – 31 char(s), 0 code block(s)
+2026-04-25 12:53:48 [INFO] QwenScraper: Closing browser
+2026-04-25 12:53:49 [INFO] api_server: Session created [568f252a] cookie=account1.json
+2026-04-25 12:53:49 [INFO] api_server: Done [chatcmpl] 31 chars | session=568f252a | cookie=account1.json | url=https://chat.qwen.ai/c/5fbb6860-7c25-4219-91a9-bc6de408ec42
+2026-04-25 12:55:37 [INFO] api_server: CONTINUE [chatcmpl] session=568f252a cookie=account1.json url=https://chat.qwen.ai/c/5fbb6860-7c25-4219-91a9-bc6de408ec42
+2026-04-25 12:55:37 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-25 12:55:38 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 12:55:38 [INFO] api_server: Navigating to conversation: https://chat.qwen.ai/c/5fbb6860-7c25-4219-91a9-bc6de408ec42
+2026-04-25 12:55:42 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 12:55:42 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 12:55:42 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 12:55:57 [INFO] QwenScraper: Submitting prompt (26 chars)
+2026-04-25 12:56:04 [INFO] QwenScraper: Response ready (32 chars)
+2026-04-25 12:56:04 [INFO] QwenScraper: Scrape successful – 32 char(s), 0 code block(s)
+2026-04-25 12:56:04 [INFO] QwenScraper: Closing browser
+2026-04-25 12:56:04 [INFO] api_server: Done [chatcmpl] 32 chars | session=568f252a | cookie=account1.json | url=https://chat.qwen.ai/c/5fbb6860-7c25-4219-91a9-bc6de408ec42
+2026-04-25 12:57:23 [INFO] api_server: NEW [chatcmpl] — cookie rotation will assign a file
+2026-04-25 12:57:23 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-25 12:57:25 [INFO] QwenScraper: Loaded 13 cookie(s) from account2.json
+2026-04-25 12:57:25 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 12:57:25 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 12:57:25 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 12:57:25 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 12:58:02 [INFO] QwenScraper: Submitting prompt (122 chars)
+2026-04-25 12:58:02 [ERROR] QwenScraper: Error on attempt 1: ElementHandle.click: Element is not attached to the DOM
+Call log:
+  - attempting click action
+    - waiting for element to be visible, enabled and stable
+Traceback (most recent call last):
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\base_scraper.py", line 368, in scrape
+    response_text = await self.send_prompt(prompt, mode)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 220, in send_prompt
+    await send_btn.click()
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\async_api\_generated.py", line 2157, in click
+    await self._impl_obj.click(
+    ...<10 lines>...
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_element_handle.py", line 143, in click
+    await self._channel.send(
+        "click", self._frame._timeout, locals_to_params(locals())
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 69, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 559, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+playwright._impl._errors.Error: ElementHandle.click: Element is not attached to the DOM
+Call log:
+  - attempting click action
+    - waiting for element to be visible, enabled and stable
+
+2026-04-25 12:58:07 [INFO] QwenScraper: Attempt 2/4 using account 'account1'
+2026-04-25 12:58:07 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 12:58:44 [INFO] QwenScraper: Submitting prompt (122 chars)
+2026-04-25 12:58:44 [ERROR] QwenScraper: Error on attempt 2: ElementHandle.click: Element is not attached to the DOM
+Call log:
+  - attempting click action
+    - waiting for element to be visible, enabled and stable
+Traceback (most recent call last):
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\base_scraper.py", line 368, in scrape
+    response_text = await self.send_prompt(prompt, mode)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 220, in send_prompt
+    await send_btn.click()
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\async_api\_generated.py", line 2157, in click
+    await self._impl_obj.click(
+    ...<10 lines>...
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_element_handle.py", line 143, in click
+    await self._channel.send(
+        "click", self._frame._timeout, locals_to_params(locals())
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 69, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 559, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+playwright._impl._errors.Error: ElementHandle.click: Element is not attached to the DOM
+Call log:
+  - attempting click action
+    - waiting for element to be visible, enabled and stable
+
+2026-04-25 12:58:49 [INFO] QwenScraper: Attempt 3/4 using account 'account1'
+2026-04-25 12:58:49 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 12:59:25 [INFO] QwenScraper: Submitting prompt (122 chars)
+2026-04-25 12:59:26 [ERROR] QwenScraper: Error on attempt 3: ElementHandle.click: Element is not attached to the DOM
+Call log:
+  - attempting click action
+    - waiting for element to be visible, enabled and stable
+Traceback (most recent call last):
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\base_scraper.py", line 368, in scrape
+    response_text = await self.send_prompt(prompt, mode)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 220, in send_prompt
+    await send_btn.click()
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\async_api\_generated.py", line 2157, in click
+    await self._impl_obj.click(
+    ...<10 lines>...
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_element_handle.py", line 143, in click
+    await self._channel.send(
+        "click", self._frame._timeout, locals_to_params(locals())
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 69, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 559, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+playwright._impl._errors.Error: ElementHandle.click: Element is not attached to the DOM
+Call log:
+  - attempting click action
+    - waiting for element to be visible, enabled and stable
+
+2026-04-25 12:59:31 [INFO] QwenScraper: Attempt 4/4 using account 'account1'
+2026-04-25 12:59:31 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 13:00:07 [INFO] QwenScraper: Submitting prompt (122 chars)
+2026-04-25 13:00:07 [ERROR] QwenScraper: Error on attempt 4: ElementHandle.click: Element is not attached to the DOM
+Call log:
+  - attempting click action
+    - waiting for element to be visible, enabled and stable
+Traceback (most recent call last):
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\base_scraper.py", line 368, in scrape
+    response_text = await self.send_prompt(prompt, mode)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 220, in send_prompt
+    await send_btn.click()
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\async_api\_generated.py", line 2157, in click
+    await self._impl_obj.click(
+    ...<10 lines>...
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_element_handle.py", line 143, in click
+    await self._channel.send(
+        "click", self._frame._timeout, locals_to_params(locals())
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 69, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 559, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+playwright._impl._errors.Error: ElementHandle.click: Element is not attached to the DOM
+Call log:
+  - attempting click action
+    - waiting for element to be visible, enabled and stable
+
+2026-04-25 13:00:12 [INFO] QwenScraper: Closing browser
+2026-04-25 13:01:42 [INFO] api_server: NEW [chatcmpl] — cookie rotation will assign a file
+2026-04-25 13:01:42 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-25 13:01:43 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 13:01:43 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 13:01:43 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 13:01:43 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 13:01:43 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 13:02:21 [INFO] QwenScraper: Submitting prompt (122 chars)
+2026-04-25 13:02:21 [ERROR] QwenScraper: Error on attempt 1: ElementHandle.click: Element is not attached to the DOM
+Call log:
+  - attempting click action
+    - waiting for element to be visible, enabled and stable
+Traceback (most recent call last):
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\base_scraper.py", line 368, in scrape
+    response_text = await self.send_prompt(prompt, mode)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 220, in send_prompt
+    await send_btn.click()
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\async_api\_generated.py", line 2157, in click
+    await self._impl_obj.click(
+    ...<10 lines>...
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_element_handle.py", line 143, in click
+    await self._channel.send(
+        "click", self._frame._timeout, locals_to_params(locals())
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 69, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 559, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+playwright._impl._errors.Error: ElementHandle.click: Element is not attached to the DOM
+Call log:
+  - attempting click action
+    - waiting for element to be visible, enabled and stable
+
+2026-04-25 13:02:26 [INFO] QwenScraper: Attempt 2/4 using account 'account1'
+2026-04-25 13:02:26 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 13:03:02 [INFO] QwenScraper: Submitting prompt (122 chars)
+2026-04-25 13:03:03 [ERROR] QwenScraper: Error on attempt 2: ElementHandle.click: Element is not attached to the DOM
+Call log:
+  - attempting click action
+    - waiting for element to be visible, enabled and stable
+Traceback (most recent call last):
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\base_scraper.py", line 368, in scrape
+    response_text = await self.send_prompt(prompt, mode)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 220, in send_prompt
+    await send_btn.click()
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\async_api\_generated.py", line 2157, in click
+    await self._impl_obj.click(
+    ...<10 lines>...
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_element_handle.py", line 143, in click
+    await self._channel.send(
+        "click", self._frame._timeout, locals_to_params(locals())
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 69, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 559, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+playwright._impl._errors.Error: ElementHandle.click: Element is not attached to the DOM
+Call log:
+  - attempting click action
+    - waiting for element to be visible, enabled and stable
+
+2026-04-25 13:03:08 [INFO] QwenScraper: Attempt 3/4 using account 'account1'
+2026-04-25 13:03:08 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 13:03:20 [WARNING] QwenScraper: Input not detected after navigation, falling back to short sleep
+2026-04-25 13:03:21 [ERROR] QwenScraper: Error on attempt 3: Could not locate chat input field
+Traceback (most recent call last):
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\base_scraper.py", line 368, in scrape
+    response_text = await self.send_prompt(prompt, mode)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 205, in send_prompt
+    input_el = await self._find_input()
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 96, in _find_input
+    raise RuntimeError("Could not locate chat input field")
+RuntimeError: Could not locate chat input field
+2026-04-25 13:03:26 [INFO] QwenScraper: Attempt 4/4 using account 'account1'
+2026-04-25 13:03:26 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 13:03:26 [ERROR] QwenScraper: Error on attempt 4: Page.goto: Connection closed while reading from the driver
+Traceback (most recent call last):
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\base_scraper.py", line 368, in scrape
+    response_text = await self.send_prompt(prompt, mode)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 202, in send_prompt
+    await self._ensure_page_ready(mode)
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 73, in _ensure_page_ready
+    await self._goto_new_chat()
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 46, in _goto_new_chat
+    await self._page.goto(
+        self.BASE_URL, wait_until="domcontentloaded", timeout=_TIMEOUT["page_load"]
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\async_api\_generated.py", line 9045, in goto
+    await self._impl_obj.goto(
+        url=url, timeout=timeout, waitUntil=wait_until, referer=referer
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_page.py", line 552, in goto
+    return await self._main_frame.goto(**locals_to_params(locals()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_frame.py", line 153, in goto
+    await self._channel.send(
+        "goto", self._navigation_timeout, locals_to_params(locals())
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 69, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 559, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+Exception: Page.goto: Connection closed while reading from the driver
+2026-04-25 13:03:31 [INFO] QwenScraper: Closing browser
+2026-04-25 13:03:31 [ERROR] api_server: Error [chatcmpl-d7c179626f074f5aa7627979]: Browser.close: Connection closed while reading from the driver
+Traceback (most recent call last):
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\api_server.py", line 477, in chat_completions
+    async with pool.get_scraper(
+               ~~~~~~~~~~~~~~~~^
+        cookie_file=cookie_file,
+        ^^^^^^^^^^^^^^^^^^^^^^^^
+        conversation_url=conv_url,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ) as scraper:
+    ^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\contextlib.py", line 221, in __aexit__
+    await anext(self.gen)
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\api_server.py", line 237, in get_scraper
+    await scraper.close_browser()
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\base_scraper.py", line 121, in close_browser
+    await self._browser.close()
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\async_api\_generated.py", line 14322, in close
+    return mapping.from_maybe_impl(await self._impl_obj.close(reason=reason))
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_browser.py", line 241, in close
+    raise e
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_browser.py", line 238, in close
+    await self._channel.send("close", None, {"reason": reason})
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 69, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 559, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+Exception: Browser.close: Connection closed while reading from the driver
+2026-04-25 13:03:31 [INFO] api_server: Server shutting down
+2026-04-25 13:04:35 [INFO] api_server: ============================================================
+2026-04-25 13:04:35 [INFO] api_server:   AIChatScraper – OpenAI-Compatible API Server v2.0
+2026-04-25 13:04:35 [INFO] api_server:   Host       : http://127.0.0.1:12345
+2026-04-25 13:04:35 [INFO] api_server:   Workers    : 2
+2026-04-25 13:04:35 [INFO] api_server:   Session TTL: 3600s
+2026-04-25 13:04:35 [INFO] api_server:   Docs       : http://127.0.0.1:12345/docs
+2026-04-25 13:04:35 [INFO] api_server: ============================================================
+2026-04-25 13:04:35 [INFO] api_server: CookieRotator: 2 file(s) available: ['account1.json', 'account2.json']
+2026-04-25 13:04:35 [INFO] api_server: Server ready (workers=1, session_ttl=3600s)
+2026-04-25 13:04:49 [INFO] api_server: NEW [chatcmpl] — cookie rotation will assign a file
+2026-04-25 13:04:49 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-25 13:04:51 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 13:04:51 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 13:04:51 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 13:04:51 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 13:04:51 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 13:05:11 [INFO] QwenScraper: Submitting prompt (122 chars)
+2026-04-25 13:06:54 [INFO] QwenScraper: Response ready (2089 chars)
+2026-04-25 13:06:54 [INFO] QwenScraper: Scrape successful – 2089 char(s), 0 code block(s)
+2026-04-25 13:06:54 [INFO] QwenScraper: Closing browser
+2026-04-25 13:06:54 [INFO] api_server: Session created [61f7dbe8] cookie=account1.json
+2026-04-25 13:06:54 [INFO] api_server: Done [chatcmpl] 2089 chars | session=61f7dbe8 | cookie=account1.json | url=https://chat.qwen.ai/c/3fcabbe4-9f79-4445-9600-8999555e440b
+2026-04-25 13:07:30 [INFO] api_server: CONTINUE [chatcmpl] session=61f7dbe8 cookie=account1.json url=https://chat.qwen.ai/c/3fcabbe4-9f79-4445-9600-8999555e440b
+2026-04-25 13:07:30 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-25 13:07:31 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 13:07:31 [INFO] api_server: Navigating to conversation: https://chat.qwen.ai/c/3fcabbe4-9f79-4445-9600-8999555e440b
+2026-04-25 13:07:35 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 13:07:36 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 13:07:36 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 13:07:51 [INFO] QwenScraper: Submitting prompt (71 chars)
+2026-04-25 13:08:06 [INFO] QwenScraper: Response ready (85 chars)
+2026-04-25 13:08:06 [INFO] QwenScraper: Scrape successful – 85 char(s), 0 code block(s)
+2026-04-25 13:08:06 [INFO] QwenScraper: Closing browser
+2026-04-25 13:08:06 [INFO] api_server: Done [chatcmpl] 85 chars | session=61f7dbe8 | cookie=account1.json | url=https://chat.qwen.ai/c/3fcabbe4-9f79-4445-9600-8999555e440b
+2026-04-25 13:08:26 [INFO] api_server: NEW [chatcmpl] — cookie rotation will assign a file
+2026-04-25 13:08:26 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-25 13:08:27 [INFO] QwenScraper: Loaded 13 cookie(s) from account2.json
+2026-04-25 13:08:27 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 13:08:27 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 13:08:27 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 13:08:27 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 13:08:47 [INFO] QwenScraper: Submitting prompt (59 chars)
+2026-04-25 13:09:00 [INFO] QwenScraper: Response ready (63 chars)
+2026-04-25 13:09:00 [INFO] QwenScraper: Scrape successful – 63 char(s), 0 code block(s)
+2026-04-25 13:09:00 [INFO] QwenScraper: Closing browser
+2026-04-25 13:09:00 [INFO] api_server: Session created [c2408659] cookie=account1.json
+2026-04-25 13:09:00 [INFO] api_server: Done [chatcmpl] 63 chars | session=c2408659 | cookie=account1.json | url=https://chat.qwen.ai/c/9fa64fb4-7b3a-4c94-9d1d-9d86c8079a1b
+2026-04-25 13:09:15 [INFO] api_server: CONTINUE [chatcmpl] session=c2408659 cookie=account1.json url=https://chat.qwen.ai/c/9fa64fb4-7b3a-4c94-9d1d-9d86c8079a1b
+2026-04-25 13:09:15 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-25 13:09:16 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 13:09:16 [INFO] api_server: Navigating to conversation: https://chat.qwen.ai/c/9fa64fb4-7b3a-4c94-9d1d-9d86c8079a1b
+2026-04-25 13:09:21 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 13:09:21 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 13:09:21 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 13:09:36 [INFO] QwenScraper: Submitting prompt (16 chars)
+2026-04-25 13:09:44 [INFO] QwenScraper: Response ready (15 chars)
+2026-04-25 13:09:44 [INFO] QwenScraper: Scrape successful – 15 char(s), 0 code block(s)
+2026-04-25 13:09:44 [INFO] QwenScraper: Closing browser
+2026-04-25 13:09:44 [INFO] api_server: Done [chatcmpl] 15 chars | session=c2408659 | cookie=account1.json | url=https://chat.qwen.ai/c/9fa64fb4-7b3a-4c94-9d1d-9d86c8079a1b
+2026-04-25 13:24:55 [INFO] api_server: Server shutting down
+2026-04-25 13:24:58 [INFO] api_server: ============================================================
+2026-04-25 13:24:58 [INFO] api_server:   AIChatScraper – OpenAI-Compatible API Server v2.0
+2026-04-25 13:24:58 [INFO] api_server:   Host       : http://127.0.0.1:12345
+2026-04-25 13:24:58 [INFO] api_server:   Workers    : 2
+2026-04-25 13:24:58 [INFO] api_server:   Session TTL: 3600s
+2026-04-25 13:24:58 [INFO] api_server:   Docs       : http://127.0.0.1:12345/docs
+2026-04-25 13:24:58 [INFO] api_server: ============================================================
+2026-04-25 13:24:58 [INFO] api_server: CookieRotator: 2 file(s) available: ['account1.json', 'account2.json']
+2026-04-25 13:24:58 [INFO] api_server: Server ready (workers=1, session_ttl=3600s)
+2026-04-25 13:25:27 [INFO] api_server: NEW [chatcmpl] — cookie rotation will assign a file
+2026-04-25 13:25:27 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-25 13:25:28 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 13:25:28 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 13:25:28 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 13:25:28 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 13:25:28 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 13:25:51 [INFO] QwenScraper: Submitting prompt (64 chars)
+2026-04-25 13:26:03 [INFO] QwenScraper: Response ready (46 chars)
+2026-04-25 13:26:03 [INFO] QwenScraper: Scrape successful – 46 char(s), 0 code block(s)
+2026-04-25 13:26:03 [INFO] QwenScraper: Closing browser
+2026-04-25 13:26:04 [INFO] api_server: Session created [8991fff9] cookie=account1.json
+2026-04-25 13:26:04 [INFO] api_server: Done [chatcmpl] 46 chars | session=8991fff9 | cookie=account1.json | url=https://chat.qwen.ai/c/dd24d1b7-100b-4501-97da-894acf76e970
+2026-04-25 13:28:49 [INFO] api_server: CONTINUE [chatcmpl] session=8991fff9 cookie=account1.json url=https://chat.qwen.ai/c/dd24d1b7-100b-4501-97da-894acf76e970
+2026-04-25 13:28:49 [INFO] QwenScraper: Launching browser (headless=True)
+2026-04-25 13:28:50 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 13:28:50 [INFO] api_server: Navigating to conversation: https://chat.qwen.ai/c/dd24d1b7-100b-4501-97da-894acf76e970
+2026-04-25 13:28:55 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 13:28:55 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 13:28:55 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 13:29:10 [INFO] QwenScraper: Submitting prompt (24 chars)
+2026-04-25 13:29:19 [INFO] QwenScraper: Response ready (30 chars)
+2026-04-25 13:29:19 [INFO] QwenScraper: Scrape successful – 30 char(s), 0 code block(s)
+2026-04-25 13:29:19 [INFO] QwenScraper: Closing browser
+2026-04-25 13:29:19 [INFO] api_server: Done [chatcmpl] 30 chars | session=8991fff9 | cookie=account1.json | url=https://chat.qwen.ai/c/dd24d1b7-100b-4501-97da-894acf76e970
+2026-04-25 13:40:56 [INFO] api_server: Server shutting down
+2026-04-25 13:41:02 [INFO] api_server: ============================================================
+2026-04-25 13:41:02 [INFO] api_server:   AIChatScraper – OpenAI-Compatible API Server v2.0
+2026-04-25 13:41:02 [INFO] api_server:   Host       : http://127.0.0.1:12345
+2026-04-25 13:41:02 [INFO] api_server:   Workers    : 2
+2026-04-25 13:41:02 [INFO] api_server:   Session TTL: 3600s
+2026-04-25 13:41:02 [INFO] api_server:   Docs       : http://127.0.0.1:12345/docs
+2026-04-25 13:41:02 [INFO] api_server: ============================================================
+2026-04-25 13:41:02 [INFO] api_server: CookieRotator: 2 file(s) available: ['account1.json', 'account2.json']
+2026-04-25 13:41:02 [INFO] api_server: Server ready (workers=1, session_ttl=3600s)
+2026-04-25 13:41:28 [INFO] api_server: NEW [chatcmpl] — cookie rotation will assign a file
+2026-04-25 13:41:28 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-04-25 13:41:29 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 13:41:29 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 13:41:29 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 13:41:29 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 13:41:52 [INFO] QwenScraper: Submitting prompt (79 chars)
+2026-04-25 13:42:17 [INFO] QwenScraper: Response ready (88 chars)
+2026-04-25 13:42:17 [INFO] QwenScraper: Scrape successful – 88 char(s), 0 code block(s)
+2026-04-25 13:42:17 [INFO] QwenScraper: Closing browser
+2026-04-25 13:42:17 [INFO] api_server: Session created [99679732] cookie=account1.json
+2026-04-25 13:42:17 [INFO] api_server: Done [chatcmpl] 88 chars | session=99679732 | cookie=account1.json | url=https://chat.qwen.ai/c/8bc7bdad-8339-489c-9abe-7e9e73d917c4
+2026-04-25 13:42:50 [INFO] api_server: CONTINUE [chatcmpl] session=99679732 cookie=account1.json url=https://chat.qwen.ai/c/8bc7bdad-8339-489c-9abe-7e9e73d917c4
+2026-04-25 13:42:50 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-04-25 13:42:52 [INFO] QwenScraper: Reusing existing profile 'default'
+2026-04-25 13:42:52 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 13:42:52 [INFO] api_server: Navigating to conversation: https://chat.qwen.ai/c/8bc7bdad-8339-489c-9abe-7e9e73d917c4
+2026-04-25 13:42:55 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 13:42:55 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 13:43:10 [INFO] QwenScraper: Submitting prompt (53 chars)
+2026-04-25 13:43:34 [INFO] QwenScraper: Response ready (87 chars)
+2026-04-25 13:43:34 [INFO] QwenScraper: Scrape successful – 87 char(s), 0 code block(s)
+2026-04-25 13:43:34 [INFO] QwenScraper: Closing browser
+2026-04-25 13:43:34 [INFO] api_server: Done [chatcmpl] 87 chars | session=99679732 | cookie=account1.json | url=https://chat.qwen.ai/c/8bc7bdad-8339-489c-9abe-7e9e73d917c4
+2026-04-25 13:44:39 [INFO] api_server: Server shutting down
+2026-04-25 13:44:50 [INFO] api_server: ============================================================
+2026-04-25 13:44:50 [INFO] api_server:   AIChatScraper – OpenAI-Compatible API Server v2.0
+2026-04-25 13:44:50 [INFO] api_server:   Host       : http://127.0.0.1:12345
+2026-04-25 13:44:50 [INFO] api_server:   Workers    : 2
+2026-04-25 13:44:50 [INFO] api_server:   Session TTL: 3600s
+2026-04-25 13:44:50 [INFO] api_server:   Docs       : http://127.0.0.1:12345/docs
+2026-04-25 13:44:50 [INFO] api_server: ============================================================
+2026-04-25 13:44:50 [INFO] api_server: CookieRotator: 2 file(s) available: ['account1.json', 'account2.json']
+2026-04-25 13:44:50 [INFO] api_server: Server ready (workers=1, session_ttl=3600s)
+2026-04-25 13:45:13 [INFO] api_server: NEW [chatcmpl] — cookie rotation will assign a file
+2026-04-25 13:45:13 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-04-25 13:45:15 [INFO] QwenScraper: First run for profile 'account1' – seeding cookies
+2026-04-25 13:45:15 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 13:45:15 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 13:45:15 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 13:45:15 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 13:45:35 [INFO] QwenScraper: Submitting prompt (64 chars)
+2026-04-25 13:45:49 [INFO] QwenScraper: Response ready (81 chars)
+2026-04-25 13:45:49 [INFO] QwenScraper: Scrape successful – 81 char(s), 0 code block(s)
+2026-04-25 13:45:49 [INFO] QwenScraper: Closing browser
+2026-04-25 13:45:49 [INFO] api_server: Session created [95b04a1a] cookie=account1.json
+2026-04-25 13:45:49 [INFO] api_server: Done [chatcmpl] 81 chars | session=95b04a1a | cookie=account1.json | url=https://chat.qwen.ai/c/12116d8d-bdb5-4b1d-b677-d4c8cfef702f
+2026-04-25 13:46:16 [INFO] api_server: CONTINUE [chatcmpl] session=95b04a1a cookie=account1.json url=https://chat.qwen.ai/c/12116d8d-bdb5-4b1d-b677-d4c8cfef702f
+2026-04-25 13:46:16 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-04-25 13:46:17 [INFO] QwenScraper: Reusing existing profile 'account1'
+2026-04-25 13:46:17 [INFO] api_server: Navigating to conversation: https://chat.qwen.ai/c/12116d8d-bdb5-4b1d-b677-d4c8cfef702f
+2026-04-25 13:46:20 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 13:46:20 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 13:46:36 [INFO] QwenScraper: Submitting prompt (68 chars)
+2026-04-25 13:46:59 [INFO] QwenScraper: Response ready (168 chars)
+2026-04-25 13:46:59 [INFO] QwenScraper: Scrape successful – 168 char(s), 0 code block(s)
+2026-04-25 13:46:59 [INFO] QwenScraper: Closing browser
+2026-04-25 13:46:59 [INFO] api_server: Done [chatcmpl] 168 chars | session=95b04a1a | cookie=account1.json | url=https://chat.qwen.ai/c/12116d8d-bdb5-4b1d-b677-d4c8cfef702f
+2026-04-25 13:47:43 [INFO] api_server: CONTINUE [chatcmpl] session=95b04a1a cookie=account1.json url=https://chat.qwen.ai/c/12116d8d-bdb5-4b1d-b677-d4c8cfef702f
+2026-04-25 13:47:43 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-04-25 13:47:45 [INFO] QwenScraper: Reusing existing profile 'account1'
+2026-04-25 13:47:45 [INFO] api_server: Navigating to conversation: https://chat.qwen.ai/c/12116d8d-bdb5-4b1d-b677-d4c8cfef702f
+2026-04-25 13:47:48 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 13:47:48 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 13:48:03 [INFO] QwenScraper: Submitting prompt (73 chars)
+2026-04-25 13:48:19 [INFO] QwenScraper: Response ready (66 chars)
+2026-04-25 13:48:19 [INFO] QwenScraper: Scrape successful – 66 char(s), 0 code block(s)
+2026-04-25 13:48:19 [INFO] QwenScraper: Closing browser
+2026-04-25 13:48:19 [INFO] api_server: Done [chatcmpl] 66 chars | session=95b04a1a | cookie=account1.json | url=https://chat.qwen.ai/c/12116d8d-bdb5-4b1d-b677-d4c8cfef702f
+2026-04-25 14:00:54 [INFO] api_server: Server shutting down
+2026-04-25 14:00:58 [INFO] api_server: ============================================================
+2026-04-25 14:00:58 [INFO] api_server:   AIChatScraper – OpenAI-Compatible API Server v2.0
+2026-04-25 14:00:58 [INFO] api_server:   Host       : http://127.0.0.1:12345
+2026-04-25 14:00:58 [INFO] api_server:   Workers    : 2
+2026-04-25 14:00:58 [INFO] api_server:   Session TTL: 3600s
+2026-04-25 14:00:58 [INFO] api_server:   Docs       : http://127.0.0.1:12345/docs
+2026-04-25 14:00:58 [INFO] api_server: ============================================================
+2026-04-25 14:00:58 [INFO] api_server: CookieRotator: 2 file(s) available: ['account1.json', 'account2.json']
+2026-04-25 14:00:58 [INFO] api_server: Server ready (workers=1, session_ttl=3600s)
+2026-04-25 14:01:15 [INFO] api_server: NEW [chatcmpl] — cookie rotation will assign a file
+2026-04-25 14:01:15 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-04-25 14:01:17 [INFO] QwenScraper: Reusing existing profile 'account1'
+2026-04-25 14:01:17 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 14:01:17 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 14:01:17 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 14:01:23 [INFO] QwenScraper: Setting think mode → 'fast'
+2026-04-25 14:01:24 [WARNING] QwenScraper: Think mode may not have applied (expected 'fast', got 'auto')
+2026-04-25 14:01:39 [INFO] QwenScraper: Submitting prompt (24 chars) [think_mode=fast]
+2026-04-25 14:01:50 [INFO] QwenScraper: Response ready (281 chars)
+2026-04-25 14:01:50 [INFO] QwenScraper: Scrape successful – 281 char(s), 0 code block(s)
+2026-04-25 14:01:50 [INFO] QwenScraper: Closing browser
+2026-04-25 14:01:50 [INFO] api_server: Session created [7d0ff1ac] cookie=account1.json
+2026-04-25 14:01:50 [INFO] api_server: Done [chatcmpl] 281 chars | session=7d0ff1ac | cookie=account1.json | url=https://chat.qwen.ai/c/3b98a73d-311c-4383-98bb-bcef5564e585
+2026-04-25 14:03:43 [INFO] api_server: Server shutting down
+2026-04-25 14:03:46 [INFO] api_server: ============================================================
+2026-04-25 14:03:46 [INFO] api_server:   AIChatScraper – OpenAI-Compatible API Server v2.0
+2026-04-25 14:03:46 [INFO] api_server:   Host       : http://127.0.0.1:12345
+2026-04-25 14:03:46 [INFO] api_server:   Workers    : 2
+2026-04-25 14:03:46 [INFO] api_server:   Session TTL: 3600s
+2026-04-25 14:03:46 [INFO] api_server:   Docs       : http://127.0.0.1:12345/docs
+2026-04-25 14:03:46 [INFO] api_server: ============================================================
+2026-04-25 14:03:46 [INFO] api_server: CookieRotator: 2 file(s) available: ['account1.json', 'account2.json']
+2026-04-25 14:03:46 [INFO] api_server: Server ready (workers=1, session_ttl=3600s)
+2026-04-25 14:04:10 [INFO] api_server: NEW [chatcmpl] — cookie rotation will assign a file
+2026-04-25 14:04:10 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-04-25 14:04:11 [INFO] QwenScraper: Reusing existing profile 'account1'
+2026-04-25 14:04:11 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 14:04:11 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 14:04:11 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 14:04:20 [INFO] QwenScraper: Setting think mode → 'fast'
+2026-04-25 14:04:21 [WARNING] QwenScraper: Think mode may not have applied (expected 'fast', got 'auto')
+2026-04-25 14:04:36 [INFO] QwenScraper: Submitting prompt (33 chars) [think_mode=fast]
+2026-04-25 14:04:46 [INFO] QwenScraper: Response ready (380 chars)
+2026-04-25 14:04:46 [INFO] QwenScraper: Scrape successful – 380 char(s), 0 code block(s)
+2026-04-25 14:04:46 [INFO] QwenScraper: Closing browser
+2026-04-25 14:04:46 [INFO] api_server: Session created [b2cb872c] cookie=account1.json
+2026-04-25 14:04:46 [INFO] api_server: Done [chatcmpl] 380 chars | session=b2cb872c | cookie=account1.json | url=https://chat.qwen.ai/c/ccb7bde7-ea05-4e93-858d-2c8ca54a8c5f
+2026-04-25 14:16:52 [INFO] api_server: Server shutting down
+2026-04-25 14:16:56 [INFO] api_server: ============================================================
+2026-04-25 14:16:56 [INFO] api_server:   AIChatScraper – OpenAI-Compatible API Server v2.0
+2026-04-25 14:16:56 [INFO] api_server:   Host       : http://127.0.0.1:12345
+2026-04-25 14:16:56 [INFO] api_server:   Workers    : 2
+2026-04-25 14:16:56 [INFO] api_server:   Session TTL: 3600s
+2026-04-25 14:16:56 [INFO] api_server:   Docs       : http://127.0.0.1:12345/docs
+2026-04-25 14:16:56 [INFO] api_server: ============================================================
+2026-04-25 14:16:56 [INFO] api_server: CookieRotator: 2 file(s) available: ['account1.json', 'account2.json']
+2026-04-25 14:16:56 [INFO] api_server: Server ready (workers=1, session_ttl=3600s)
+2026-04-25 14:17:21 [INFO] api_server: NEW [chatcmpl] — cookie rotation will assign a file
+2026-04-25 14:17:21 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-04-25 14:17:22 [INFO] QwenScraper: Reusing existing profile 'account1'
+2026-04-25 14:17:22 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 14:17:22 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 14:17:22 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 14:17:45 [INFO] QwenScraper: Submitting prompt (39 chars) [think_mode=fast]
+2026-04-25 14:17:59 [INFO] QwenScraper: Response ready (1192 chars)
+2026-04-25 14:18:00 [INFO] QwenScraper: Scrape successful – 1192 char(s), 0 code block(s)
+2026-04-25 14:18:00 [INFO] QwenScraper: Closing browser
+2026-04-25 14:18:00 [INFO] api_server: Session created [b3524064] cookie=account1.json
+2026-04-25 14:18:00 [INFO] api_server: Done [chatcmpl] 1192 chars | session=b3524064 | cookie=account1.json | url=https://chat.qwen.ai/c/28617efc-1a47-456e-a960-73468f8e79b7
+2026-04-25 14:18:19 [INFO] api_server: CONTINUE [chatcmpl] session=b3524064 cookie=account1.json url=https://chat.qwen.ai/c/28617efc-1a47-456e-a960-73468f8e79b7
+2026-04-25 14:18:19 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-04-25 14:18:20 [INFO] QwenScraper: Reusing existing profile 'account1'
+2026-04-25 14:18:20 [INFO] api_server: Navigating to conversation: https://chat.qwen.ai/c/28617efc-1a47-456e-a960-73468f8e79b7
+2026-04-25 14:18:23 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 14:18:23 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 14:18:38 [INFO] QwenScraper: Submitting prompt (43 chars) [think_mode=fast]
+2026-04-25 14:18:47 [INFO] QwenScraper: Response ready (52 chars)
+2026-04-25 14:18:47 [INFO] QwenScraper: Scrape successful – 52 char(s), 0 code block(s)
+2026-04-25 14:18:47 [INFO] QwenScraper: Closing browser
+2026-04-25 14:18:47 [INFO] api_server: Done [chatcmpl] 52 chars | session=b3524064 | cookie=account1.json | url=https://chat.qwen.ai/c/28617efc-1a47-456e-a960-73468f8e79b7
+2026-04-25 14:19:52 [INFO] main: === Single prompt mode ===
+2026-04-25 14:19:52 [INFO] main: Prompt: Hello
+2026-04-25 14:19:52 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 14:19:52 [INFO] QwenScraper: Launching browser (headless=False, persistent=True)
+2026-04-25 14:19:54 [INFO] QwenScraper: Reusing existing profile 'account1'
+2026-04-25 14:19:54 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 14:19:54 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 14:19:54 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 14:20:14 [INFO] QwenScraper: Submitting prompt (5 chars) [think_mode=fast]
+2026-04-25 14:20:21 [INFO] QwenScraper: Response ready (32 chars)
+2026-04-25 14:20:21 [INFO] QwenScraper: Scrape successful – 32 char(s), 0 code block(s)
+2026-04-25 14:20:21 [INFO] QwenScraper: Closing browser
+2026-04-25 14:20:22 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-25 14:20:22 [INFO] main: RESPONSE (32 chars):
+2026-04-25 14:20:22 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-25 14:20:22 [INFO] main: Result JSON saved → C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\output\hello_20260425_142022.json
+2026-04-25 14:21:18 [INFO] main: === Single prompt mode ===
+2026-04-25 14:21:18 [INFO] main: Prompt: Hello apakabar
+2026-04-25 14:21:18 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 14:21:18 [INFO] QwenScraper: Launching browser (headless=False, persistent=True)
+2026-04-25 14:21:20 [INFO] QwenScraper: Reusing existing profile 'account1'
+2026-04-25 14:21:20 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 14:21:20 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 14:21:20 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 14:21:39 [INFO] QwenScraper: Submitting prompt (14 chars) [think_mode=fast]
+2026-04-25 14:21:47 [INFO] QwenScraper: Response ready (75 chars)
+2026-04-25 14:21:47 [INFO] QwenScraper: Scrape successful – 75 char(s), 0 code block(s)
+2026-04-25 14:21:47 [INFO] QwenScraper: Closing browser
+2026-04-25 14:21:47 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-25 14:21:47 [INFO] main: RESPONSE (75 chars):
+2026-04-25 14:21:47 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-25 14:21:47 [INFO] main: Result JSON saved → C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\output\hello_apakabar_20260425_142147.json
+2026-04-25 14:22:02 [INFO] main: === Single prompt mode ===
+2026-04-25 14:22:02 [INFO] main: Prompt: Hello apakabar
+2026-04-25 14:22:02 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 14:22:02 [INFO] QwenScraper: Launching browser (headless=False, persistent=True)
+2026-04-25 14:22:04 [INFO] QwenScraper: Reusing existing profile 'account1'
+2026-04-25 14:22:04 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 14:22:04 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 14:22:04 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 14:22:23 [INFO] QwenScraper: Submitting prompt (14 chars) [think_mode=fast]
+2026-04-25 14:22:33 [INFO] QwenScraper: Response ready (75 chars)
+2026-04-25 14:22:33 [INFO] QwenScraper: Scrape successful – 75 char(s), 0 code block(s)
+2026-04-25 14:22:33 [INFO] QwenScraper: Closing browser
+2026-04-25 14:22:33 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-25 14:22:33 [INFO] main: RESPONSE (75 chars):
+2026-04-25 14:22:33 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-25 14:22:33 [INFO] main: Result JSON saved → C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\output\hello_apakabar_20260425_142233.json
+2026-04-25 14:23:10 [INFO] main: === Single prompt mode ===
+2026-04-25 14:23:10 [INFO] main: Prompt: Hello apakabar
+2026-04-25 14:23:10 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 14:23:10 [INFO] QwenScraper: Launching browser (headless=False, persistent=True)
+2026-04-25 14:23:12 [INFO] QwenScraper: Reusing existing profile 'account1'
+2026-04-25 14:23:12 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 14:23:12 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 14:23:12 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 14:23:32 [INFO] QwenScraper: Submitting prompt (14 chars) [think_mode=fast]
+2026-04-25 14:23:40 [INFO] QwenScraper: Response ready (75 chars)
+2026-04-25 14:23:40 [INFO] QwenScraper: Scrape successful – 75 char(s), 0 code block(s)
+2026-04-25 14:23:40 [INFO] QwenScraper: Closing browser
+2026-04-25 14:23:40 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-25 14:23:40 [INFO] main: RESPONSE (75 chars):
+2026-04-25 14:23:40 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-25 14:23:40 [INFO] main: Result JSON saved → C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\output\hello_apakabar_20260425_142340.json
+2026-04-25 14:27:23 [INFO] main: === Single prompt mode ===
+2026-04-25 14:27:23 [INFO] main: Prompt: Hello apakabar
+2026-04-25 14:27:23 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 14:27:23 [INFO] QwenScraper: Launching browser (headless=False, persistent=True)
+2026-04-25 14:27:25 [INFO] QwenScraper: Reusing existing profile 'account1'
+2026-04-25 14:27:25 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 14:27:25 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 14:27:25 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 14:27:44 [INFO] QwenScraper: Submitting prompt (14 chars) [think_mode=fast]
+2026-04-25 14:27:59 [ERROR] QwenScraper: Error on attempt 1: Page.evaluate: Target page, context or browser has been closed
+Traceback (most recent call last):
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\base_scraper.py", line 433, in scrape
+    response_text = await self.send_prompt(prompt, mode, **self._extra_send_kwargs())
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 485, in send_prompt
+    return await self._wait_for_generation(pre_count)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 513, in _wait_for_generation
+    generating = await self._is_generating()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 409, in _is_generating
+    result = await self._page.evaluate("""
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<26 lines>...
+    """)
+    ^^^^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\async_api\_generated.py", line 8567, in evaluate
+    await self._impl_obj.evaluate(
+        expression=expression, arg=mapping.to_impl(arg)
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_page.py", line 464, in evaluate
+    return await self._main_frame.evaluate(expression, arg)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_frame.py", line 320, in evaluate
+    await self._channel.send(
+    ...<6 lines>...
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 69, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 559, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+playwright._impl._errors.TargetClosedError: Page.evaluate: Target page, context or browser has been closed
+2026-04-25 14:28:04 [INFO] QwenScraper: Attempt 2/4 using account 'account1'
+2026-04-25 14:28:04 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 14:28:04 [ERROR] QwenScraper: Error on attempt 2: Page.goto: Target page, context or browser has been closed
+Traceback (most recent call last):
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\base_scraper.py", line 433, in scrape
+    response_text = await self.send_prompt(prompt, mode, **self._extra_send_kwargs())
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 447, in send_prompt
+    await self._ensure_page_ready(mode)
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 81, in _ensure_page_ready
+    await self._goto_new_chat()
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 64, in _goto_new_chat
+    await self._page.goto(
+        self.BASE_URL, wait_until="domcontentloaded", timeout=_TIMEOUT["page_load"]
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\async_api\_generated.py", line 9045, in goto
+    await self._impl_obj.goto(
+        url=url, timeout=timeout, waitUntil=wait_until, referer=referer
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_page.py", line 552, in goto
+    return await self._main_frame.goto(**locals_to_params(locals()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_frame.py", line 153, in goto
+    await self._channel.send(
+        "goto", self._navigation_timeout, locals_to_params(locals())
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 69, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 559, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+playwright._impl._errors.TargetClosedError: Page.goto: Target page, context or browser has been closed
+2026-04-25 14:28:09 [INFO] QwenScraper: Attempt 3/4 using account 'account1'
+2026-04-25 14:28:09 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 14:28:09 [ERROR] QwenScraper: Error on attempt 3: Page.goto: Target page, context or browser has been closed
+Traceback (most recent call last):
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\base_scraper.py", line 433, in scrape
+    response_text = await self.send_prompt(prompt, mode, **self._extra_send_kwargs())
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 447, in send_prompt
+    await self._ensure_page_ready(mode)
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 81, in _ensure_page_ready
+    await self._goto_new_chat()
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 64, in _goto_new_chat
+    await self._page.goto(
+        self.BASE_URL, wait_until="domcontentloaded", timeout=_TIMEOUT["page_load"]
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\async_api\_generated.py", line 9045, in goto
+    await self._impl_obj.goto(
+        url=url, timeout=timeout, waitUntil=wait_until, referer=referer
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_page.py", line 552, in goto
+    return await self._main_frame.goto(**locals_to_params(locals()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_frame.py", line 153, in goto
+    await self._channel.send(
+        "goto", self._navigation_timeout, locals_to_params(locals())
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 69, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 559, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+playwright._impl._errors.TargetClosedError: Page.goto: Target page, context or browser has been closed
+2026-04-25 14:28:14 [INFO] QwenScraper: Attempt 4/4 using account 'account1'
+2026-04-25 14:28:14 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 14:28:14 [ERROR] QwenScraper: Error on attempt 4: Page.goto: Target page, context or browser has been closed
+Traceback (most recent call last):
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\base_scraper.py", line 433, in scrape
+    response_text = await self.send_prompt(prompt, mode, **self._extra_send_kwargs())
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 447, in send_prompt
+    await self._ensure_page_ready(mode)
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 81, in _ensure_page_ready
+    await self._goto_new_chat()
+  File "C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\scrapers\qwen_scraper.py", line 64, in _goto_new_chat
+    await self._page.goto(
+        self.BASE_URL, wait_until="domcontentloaded", timeout=_TIMEOUT["page_load"]
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\async_api\_generated.py", line 9045, in goto
+    await self._impl_obj.goto(
+        url=url, timeout=timeout, waitUntil=wait_until, referer=referer
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_page.py", line 552, in goto
+    return await self._main_frame.goto(**locals_to_params(locals()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_frame.py", line 153, in goto
+    await self._channel.send(
+        "goto", self._navigation_timeout, locals_to_params(locals())
+    )
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 69, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\SPIN\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py", line 559, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+playwright._impl._errors.TargetClosedError: Page.goto: Target page, context or browser has been closed
+2026-04-25 14:28:19 [INFO] QwenScraper: Closing browser
+2026-04-25 14:28:19 [ERROR] main: Scrape FAILED: All attempts exhausted
+2026-04-25 14:29:26 [INFO] main: === Single prompt mode ===
+2026-04-25 14:29:26 [INFO] main: Prompt: Hello apakabar
+2026-04-25 14:29:26 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 14:29:26 [INFO] QwenScraper: Launching browser (headless=False, persistent=True)
+2026-04-25 14:29:28 [INFO] QwenScraper: Reusing existing profile 'account1'
+2026-04-25 14:29:28 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 14:29:28 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 14:29:28 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 14:29:32 [WARNING] QwenScraper: Timeout waiting for input ready: Timeout 2000ms exceeded.
+2026-04-25 14:29:47 [INFO] QwenScraper: Submitting prompt (14 chars) [think_mode=fast]
+2026-04-25 14:29:54 [INFO] QwenScraper: Response ready (75 chars)
+2026-04-25 14:29:54 [INFO] QwenScraper: Scrape successful – 75 char(s), 0 code block(s)
+2026-04-25 14:29:54 [INFO] QwenScraper: Closing browser
+2026-04-25 14:29:54 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-25 14:29:54 [INFO] main: RESPONSE (75 chars):
+2026-04-25 14:29:54 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-25 14:29:54 [INFO] main: Result JSON saved → C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\output\hello_apakabar_20260425_142954.json
+2026-04-25 14:31:27 [INFO] main: === Single prompt mode ===
+2026-04-25 14:31:27 [INFO] main: Prompt: Hello apakabar
+2026-04-25 14:31:27 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 14:31:27 [INFO] QwenScraper: Launching browser (headless=False, persistent=True)
+2026-04-25 14:31:28 [INFO] QwenScraper: Reusing existing profile 'account1'
+2026-04-25 14:31:28 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 14:31:28 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 14:31:28 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 14:31:33 [WARNING] QwenScraper: Timeout waiting for input ready: Timeout 2000ms exceeded.
+2026-04-25 14:31:48 [INFO] QwenScraper: Submitting prompt (14 chars) [think_mode=fast]
+2026-04-25 14:32:02 [INFO] QwenScraper: Response ready (75 chars)
+2026-04-25 14:32:02 [INFO] QwenScraper: Scrape successful – 75 char(s), 0 code block(s)
+2026-04-25 14:32:02 [INFO] QwenScraper: Closing browser
+2026-04-25 14:32:02 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-25 14:32:02 [INFO] main: RESPONSE (75 chars):
+2026-04-25 14:32:02 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-25 14:32:02 [INFO] main: Result JSON saved → C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\output\hello_apakabar_20260425_143202.json
+2026-04-25 14:33:17 [INFO] main: === Single prompt mode ===
+2026-04-25 14:33:17 [INFO] main: Prompt: Hello apakabar
+2026-04-25 14:33:17 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 14:33:17 [INFO] QwenScraper: Launching browser (headless=False, persistent=True)
+2026-04-25 14:33:19 [INFO] QwenScraper: Reusing existing profile 'account1'
+2026-04-25 14:33:19 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 14:33:19 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 14:33:19 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 14:33:22 [WARNING] QwenScraper: Timeout waiting for input ready: Timeout 1000ms exceeded.
+2026-04-25 14:33:37 [INFO] QwenScraper: Submitting prompt (14 chars) [think_mode=fast]
+2026-04-25 14:33:43 [INFO] QwenScraper: Closing browser
+2026-04-25 14:35:34 [INFO] main: === Single prompt mode ===
+2026-04-25 14:35:34 [INFO] main: Prompt: Hello apakabar berapa 1 + 2
+2026-04-25 14:35:34 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 14:35:34 [INFO] QwenScraper: Launching browser (headless=False, persistent=True)
+2026-04-25 14:35:35 [INFO] QwenScraper: Reusing existing profile 'account1'
+2026-04-25 14:35:35 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 14:35:35 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 14:35:35 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 14:35:37 [WARNING] QwenScraper: Timeout waiting for input ready: Timeout 100ms exceeded.
+2026-04-25 14:35:38 [INFO] QwenScraper: Setting think mode → 'fast'
+2026-04-25 14:35:39 [INFO] QwenScraper: Think mode confirmed → 'fast' ✓
+2026-04-25 14:35:54 [INFO] QwenScraper: Submitting prompt (27 chars) [think_mode=fast]
+2026-04-25 14:36:01 [INFO] QwenScraper: Response ready (59 chars)
+2026-04-25 14:36:01 [INFO] QwenScraper: Scrape successful – 59 char(s), 0 code block(s)
+2026-04-25 14:36:01 [INFO] QwenScraper: Closing browser
+2026-04-25 14:36:02 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-25 14:36:02 [INFO] main: RESPONSE (59 chars):
+2026-04-25 14:36:02 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-25 14:36:02 [INFO] main: Result JSON saved → C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\output\hello_apakabar_berapa_1_2_20260425_143602.json
+2026-04-25 14:38:52 [INFO] main: === Single prompt mode ===
+2026-04-25 14:38:52 [INFO] main: Prompt: Hello apakabar berapa 1 + 2099
+2026-04-25 14:38:52 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 14:38:52 [INFO] QwenScraper: Launching browser (headless=False, persistent=True)
+2026-04-25 14:38:53 [INFO] QwenScraper: Reusing existing profile 'account1'
+2026-04-25 14:38:53 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 14:38:53 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 14:38:53 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 14:38:55 [WARNING] QwenScraper: Timeout waiting for input ready: Timeout 100ms exceeded.
+2026-04-25 14:38:55 [INFO] QwenScraper: Setting think mode → 'fast'
+2026-04-25 14:38:57 [INFO] QwenScraper: Think mode confirmed → 'fast' ✓
+2026-04-25 14:39:00 [INFO] QwenScraper: Submitting prompt (30 chars) [think_mode=fast]
+2026-04-25 14:39:09 [INFO] QwenScraper: Response ready (59 chars)
+2026-04-25 14:39:09 [INFO] QwenScraper: Scrape successful – 59 char(s), 0 code block(s)
+2026-04-25 14:39:09 [INFO] QwenScraper: Closing browser
+2026-04-25 14:39:09 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-25 14:39:09 [INFO] main: RESPONSE (59 chars):
+2026-04-25 14:39:09 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-25 14:39:09 [INFO] main: Result JSON saved → C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\output\hello_apakabar_berapa_1_2099_20260425_143909.json
+2026-04-25 14:41:06 [INFO] api_server: Server shutting down
+2026-04-25 14:41:09 [INFO] api_server: ============================================================
+2026-04-25 14:41:09 [INFO] api_server:   AIChatScraper – OpenAI-Compatible API Server v2.0
+2026-04-25 14:41:09 [INFO] api_server:   Host       : http://127.0.0.1:12345
+2026-04-25 14:41:09 [INFO] api_server:   Workers    : 2
+2026-04-25 14:41:09 [INFO] api_server:   Session TTL: 3600s
+2026-04-25 14:41:09 [INFO] api_server:   Docs       : http://127.0.0.1:12345/docs
+2026-04-25 14:41:09 [INFO] api_server: ============================================================

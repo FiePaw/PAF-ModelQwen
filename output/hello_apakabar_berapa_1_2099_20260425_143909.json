@@ -1,0 +1,11 @@
+{
+  "prompt": "Hello apakabar berapa 1 + 2099",
+  "response": "Halo! Apa kabar? Saya baik, terima kasih. 😊\n1 + 2099 = 2100",
+  "file_type": "text",
+  "code_blocks": [],
+  "code_block_count": 0,
+  "account_used": "account1",
+  "timestamp": "2026-04-25T14:39:09.222519",
+  "success": true,
+  "error": null
+}

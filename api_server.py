@@ -43,8 +43,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import AsyncIterator, Literal, Optional
-
 import uvicorn
+from colorama import init as initcolor
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -52,13 +52,13 @@ from pydantic import BaseModel, Field as PydanticField
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from config import COOKIES_DIR
+from config import COOKIES_DIR, PERSISTENT_CONTEXT_CONFIG
 from scrapers.qwen_scraper import QwenScraper
 from scrapers.utils import discover_cookie_files, setup_logger
 
 logger = setup_logger("api_server")
 
-
+initcolor(autoreset=True)
 # ─── Session Store ────────────────────────────────────────────────────────────
 
 @dataclass
@@ -197,12 +197,14 @@ class ScraperPool:
         self,
         cookie_file: Path | None = None,
         conversation_url: str | None = None,
+        think_mode: str | None = None,
     ) -> AsyncIterator[QwenScraper]:
         """
         Yield a ready QwenScraper.
 
         cookie_file      – if given, skip rotation and use this file (continue mode)
         conversation_url – if given, navigate there before yielding (continue mode)
+        think_mode       – if given, override the default think mode for this request
         """
         async with self._semaphore:
             self._active += 1
@@ -214,10 +216,12 @@ class ScraperPool:
                 headless=self.headless,
                 cookies_path=effective_cookie,
                 cookies_dir=self.cookies_dir,
+                think_mode=think_mode,
             )
             try:
-                await scraper.launch_browser()
-                if effective_cookie:
+                await scraper.launch_browser(cookie_file=effective_cookie)
+
+                if not PERSISTENT_CONTEXT_CONFIG["enabled"] and effective_cookie:
                     await scraper.load_cookies(effective_cookie)
 
                 # Navigate to existing conversation when continuing
@@ -274,6 +278,10 @@ class ChatCompletionRequest(BaseModel):
     presence_penalty: Optional[float] = None
     stop: Optional[list[str] | str] = None
     user: Optional[str] = None
+    think_mode: Optional[Literal["auto", "thinking", "fast"]] = PydanticField(
+        default=None,
+        description="Qwen think mode: 'auto' | 'thinking' | 'fast'. Omit to use server default.",
+    )
 
     @property
     def last_user_message(self) -> str:
@@ -476,6 +484,7 @@ async def chat_completions(request: ChatCompletionRequest, raw_request: Request)
         async with pool.get_scraper(
             cookie_file=cookie_file,
             conversation_url=conv_url,
+            think_mode=request.think_mode,
         ) as scraper:
             result = await scraper.scrape(prompt, mode=mode)
             current_url: str = scraper._page.url
@@ -565,6 +574,7 @@ async def chat_completions(request: ChatCompletionRequest, raw_request: Request)
             "cookie_file": session.cookie_file.name,
             "conversation_url": session.conversation_url,
             "account_used": account_used,
+            "think_mode": request.think_mode or "auto",
         },
     }
     return JSONResponse(content=body, headers=extra_headers)

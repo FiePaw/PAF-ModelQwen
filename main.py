@@ -75,6 +75,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="'new' starts a fresh chat; 'continue' appends to the current one (default: new)",
     )
 
+    # Think mode
+    p.add_argument(
+        "--think-mode",
+        choices=["auto", "thinking", "fast"],
+        default=None,
+        metavar="MODE",
+        help="Qwen think mode: auto | thinking | fast (default: auto from config)",
+    )
+
     # Browser
     p.add_argument(
         "--no-headless",
@@ -139,6 +148,7 @@ async def run_single(args: argparse.Namespace) -> None:
         headless=headless,
         cookies_path=args.cookie,
         cookies_dir=args.cookies_dir,
+        think_mode=args.think_mode,
     ) as scraper:
         result = await scraper.scrape(prompt, mode=args.mode)
 
@@ -168,6 +178,7 @@ async def run_multi(args: argparse.Namespace) -> None:
     results = await QwenScraper.scrape_many(
         prompts=prompts,
         mode=args.mode,
+        think_mode=args.think_mode,
         headless=headless,
         cookies_dir=args.cookies_dir,
         max_concurrent=args.concurrent,
