@@ -2040,3 +2040,84 @@ playwright._impl._errors.TargetClosedError: Page.goto: Target page, context or b
 2026-04-25 17:41:50 [INFO] main: RESPONSE (189 chars):
 2026-04-25 17:41:50 [INFO] main: ────────────────────────────────────────────────────────────
 2026-04-25 17:41:50 [INFO] main: Result JSON saved → C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\output\hello_apakabar_berapa_1_209223_20260425_174150.json
+2026-04-25 18:34:41 [INFO] main: === Single prompt mode ===
+2026-04-25 18:34:41 [INFO] main: Prompt: Hello jawab essay ini Jelaskan pentingnya menjaga kebersihan lingkungan sekolah …
+2026-04-25 18:34:41 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 18:34:41 [INFO] QwenScraper: Launching browser (headless=False, persistent=True)
+2026-04-25 18:34:51 [INFO] QwenScraper: First run for profile 'account1' – seeding cookies
+2026-04-25 18:34:54 [INFO] QwenScraper: Loaded 16 cookie(s) from account1.json
+2026-04-25 18:34:54 [INFO] QwenScraper: Cookie seeding complete for profile 'account1'
+2026-04-25 18:34:55 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 18:34:55 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 18:34:56 [WARNING] QwenScraper: Timeout waiting for input ready: Timeout 100ms exceeded.
+=========================== logs ===========================
+"load" event fired
+============================================================
+2026-04-25 18:34:57 [INFO] QwenScraper: Setting think mode → 'fast'
+2026-04-25 18:34:58 [INFO] QwenScraper: Think mode confirmed → 'fast' ✓
+2026-04-25 18:35:01 [INFO] QwenScraper: Submitting prompt (132 chars) [think_mode=fast]
+2026-04-25 18:35:02 [WARNING] QwenScraper: Clipboard paste error: 'ElementHandle' object has no attribute 'element_handle'
+2026-04-25 18:35:02 [INFO] QwenScraper: Falling back to .type() for input
+2026-04-25 18:35:23 [INFO] QwenScraper: Response ready (2922 chars)
+2026-04-25 18:35:23 [INFO] QwenScraper: Scrape successful – 2922 char(s), 0 code block(s)
+2026-04-25 18:35:23 [INFO] QwenScraper: Closing browser
+2026-04-25 18:35:23 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-25 18:35:23 [INFO] main: RESPONSE (2922 chars):
+2026-04-25 18:35:23 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-25 18:35:23 [INFO] main: Result JSON saved → C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\output\hello_jawab_essay_ini_jelaskan_20260425_183523.json
+2026-04-25 18:37:23 [INFO] main: === Single prompt mode ===
+2026-04-25 18:37:23 [INFO] main: Prompt: berikan saya 1 contoh code html
+2026-04-25 18:37:23 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 18:37:23 [INFO] QwenScraper: Launching browser (headless=False, persistent=True)
+2026-04-25 18:37:27 [INFO] QwenScraper: Reusing existing profile 'account1'
+2026-04-25 18:37:27 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 18:37:27 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 18:37:29 [WARNING] QwenScraper: Timeout waiting for input ready: Timeout 100ms exceeded.
+2026-04-25 18:37:30 [INFO] QwenScraper: Setting think mode → 'fast'
+2026-04-25 18:37:32 [INFO] QwenScraper: Think mode confirmed → 'fast' ✓
+2026-04-25 18:37:35 [INFO] QwenScraper: Submitting prompt (31 chars) [think_mode=fast]
+2026-04-25 18:37:35 [WARNING] QwenScraper: Clipboard paste error: 'ElementHandle' object has no attribute 'element_handle'
+2026-04-25 18:37:35 [INFO] QwenScraper: Falling back to .type() for input
+2026-04-25 18:37:44 [INFO] QwenScraper: Response ready (325 chars)
+2026-04-25 18:37:44 [INFO] QwenScraper: Scrape successful – 325 char(s), 0 code block(s)
+2026-04-25 18:37:44 [INFO] QwenScraper: Closing browser
+2026-04-25 18:37:45 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-25 18:37:45 [INFO] main: RESPONSE (325 chars):
+2026-04-25 18:37:45 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-25 18:37:45 [INFO] main: Result JSON saved → C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\output\berikan_saya_1_contoh_code_htm_20260425_183745.json
+2026-04-25 18:38:05 [INFO] main: === Single prompt mode ===
+2026-04-25 18:38:05 [INFO] main: Prompt: berikan saya 1 contoh code python
+2026-04-25 18:38:05 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 18:38:05 [INFO] QwenScraper: Launching browser (headless=False, persistent=True)
+2026-04-25 18:38:07 [INFO] QwenScraper: Reusing existing profile 'account1'
+2026-04-25 18:38:07 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 18:38:07 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 18:38:08 [WARNING] QwenScraper: Timeout waiting for input ready: Timeout 100ms exceeded.
+2026-04-25 18:38:09 [INFO] QwenScraper: Setting think mode → 'fast'
+2026-04-25 18:38:10 [INFO] QwenScraper: Think mode confirmed → 'fast' ✓
+2026-04-25 18:38:13 [INFO] QwenScraper: Submitting prompt (33 chars) [think_mode=fast]
+2026-04-25 18:38:20 [INFO] QwenScraper: Response ready (106 chars)
+2026-04-25 18:38:20 [INFO] QwenScraper: Scrape successful – 106 char(s), 0 code block(s)
+2026-04-25 18:38:20 [INFO] QwenScraper: Closing browser
+2026-04-25 18:38:20 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-25 18:38:20 [INFO] main: RESPONSE (106 chars):
+2026-04-25 18:38:20 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-25 18:38:20 [INFO] main: Result JSON saved → C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\output\berikan_saya_1_contoh_code_pyt_20260425_183820.json
+2026-04-25 18:38:33 [INFO] main: === Single prompt mode ===
+2026-04-25 18:38:33 [INFO] main: Prompt: berikan saya 1 contoh code rust
+2026-04-25 18:38:33 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 18:38:33 [INFO] QwenScraper: Launching browser (headless=False, persistent=True)
+2026-04-25 18:38:35 [INFO] QwenScraper: Reusing existing profile 'account1'
+2026-04-25 18:38:35 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 18:38:35 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 18:38:37 [WARNING] QwenScraper: Timeout waiting for input ready: Timeout 100ms exceeded.
+2026-04-25 18:38:37 [INFO] QwenScraper: Setting think mode → 'fast'
+2026-04-25 18:38:39 [INFO] QwenScraper: Think mode confirmed → 'fast' ✓
+2026-04-25 18:38:42 [INFO] QwenScraper: Submitting prompt (31 chars) [think_mode=fast]
+2026-04-25 18:38:49 [INFO] QwenScraper: Response ready (148 chars)
+2026-04-25 18:38:49 [INFO] QwenScraper: Scrape successful – 148 char(s), 0 code block(s)
+2026-04-25 18:38:49 [INFO] QwenScraper: Closing browser
+2026-04-25 18:38:49 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-25 18:38:49 [INFO] main: RESPONSE (148 chars):
+2026-04-25 18:38:49 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-25 18:38:49 [INFO] main: Result JSON saved → C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\output\berikan_saya_1_contoh_code_rus_20260425_183849.json

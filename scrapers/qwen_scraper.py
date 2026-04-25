@@ -447,6 +447,69 @@ class QwenScraper(BaseAIChatScraper):
 
     # ── Core send_prompt ──────────────────────────────────────────────────────
 
+    async def _paste_prompt(self, input_el, prompt: str) -> bool:
+        """
+        Paste *prompt* into *input_el* via the system clipboard (Ctrl+V).
+
+        Strategy:
+          1. Write the prompt text to the browser clipboard via JS
+             navigator.clipboard (Chromium with --no-sandbox supports this).
+          2. Focus the input and send Ctrl+V (or Cmd+V on macOS).
+          3. Verify the field received the text.
+
+        Returns True if paste succeeded, False so caller falls back to .type().
+        """
+        try:
+            # Write text to clipboard inside the browser context
+            await self._page.evaluate(
+                """async (text) => {
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        await navigator.clipboard.writeText(text);
+                    } else {
+                        // execCommand fallback for restricted contexts
+                        const ta = document.createElement('textarea');
+                        ta.value = text;
+                        ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
+                        document.body.appendChild(ta);
+                        ta.focus();
+                        ta.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(ta);
+                    }
+                }""",
+                prompt,
+            )
+
+            await input_el.click()
+            await input_el.fill("")   # clear any existing content
+            await asyncio.sleep(0.1)
+
+            # Send paste shortcut
+            import sys
+            modifier = "Meta" if sys.platform == "darwin" else "Control"
+            await input_el.press(f"{modifier}+v")
+            await asyncio.sleep(0.3)
+
+            # Verify the field received content
+            # input_el is already an ElementHandle — pass it directly
+            pasted: str = await self._page.evaluate(
+                "(el) => el.value || el.innerText || el.textContent || ''",
+                input_el,
+            )
+
+            if pasted.strip():
+                self.logger.debug(
+                    "Clipboard paste successful (%d chars received)", len(pasted)
+                )
+                return True
+
+            self.logger.warning("Paste verification failed – field empty after Ctrl+V")
+            return False
+
+        except Exception as exc:
+            self.logger.warning("Clipboard paste error: %s", exc)
+            return False
+
     async def send_prompt(
         self,
         prompt: str,
@@ -471,9 +534,15 @@ class QwenScraper(BaseAIChatScraper):
         self.logger.info(
             "Submitting prompt (%d chars) [think_mode=%s]", len(prompt), effective_think
         )
-        await input_el.click()
-        await input_el.fill("")
-        await input_el.type(prompt, delay=30)
+
+        # Try clipboard paste first; fall back to character-by-character typing
+        pasted = await self._paste_prompt(input_el, prompt)
+        if not pasted:
+            self.logger.info("Falling back to .type() for input")
+            await input_el.click()
+            await input_el.fill("")
+            await input_el.type(prompt, delay=30)
+
         await asyncio.sleep(0.5)
 
         pre_count = await self._page.evaluate("""
