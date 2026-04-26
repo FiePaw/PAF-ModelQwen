@@ -2121,3 +2121,21 @@ playwright._impl._errors.TargetClosedError: Page.goto: Target page, context or b
 2026-04-25 18:38:49 [INFO] main: RESPONSE (148 chars):
 2026-04-25 18:38:49 [INFO] main: ────────────────────────────────────────────────────────────
 2026-04-25 18:38:49 [INFO] main: Result JSON saved → C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\output\berikan_saya_1_contoh_code_rus_20260425_183849.json
+2026-04-25 18:41:55 [INFO] main: === Single prompt mode ===
+2026-04-25 18:41:55 [INFO] main: Prompt: jawab essay berikut ini Perkembangan teknologi digital telah membawa perubahan b…
+2026-04-25 18:41:55 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-04-25 18:41:55 [INFO] QwenScraper: Launching browser (headless=False, persistent=True)
+2026-04-25 18:41:56 [INFO] QwenScraper: Reusing existing profile 'account1'
+2026-04-25 18:41:56 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-04-25 18:41:56 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-04-25 18:41:58 [WARNING] QwenScraper: Timeout waiting for input ready: Timeout 100ms exceeded.
+2026-04-25 18:41:58 [INFO] QwenScraper: Setting think mode → 'fast'
+2026-04-25 18:42:00 [INFO] QwenScraper: Think mode confirmed → 'fast' ✓
+2026-04-25 18:42:03 [INFO] QwenScraper: Submitting prompt (1678 chars) [think_mode=fast]
+2026-04-25 18:42:20 [INFO] QwenScraper: Response ready (3328 chars)
+2026-04-25 18:42:20 [INFO] QwenScraper: Scrape successful – 3328 char(s), 0 code block(s)
+2026-04-25 18:42:20 [INFO] QwenScraper: Closing browser
+2026-04-25 18:42:20 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-25 18:42:20 [INFO] main: RESPONSE (3328 chars):
+2026-04-25 18:42:20 [INFO] main: ────────────────────────────────────────────────────────────
+2026-04-25 18:42:20 [INFO] main: Result JSON saved → C:\Users\SPIN\Desktop\tes\PAF-ModelQwen\output\jawab_essay_berikut_ini_perkem_20260425_184220.json
