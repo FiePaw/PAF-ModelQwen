@@ -90,15 +90,6 @@ class QwenScraper(BaseAIChatScraper):
             await self._goto_new_chat()
         else:
             self.logger.debug("Continuing existing conversation")
-            # Pada mode continue, think-mode trigger tidak selalu tersedia
-            # (UI Qwen menyembunyikannya di dalam conversation page).
-            # Tandai sudah applied agar tidak buang waktu mencari trigger
-            # yang memang tidak ada, kecuali ada explicit override.
-            if not self._think_mode_applied:
-                self._think_mode_applied = True
-                self.logger.debug(
-                    "Continue mode: think-mode UI not available in conversation page – skipping"
-                )
 
     # ── Think mode ────────────────────────────────────────────────────────────
 
@@ -370,42 +361,6 @@ class QwenScraper(BaseAIChatScraper):
                 continue
         return None
 
-    async def _find_send_button_enabled(self, max_wait: float = 5.0):
-        """
-        Cari send button yang tidak disabled.
-        Tunggu hingga max_wait detik jika tombol ditemukan tapi masih disabled
-        (misalnya setelah input baru diisi, Qwen perlu sebentar untuk enable-nya).
-        """
-        candidates = [
-            "button[data-testid='send-button']",
-            "button[aria-label='Send message']",
-            "button[aria-label='Send']",
-            "button[type='submit']",
-            self._SEL_SEND_BTN,
-        ]
-        deadline = asyncio.get_event_loop().time() + max_wait
-        while asyncio.get_event_loop().time() < deadline:
-            for sel in candidates:
-                try:
-                    el = await self._page.query_selector(sel)
-                    if el:
-                        disabled = await el.get_attribute("disabled")
-                        aria_disabled = await el.get_attribute("aria-disabled")
-                        if disabled is None and aria_disabled != "true":
-                            return el
-                except Exception:
-                    continue
-            await asyncio.sleep(0.2)
-        # Kembalikan tombol apa pun yang ditemukan (meski disabled) atau None
-        for sel in candidates:
-            try:
-                el = await self._page.query_selector(sel)
-                if el:
-                    return el
-            except Exception:
-                continue
-        return None
-
     # ── Response extraction ───────────────────────────────────────────────────
 
     async def _extract_last_response(self) -> str:
@@ -513,40 +468,29 @@ class QwenScraper(BaseAIChatScraper):
 
         input_el = await self._find_input()
 
-        # Snapshot jumlah response SEBELUM mengisi prompt dan submit,
-        # supaya tidak ada race condition antara fill() dan pre_count.
-        pre_count = await self._count_response_elements()
-
         self.logger.info(
-            "Submitting prompt (%d chars) [think_mode=%s, pre_count=%d]",
-            len(prompt), effective_think, pre_count,
+            "Submitting prompt (%d chars) [think_mode=%s]", len(prompt), effective_think
         )
-
         await input_el.click()
         await input_el.fill("")
         await input_el.type(prompt, delay=1)
-        await asyncio.sleep(0.3)
+        await asyncio.sleep(0.5)
 
-        # Pastikan send button enabled sebelum di-click
-        send_btn = await self._find_send_button_enabled()
-        if send_btn:
-            await send_btn.click()
-            self.logger.debug("Send button clicked")
-        else:
-            # Fallback: Enter key
-            await input_el.press("Enter")
-            self.logger.debug("Used Enter key to submit (no enabled send button found)")
-
-        self._conversation_started = True
-        return await self._wait_for_generation(pre_count)
-
-    async def _count_response_elements(self) -> int:
-        """Hitung jumlah elemen response saat ini di DOM."""
-        return await self._page.evaluate("""
+        pre_count = await self._page.evaluate("""
         () => document.querySelectorAll(
             '.chat-message-container .chat-response-message, .qwen-markdown-loose, .qwen-markdown'
         ).length
         """)
+
+        send_btn = await self._find_send_button()
+        if send_btn:
+            await send_btn.click()
+        else:
+            await input_el.press("Enter")
+            self.logger.debug("Used Enter key to submit")
+
+        self._conversation_started = True
+        return await self._wait_for_generation(pre_count)
 
     async def _wait_for_generation(self, pre_count: int = 0) -> str:
         timeout_s = _TIMEOUT["response_wait"] // 1000
@@ -558,33 +502,22 @@ class QwenScraper(BaseAIChatScraper):
         stable_count = 0
         appeared = False
 
-        # Fase 1: tunggu sinyal bahwa generasi sudah dimulai.
-        # Dua kondisi yang dianggap "dimulai":
-        #   (a) is_generating() → True  (stop-button / streaming indicator muncul)
-        #   (b) cur_count > pre_count   (elemen response baru muncul di DOM)
-        # Jika dalam 10 detik tidak ada sinyal, log warning dan lanjut saja
-        # agar tidak stuck selamanya hanya di fase deteksi awal.
-        signal_deadline = asyncio.get_event_loop().time() + 10.0
-        while asyncio.get_event_loop().time() < signal_deadline:
-            generating = await self._is_generating()
-            cur_count = await self._count_response_elements()
-            if generating or cur_count > pre_count:
-                appeared = True
-                self.logger.debug(
-                    "Generation signal detected: generating=%s, count %d→%d",
-                    generating, pre_count, cur_count,
-                )
-                break
-            await asyncio.sleep(0.4)
-
-        if not appeared:
-            self.logger.warning(
-                "No generation signal after 10s (pre_count=%d) – proceeding to wait anyway",
-                pre_count,
-            )
-
-        # Fase 2: tunggu konten stabil
         while asyncio.get_event_loop().time() < deadline:
+            if not appeared:
+                cur_count = await self._page.evaluate("""
+                () => document.querySelectorAll(
+                    '.chat-message-container .chat-response-message, .qwen-markdown-loose, .qwen-markdown'
+                ).length
+                """)
+                if cur_count > pre_count:
+                    appeared = True
+                    self.logger.debug(
+                        "New response element appeared (count: %d → %d)", pre_count, cur_count
+                    )
+                else:
+                    await asyncio.sleep(0.5)
+                    continue
+
             generating = await self._is_generating()
             current_text = await self._extract_last_response()
 

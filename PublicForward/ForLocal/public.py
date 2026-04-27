@@ -120,16 +120,39 @@ class TaskProcessor:
         self.cookies_dir = cookies_dir
         self.rotator = CookieRotator(cookies_dir)
         self.sessions = SessionStore(ttl=session_ttl)
+        # session_id → asyncio.Lock  (agar CONTINUE pada session yang sama tidak paralel)
+        self._session_locks: dict[str, asyncio.Lock] = {}
+        self._session_locks_meta: dict[str, float] = {}   # untuk cleanup lock lama
+        self._locks_mutex = asyncio.Lock()
 
-    async def process(self, request_id: str, payload: dict) -> dict:
+    async def _get_session_lock(self, session_id: str) -> asyncio.Lock:
+        async with self._locks_mutex:
+            if session_id not in self._session_locks:
+                self._session_locks[session_id] = asyncio.Lock()
+            self._session_locks_meta[session_id] = time.time()
+            return self._session_locks[session_id]
+
+    async def _cleanup_session_locks(self, ttl: float = 3600.0) -> None:
+        """Hapus lock lama yang sudah tidak dipakai."""
+        async with self._locks_mutex:
+            now = time.time()
+            stale = [sid for sid, ts in self._session_locks_meta.items()
+                     if now - ts > ttl and not self._session_locks[sid].locked()]
+            for sid in stale:
+                del self._session_locks[sid]
+                del self._session_locks_meta[sid]
+
+    async def process(self, request_id: str, payload: dict, worker_label: str = "?") -> dict:
         """
         Proses satu task. Return dict hasil yang akan dikirim ke VPS.
+        Task CONTINUE dengan session_id yang sama akan mengantri via session lock,
+        sehingga tidak ada dua scraper yang mengakses conversation yang sama bersamaan.
+        Task NEW tidak diblok oleh lock apapun.
         """
         messages = payload.get("messages", [])
         think_mode = payload.get("think_mode")
         incoming_sid = payload.get("session_id")
 
-        # Ambil pesan user terakhir
         user_msgs = [m["content"] for m in messages if m.get("role") == "user"]
         prompt = user_msgs[-1] if user_msgs else ""
 
@@ -139,6 +162,7 @@ class TaskProcessor:
         # Resolve session
         cookie_file: Path | None = None
         mode = "new"
+        conv_url = None
 
         if incoming_sid:
             session = await self.sessions.get(incoming_sid)
@@ -146,77 +170,98 @@ class TaskProcessor:
                 mode = "continue"
                 cookie_file = session.cookie_file
                 conv_url = session.conversation_url
-                logger.info("CONTINUE session=%s cookie=%s", incoming_sid[:8], session.cookie_file.name)
+                logger.info(
+                    "Worker#%s CONTINUE [%s] session=%s conv_url=%s",
+                    worker_label, request_id[:8], incoming_sid[:8], conv_url,
+                )
             else:
-                logger.info("Session tidak ditemukan/expired → mode new")
+                logger.info(
+                    "Worker#%s Session tidak ditemukan/expired [%s] → mode new",
+                    worker_label, request_id[:8],
+                )
 
         if mode == "new":
             cookie_file = await self.rotator.next_cookie()
             conv_url = None
-            logger.info("NEW mode cookie=%s", cookie_file.name if cookie_file else "none")
+            logger.info(
+                "Worker#%s NEW [%s] cookie=%s",
+                worker_label, request_id[:8],
+                cookie_file.name if cookie_file else "none",
+            )
 
         if not cookie_file:
             return {"success": False, "error": "Tidak ada cookie file tersedia"}
 
-        # Jalankan scraper
-        scraper = QwenScraper(
-            headless=self.headless,
-            cookies_path=cookie_file,
-            cookies_dir=self.cookies_dir,
-            think_mode=think_mode,
-        )
+        # Untuk mode CONTINUE: pakai session lock agar tidak tumpang tindih
+        # Untuk mode NEW: tidak ada locking antar-task
+        lock: asyncio.Lock | None = None
+        if mode == "continue" and incoming_sid:
+            lock = await self._get_session_lock(incoming_sid)
 
-        try:
-            await scraper.launch_browser(cookie_file=cookie_file)
-
-            if not PERSISTENT_CONTEXT_CONFIG.get("enabled") and cookie_file:
-                await scraper.load_cookies(cookie_file)
-
-            if mode == "continue" and conv_url and "chat.qwen.ai" in conv_url:
-                logger.info("Navigasi ke conversation: %s", conv_url)
-                await scraper._page.goto(conv_url, wait_until="domcontentloaded", timeout=30_000)
-                await asyncio.sleep(2)
-                scraper._conversation_started = True
-
-            result = await scraper.scrape(prompt, mode=mode)
-            current_url: str = scraper._page.url
-
-        except asyncio.TimeoutError:
-            return {"success": False, "error": "Timeout: Qwen AI tidak merespons"}
-        except Exception as e:
-            logger.error("Scraper error [%s]: %s", request_id[:8], e, exc_info=True)
-            return {"success": False, "error": str(e)}
-        finally:
+        async def _run() -> dict:
+            scraper = QwenScraper(
+                headless=self.headless,
+                cookies_path=cookie_file,
+                cookies_dir=self.cookies_dir,
+                think_mode=think_mode,
+            )
             try:
-                await scraper.close_browser()
-            except Exception:
-                pass
+                await scraper.launch_browser(cookie_file=cookie_file)
 
-        if not result.get("success"):
-            return {"success": False, "error": result.get("error", "Unknown scraper error")}
+                if not PERSISTENT_CONTEXT_CONFIG.get("enabled") and cookie_file:
+                    await scraper.load_cookies(cookie_file)
 
-        response_text: str = result["response"]
-        account_used: str = result.get("account_used", "unknown")
+                if mode == "continue" and conv_url and "chat.qwen.ai" in conv_url:
+                    logger.info("Worker#%s Navigasi ke conversation: %s", worker_label, conv_url)
+                    await scraper._page.goto(conv_url, wait_until="domcontentloaded", timeout=30_000)
+                    await asyncio.sleep(2)
+                    scraper._conversation_started = True
 
-        # Update / buat session
-        session = await self.sessions.get_or_create(incoming_sid, cookie_file)
-        if current_url and "chat.qwen.ai" in current_url:
-            session.conversation_url = current_url
-        session.touch()
+                result = await scraper.scrape(prompt, mode=mode)
+                current_url: str = scraper._page.url
 
-        logger.info(
-            "✅ Selesai [%s] %d chars session=%s",
-            request_id[:8], len(response_text), session.session_id[:8]
-        )
+            except asyncio.TimeoutError:
+                return {"success": False, "error": "Timeout: Qwen AI tidak merespons"}
+            except Exception as e:
+                logger.error("Worker#%s Scraper error [%s]: %s", worker_label, request_id[:8], e, exc_info=True)
+                return {"success": False, "error": str(e)}
+            finally:
+                try:
+                    await scraper.close_browser()
+                except Exception:
+                    pass
 
-        return {
-            "success": True,
-            "response": response_text,
-            "session_id": session.session_id,
-            "cookie_file": cookie_file.name,
-            "conversation_url": session.conversation_url or "",
-            "account_used": account_used,
-        }
+            if not result.get("success"):
+                return {"success": False, "error": result.get("error", "Unknown scraper error")}
+
+            response_text: str = result["response"]
+            account_used: str = result.get("account_used", "unknown")
+
+            session = await self.sessions.get_or_create(incoming_sid, cookie_file)
+            if current_url and "chat.qwen.ai" in current_url:
+                session.conversation_url = current_url
+            session.touch()
+
+            logger.info(
+                "Worker#%s ✅ [%s] %d chars | session=%s | url=%s",
+                worker_label, request_id[:8], len(response_text),
+                session.session_id[:8], session.conversation_url or "-",
+            )
+
+            return {
+                "success": True,
+                "response": response_text,
+                "session_id": session.session_id,
+                "cookie_file": cookie_file.name,
+                "conversation_url": session.conversation_url or "",
+                "account_used": account_used,
+            }
+
+        if lock:
+            async with lock:
+                return await _run()
+        else:
+            return await _run()
 
 
 # ─── WebSocket Worker ──────────────────────────────────────────────────────────
@@ -225,13 +270,18 @@ class LocalWorker:
     """
     Konek ke VPS via WebSocket dan proses task yang masuk.
     Mendukung multiple concurrent task dengan asyncio.
+    Task NEW bisa langsung dikerjakan tanpa menunggu task CONTINUE selesai,
+    karena TaskProcessor menggunakan session-level lock (bukan global semaphore).
     """
+
+    # Counter global untuk memberi label Worker#0, Worker#1, dst.
+    _instance_counter: int = 0
 
     def __init__(
         self,
         vps_url: str,
         processor: TaskProcessor,
-        max_concurrent: int = 1,
+        max_concurrent: int = 4,
         token: str | None = None,
         reconnect_delay: float = 5.0,
     ):
@@ -240,8 +290,10 @@ class LocalWorker:
         self.max_concurrent = max_concurrent
         self.token = token
         self.reconnect_delay = reconnect_delay
-        self._semaphore = asyncio.Semaphore(max_concurrent)
         self._running = True
+        # Label untuk logging
+        self._label = str(LocalWorker._instance_counter)
+        LocalWorker._instance_counter += 1
 
     def _build_url(self) -> str:
         if self.token:
@@ -250,27 +302,32 @@ class LocalWorker:
         return self.vps_url
 
     async def _handle_task(self, ws, request_id: str, payload: dict) -> None:
-        """Proses satu task dan kirim hasilnya ke VPS."""
-        async with self._semaphore:
-            logger.info("▶ Memproses task [%s]", request_id[:8])
-            try:
-                result = await self.processor.process(request_id, payload)
-                msg = {
-                    "type": "result",
-                    "request_id": request_id,
-                    "data": result,
-                }
-            except Exception as e:
-                logger.error("Error saat memproses [%s]: %s", request_id[:8], e)
-                msg = {
-                    "type": "error",
-                    "request_id": request_id,
-                    "message": str(e),
-                }
-            try:
-                await ws.send(json.dumps(msg))
-            except Exception as e:
-                logger.error("Gagal mengirim result ke VPS: %s", e)
+        """
+        Proses satu task dan kirim hasilnya ke VPS.
+        Tidak ada global semaphore di sini — concurrency diatur oleh:
+          1. VPS: active_tasks < max_concurrent sebelum task dikirim ke worker ini.
+          2. TaskProcessor: session lock untuk task CONTINUE.
+        Task NEW yang masuk bersamaan bisa langsung diproses paralel.
+        """
+        logger.info("Worker#%s ▶ Request [%s]", self._label, request_id[:8])
+        try:
+            result = await self.processor.process(request_id, payload, worker_label=self._label)
+            msg = {
+                "type": "result",
+                "request_id": request_id,
+                "data": result,
+            }
+        except Exception as e:
+            logger.error("Worker#%s Error [%s]: %s", self._label, request_id[:8], e)
+            msg = {
+                "type": "error",
+                "request_id": request_id,
+                "message": str(e),
+            }
+        try:
+            await ws.send(json.dumps(msg))
+        except Exception as e:
+            logger.error("Worker#%s Gagal kirim result ke VPS: %s", self._label, e)
 
     async def _keepalive(self, ws) -> None:
         """Kirim ping ke VPS setiap 30 detik supaya koneksi tidak putus."""
@@ -283,12 +340,19 @@ class LocalWorker:
 
     async def _connect_and_run(self) -> None:
         url = self._build_url()
-        logger.info("🔌 Konek ke VPS: %s", self.vps_url)
+        logger.info("Worker#%s 🔌 Konek ke VPS: %s", self._label, self.vps_url)
 
         async with websockets.connect(url, ping_interval=20, ping_timeout=30) as ws:
-            logger.info("✅ Terhubung ke VPS!")
+            # Kirim pesan registrasi ke VPS agar VPS tahu kapasitas worker ini
+            await ws.send(json.dumps({
+                "type": "register",
+                "max_concurrent": self.max_concurrent,
+            }))
+            logger.info(
+                "Worker#%s ✅ Terhubung ke VPS! (max_concurrent=%d)",
+                self._label, self.max_concurrent,
+            )
 
-            # Jalankan keepalive di background
             keepalive_task = asyncio.create_task(self._keepalive(ws))
 
             try:
@@ -296,7 +360,7 @@ class LocalWorker:
                     try:
                         msg = json.loads(raw)
                     except json.JSONDecodeError:
-                        logger.warning("Pesan tidak valid dari VPS: %s", raw[:100])
+                        logger.warning("Worker#%s Pesan tidak valid dari VPS: %s", self._label, raw[:100])
                         continue
 
                     msg_type = msg.get("type")
@@ -304,14 +368,19 @@ class LocalWorker:
                     if msg_type == "task":
                         request_id = msg["request_id"]
                         payload = msg["payload"]
+                        logger.info(
+                            "Worker#%s → Request [%s] session=%s",
+                            self._label, request_id[:8],
+                            (payload.get("session_id") or "new")[:8],
+                        )
                         # Jalankan task di background (non-blocking)
                         asyncio.create_task(self._handle_task(ws, request_id, payload))
 
                     elif msg_type == "pong":
-                        logger.debug("Pong dari VPS")
+                        logger.debug("Worker#%s Pong dari VPS", self._label)
 
                     else:
-                        logger.debug("Pesan tidak dikenal: %s", msg_type)
+                        logger.debug("Worker#%s Pesan tidak dikenal: %s", self._label, msg_type)
 
             finally:
                 keepalive_task.cancel()
@@ -350,7 +419,12 @@ def main() -> None:
         help="WebSocket URL VPS, contoh: ws://1.2.3.4:8000/ws/worker",
     )
     parser.add_argument("--token", default=None, help="Token autentikasi (harus sama dengan --token di vps_server.py)")
-    parser.add_argument("--workers", type=int, default=1, help="Jumlah task yang bisa diproses bersamaan (default: 1)")
+    parser.add_argument(
+        "--workers", type=int, default=4,
+        help="Jumlah task concurrent yang bisa diterima worker ini (default: 4). "
+             "Task NEW langsung diproses paralel; task CONTINUE untuk session yang sama "
+             "mengantri via session lock.",
+    )
     parser.add_argument("--no-headless", action="store_true", help="Tampilkan jendela browser")
     parser.add_argument("--cookies-dir", metavar="DIR", type=Path, default=COOKIES_DIR)
     parser.add_argument("--session-ttl", type=int, default=3600, help="Session TTL dalam detik (default: 3600)")

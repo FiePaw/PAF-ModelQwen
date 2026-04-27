@@ -57,48 +57,115 @@ _config: dict = {
 class WorkerManager:
     """
     Mengelola pool WebSocket connections dari Local Worker.
-    
-    Worker mendaftarkan diri saat konek, VPS assign task ke worker
-    yang sedang idle, dan hasil dikembalikan melalui asyncio.Future.
+
+    Perubahan model dari versi sebelumnya:
+    - Sebelumnya: worker ditandai busy=True (boolean), hanya bisa handle 1 task sekaligus.
+    - Sekarang:   worker menyimpan active_tasks (int) dan max_concurrent (int).
+                  Task NEW bisa dikirim ke worker mana pun yang masih punya slot kosong.
+                  Task CONTINUE dikirim ke worker yang sedang menangani session_id yang sama,
+                  atau ke worker dengan slot kosong jika belum ada yang memegang session itu.
+
+    session_id → worker_id  (untuk routing CONTINUE ke worker yang benar)
     """
 
     def __init__(self):
-        # worker_id → {"ws": WebSocket, "busy": bool, "connected_at": float}
+        # worker_id → {ws, active_tasks, max_concurrent, connected_at, sessions: set[str]}
         self._workers: dict[str, dict] = {}
         self._lock = asyncio.Lock()
-        # request_id → Future yang menunggu result dari worker
+        # session_id → worker_id  (sticky routing untuk mode continue)
+        self._session_worker: dict[str, str] = {}
+        # request_id → Future
         self._pending: dict[str, asyncio.Future] = {}
 
-    async def register(self, worker_id: str, ws: WebSocket) -> None:
+    async def register(self, worker_id: str, ws: WebSocket, max_concurrent: int = 4) -> None:
         async with self._lock:
             self._workers[worker_id] = {
                 "ws": ws,
-                "busy": False,
+                "active_tasks": 0,
+                "max_concurrent": max_concurrent,
                 "connected_at": time.time(),
+                "sessions": set(),
             }
-        logger.info("✅ Worker terdaftar: %s (total: %d)", worker_id[:8], len(self._workers))
+        logger.info(
+            "✅ Worker terdaftar: %s (max_concurrent=%d, total workers: %d)",
+            worker_id[:8], max_concurrent, len(self._workers),
+        )
 
     async def unregister(self, worker_id: str) -> None:
         async with self._lock:
-            self._workers.pop(worker_id, None)
+            info = self._workers.pop(worker_id, None)
+            if info:
+                # Hapus semua session binding milik worker ini
+                for sid in list(self._session_worker.keys()):
+                    if self._session_worker[sid] == worker_id:
+                        del self._session_worker[sid]
         logger.info("❌ Worker disconnect: %s (sisa: %d)", worker_id[:8], len(self._workers))
 
-    async def get_idle_worker(self, timeout: float = 30) -> tuple[str, dict] | None:
-        """Tunggu hingga ada worker idle, atau timeout."""
+    async def get_worker_for_task(
+        self,
+        session_id: str | None,
+        timeout: float = 30,
+    ) -> tuple[str, dict] | None:
+        """
+        Pilih worker yang tepat berdasarkan tipe task:
+
+        - CONTINUE (session_id ada):
+            Cari worker yang sedang memegang session_id ini (sticky routing).
+            Jika tidak ditemukan (session baru / pertama kali), pilih worker
+            dengan slot kosong dan ikat session tersebut ke worker tersebut.
+
+        - NEW (session_id None):
+            Pilih worker mana saja yang masih punya slot kosong.
+            Tidak perlu menunggu worker tertentu selesai.
+        """
         deadline = time.time() + timeout
         while time.time() < deadline:
             async with self._lock:
-                for wid, info in self._workers.items():
-                    if not info["busy"]:
-                        info["busy"] = True
+                # ── Mode CONTINUE: cari worker pemegang session ini ───────────
+                if session_id and session_id in self._session_worker:
+                    wid = self._session_worker[session_id]
+                    info = self._workers.get(wid)
+                    if info and info["active_tasks"] < info["max_concurrent"]:
+                        info["active_tasks"] += 1
                         return wid, info
+                    # Worker pemegang session penuh → tunggu
+
+                else:
+                    # ── Mode NEW atau session belum terikat: cari slot kosong ─
+                    # Urutkan by active_tasks ascending agar beban merata
+                    candidates = sorted(
+                        self._workers.items(),
+                        key=lambda x: x[1]["active_tasks"],
+                    )
+                    for wid, info in candidates:
+                        if info["active_tasks"] < info["max_concurrent"]:
+                            info["active_tasks"] += 1
+                            # Ikat session ke worker ini (jika CONTINUE baru)
+                            if session_id:
+                                info["sessions"].add(session_id)
+                                self._session_worker[session_id] = wid
+                            return wid, info
+
             await asyncio.sleep(0.2)
         return None
 
-    async def set_idle(self, worker_id: str) -> None:
+    async def release_task(self, worker_id: str, session_id: str | None = None) -> None:
+        """Kurangi active_tasks worker setelah task selesai."""
         async with self._lock:
             if worker_id in self._workers:
-                self._workers[worker_id]["busy"] = False
+                info = self._workers[worker_id]
+                info["active_tasks"] = max(0, info["active_tasks"] - 1)
+
+    def bind_session(self, session_id: str, worker_id: str) -> None:
+        """Ikat session_id ke worker tertentu (dipanggil setelah result diterima)."""
+        self._session_worker[session_id] = session_id
+
+    def unbind_session(self, session_id: str) -> None:
+        """Lepas binding session → worker (saat session expired / error)."""
+        self._session_worker.pop(session_id, None)
+
+    def get_session_worker(self, session_id: str) -> str | None:
+        return self._session_worker.get(session_id)
 
     def create_future(self, request_id: str) -> asyncio.Future:
         loop = asyncio.get_event_loop()
@@ -119,12 +186,15 @@ class WorkerManager:
     @property
     def stats(self) -> dict:
         total = len(self._workers)
-        busy = sum(1 for w in self._workers.values() if w["busy"])
+        total_slots = sum(w["max_concurrent"] for w in self._workers.values())
+        active = sum(w["active_tasks"] for w in self._workers.values())
         return {
             "total_workers": total,
-            "busy": busy,
-            "idle": total - busy,
+            "total_slots": total_slots,
+            "active_tasks": active,
+            "idle_slots": max(0, total_slots - active),
             "pending_requests": len(self._pending),
+            "tracked_sessions": len(self._session_worker),
         }
 
 
@@ -231,13 +301,13 @@ async def worker_endpoint(ws: WebSocket):
     """
     Local Worker konek ke sini saat startup.
     Protokol pesan (JSON):
-    
+
+    Worker → VPS (saat connect): {"type": "register", "max_concurrent": 4}
     VPS → Worker:  {"type": "task", "request_id": "...", "payload": {...}}
     Worker → VPS:  {"type": "result", "request_id": "...", "data": {...}}
                    {"type": "error",  "request_id": "...", "message": "..."}
                    {"type": "ping"}  (keepalive)
     """
-    # Validasi token jika diset
     token = ws.query_params.get("token", "")
     if _config["auth_token"] and token != _config["auth_token"]:
         await ws.close(code=4001, reason="Unauthorized")
@@ -246,7 +316,20 @@ async def worker_endpoint(ws: WebSocket):
 
     await ws.accept()
     worker_id = uuid.uuid4().hex
-    await workers.register(worker_id, ws)
+
+    # Tunggu pesan registrasi pertama dari worker (max 5 detik)
+    # Worker mengirim {"type": "register", "max_concurrent": N}
+    # Jika tidak ada, default ke 4
+    max_concurrent = 4
+    try:
+        raw_reg = await asyncio.wait_for(ws.receive_text(), timeout=5.0)
+        reg_msg = json.loads(raw_reg)
+        if reg_msg.get("type") == "register":
+            max_concurrent = int(reg_msg.get("max_concurrent", 4))
+    except (asyncio.TimeoutError, Exception):
+        pass  # Tidak ada registrasi → pakai default
+
+    await workers.register(worker_id, ws, max_concurrent=max_concurrent)
 
     try:
         while True:
@@ -256,15 +339,26 @@ async def worker_endpoint(ws: WebSocket):
 
             if msg_type == "result":
                 request_id = msg["request_id"]
-                workers.resolve_future(request_id, msg["data"])
-                await workers.set_idle(worker_id)
-                logger.info("✔ Result diterima [req=%s]", request_id[:8])
+                result_data = msg["data"]
+                # Bind session_id ke worker ini untuk sticky routing CONTINUE
+                sid = result_data.get("session_id")
+                if sid:
+                    workers._session_worker[sid] = worker_id
+                workers.resolve_future(request_id, result_data)
+                await workers.release_task(worker_id, sid)
+                logger.info(
+                    "✔ Result diterima [req=%s] session=%s",
+                    request_id[:8], (sid or "")[:8],
+                )
 
             elif msg_type == "error":
                 request_id = msg["request_id"]
                 workers.reject_future(request_id, msg.get("message", "Unknown error"))
-                await workers.set_idle(worker_id)
-                logger.warning("✖ Error dari worker [req=%s]: %s", request_id[:8], msg.get("message"))
+                await workers.release_task(worker_id)
+                logger.warning(
+                    "✖ Error dari worker [req=%s]: %s",
+                    request_id[:8], msg.get("message"),
+                )
 
             elif msg_type == "ping":
                 await ws.send_text(json.dumps({"type": "pong"}))
@@ -278,8 +372,6 @@ async def worker_endpoint(ws: WebSocket):
         logger.error("Worker error: %s", e)
     finally:
         await workers.unregister(worker_id)
-        # Batalkan semua pending future yang belum selesai
-        # (jika hanya ada 1 worker dan putus di tengah task)
 
 
 # ─── HTTP Routes (OpenAI-compatible) ─────────────────────────────────────────
@@ -318,26 +410,37 @@ async def chat_completions(req: ChatCompletionRequest, raw_req: Request):
         raise HTTPException(status_code=400, detail="No user message found")
 
     # Ambil session headers dari client
-    incoming_sid = raw_req.headers.get("X-Session-ID", "").strip()
+    incoming_sid = raw_req.headers.get("X-Session-ID", "").strip() or None
     request_id = uuid.uuid4().hex
     completion_id = _make_id()
+    task_mode = "CONTINUE" if incoming_sid else "NEW"
 
     logger.info(
-        "📨 Request [%s] prompt=%d chars session=%s",
-        request_id[:8], len(prompt), incoming_sid[:8] if incoming_sid else "new"
+        "📨 Request [%s] mode=%s prompt=%d chars session=%s",
+        request_id[:8], task_mode, len(prompt),
+        incoming_sid[:8] if incoming_sid else "-",
     )
 
-    # Cari worker idle
+    # Pilih worker berdasarkan mode (NEW → slot kosong mana saja,
+    # CONTINUE → worker yang memegang session ini)
     worker_timeout = _config["worker_timeout"]
-    worker = await workers.get_idle_worker(timeout=worker_timeout)
+    worker = await workers.get_worker_for_task(
+        session_id=incoming_sid,
+        timeout=worker_timeout,
+    )
     if worker is None:
         raise HTTPException(
             status_code=503,
-            detail=f"Tidak ada worker tersedia. Pastikan local_worker.py sudah berjalan di Windows."
+            detail=(
+                "Tidak ada worker tersedia. Pastikan local_worker.py sudah berjalan di Windows."
+                if not incoming_sid else
+                f"Worker untuk session {incoming_sid[:8]} tidak tersedia atau penuh."
+            ),
         )
 
     worker_id, worker_info = worker
     ws: WebSocket = worker_info["ws"]
+    logger.info("📤 Task [%s] → Worker#%s [mode=%s]", request_id[:8], worker_id[:8], task_mode)
 
     # Buat future untuk menunggu hasil
     future = workers.create_future(request_id)
@@ -351,15 +454,14 @@ async def chat_completions(req: ChatCompletionRequest, raw_req: Request):
             "model": req.model,
             "stream": req.stream,
             "think_mode": req.think_mode,
-            "session_id": incoming_sid or None,
-        }
+            "session_id": incoming_sid,
+        },
     }
 
     try:
         await ws.send_text(json.dumps(task_payload))
-        logger.info("📤 Task dikirim ke worker [%s]", worker_id[:8])
     except Exception as e:
-        await workers.set_idle(worker_id)
+        await workers.release_task(worker_id, incoming_sid)
         workers.reject_future(request_id, str(e))
         raise HTTPException(status_code=502, detail=f"Gagal mengirim ke worker: {e}")
 
@@ -367,6 +469,7 @@ async def chat_completions(req: ChatCompletionRequest, raw_req: Request):
     try:
         result = await asyncio.wait_for(future, timeout=_config["request_timeout"])
     except asyncio.TimeoutError:
+        await workers.release_task(worker_id, incoming_sid)
         raise HTTPException(status_code=504, detail="Worker tidak merespons dalam waktu yang ditentukan")
     except RuntimeError as e:
         raise HTTPException(status_code=502, detail=str(e))
@@ -387,7 +490,7 @@ async def chat_completions(req: ChatCompletionRequest, raw_req: Request):
 
     logger.info(
         "✅ Done [%s] %d chars session=%s",
-        request_id[:8], len(response_text), session_id[:8]
+        request_id[:8], len(response_text), session_id[:8],
     )
 
     # Streaming
