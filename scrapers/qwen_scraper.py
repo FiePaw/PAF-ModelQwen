@@ -117,9 +117,11 @@ class QwenScraper(BaseAIChatScraper):
                 if el and await el.is_visible():
                     text = (await el.inner_text()).strip().lower()
                     if text in ("auto", "thinking", "fast"):
+                        print(f"Current think mode from selector '{sel}': {text}")  # debug
                         return text
                     for label in ("thinking", "fast", "auto"):
                         if label in text:
+                            print(f"Current think mode from selector '{sel}': {text}")  # debug
                             return label
             except Exception:
                 continue
@@ -186,12 +188,12 @@ class QwenScraper(BaseAIChatScraper):
         _TRIGGER_CANDIDATES = [
             # Confirmed class names seen on chat.qwen.ai
             ".qwen-select-thinking-label",
-            "[class*='thinking-label']",
-            "[class*='think-mode']",
-            "[class*='qwen-select']",
+            #"[class*='thinking-label']",
+            #"[class*='think-mode']",
+            #"[class*='qwen-select']",
             # Generic fallbacks: buttons / divs near the textarea
-            "button[class*='think']",
-            "div[class*='think']",
+            #"button[class*='think']",
+            #"div[class*='think']",
             # Any element whose visible text matches known mode labels
         ]
 
@@ -203,6 +205,7 @@ class QwenScraper(BaseAIChatScraper):
                     await el.click()
                     trigger_clicked = True
                     self.logger.debug("Opened think-mode dropdown via selector: %s", sel)
+                    #print(f"Clicked think-mode trigger: {sel}")
                     break
             except Exception:
                 continue
@@ -245,14 +248,14 @@ class QwenScraper(BaseAIChatScraper):
             ".rc-virtual-list-holder-inner > *",
             ".rc-virtual-list-holder-inner li",
             # Ant Design Select options
-            ".ant-select-item",
-            ".ant-select-item-option",
+            #".ant-select-item",
+            #".ant-select-item-option",
             # Generic dropdown patterns
-            "[class*='option-item']",
-            "[class*='select-option']",
-            "[class*='dropdown-item']",
-            "[role='option']",
-            "[role='menuitem']",
+            #"[class*='option-item']",
+            #"[class*='select-option']",
+            #"[class*='dropdown-item']",
+            #"[role='option']",
+            #"[role='menuitem']",
         ]
 
         clicked = False
@@ -267,6 +270,7 @@ class QwenScraper(BaseAIChatScraper):
                         if target_label in text:
                             await item.click()
                             clicked = True
+                            #print(f"Clicked option '{text}' via selector: {sel}")
                             self.logger.debug("Clicked option '%s' via selector: %s", text, sel)
                             break
                     except Exception:
@@ -336,10 +340,10 @@ class QwenScraper(BaseAIChatScraper):
 
     async def _find_input(self):
         candidates = [
+            "textarea[placeholder]",
             "textarea#chat-input",
             "textarea[data-testid='chat-input']",
             "div[contenteditable='true'][data-testid]",
-            "textarea[placeholder]",
             "div[contenteditable='true']",
             "textarea",
         ]
@@ -355,11 +359,11 @@ class QwenScraper(BaseAIChatScraper):
 
     async def _find_send_button(self):
         candidates = [
+            self._SEL_SEND_BTN,
             "button[data-testid='send-button']",
             "button[aria-label='Send message']",
             "button[aria-label='Send']",
             "button[type='submit']",
-            self._SEL_SEND_BTN,
         ]
         for sel in candidates:
             try:
@@ -377,11 +381,11 @@ class QwenScraper(BaseAIChatScraper):
         (misalnya setelah input baru diisi, Qwen perlu sebentar untuk enable-nya).
         """
         candidates = [
+            self._SEL_SEND_BTN,
             "button[data-testid='send-button']",
             "button[aria-label='Send message']",
             "button[aria-label='Send']",
             "button[type='submit']",
-            self._SEL_SEND_BTN,
         ]
         deadline = asyncio.get_event_loop().time() + max_wait
         while asyncio.get_event_loop().time() < deadline:
@@ -523,8 +527,9 @@ class QwenScraper(BaseAIChatScraper):
         )
 
         await input_el.click()
-        await input_el.fill("")
-        await input_el.type(prompt, delay=1)
+        #await input_el.fill()
+        await input_el.type("~", delay=1)  # focus and clear existing content
+        await input_el.fill(prompt, timeout=1_000)
         await asyncio.sleep(0.3)
 
         # Pastikan send button enabled sebelum di-click

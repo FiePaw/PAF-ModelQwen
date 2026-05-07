@@ -5,6 +5,132 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Unreleased] – 2026-05-08
+
+### `browser_pool.py` — Baru: Pre-warmed Browser Pool
+
+#### Latar Belakang
+Versi lama `public.py` men-spawn browser baru untuk setiap task yang masuk (cold-start ~5–15
+detik per request). `BrowserPool` menggantikan pendekatan ini dengan mempertahankan N browser
+yang sudah warm dan login sejak startup, sehingga overhead per request menjadi hampir nol.
+
+#### Desain
+- **`BrowserSlot`** — satu slot mewakili satu browser yang dedicated ke satu cookie file.
+  Status slot: `STARTING → IDLE → BUSY → DEAD`.
+- **`BrowserPool.start()`** — spawn semua N slot secara paralel saat startup. Jumlah slot
+  dikonfigurasi via `--workers` (sama seperti sebelumnya). Jika cookie file lebih sedikit dari
+  `--workers`, cookie di-wrap round-robin.
+- **`BrowserPool.acquire(preferred_cookie)`** — context manager yang meminjam satu slot idle.
+  - Mode `NEW` (`preferred_cookie=None`): pilih slot idle mana saja, prioritas slot paling
+    lama idle untuk meratakan beban.
+  - Mode `CONTINUE` (`preferred_cookie="accountX.json"`): **hanya** pertimbangkan slot dengan
+    cookie file yang cocok. Tunggu slot tersebut idle — tidak fallback ke cookie lain — agar
+    akun Qwen konsisten dengan conversation yang tersimpan.
+- **Auto-respawn** — slot yang crash otomatis di-respawn di background dengan cookie yang sama
+  (maks 3 percobaan). Selama respawn berlangsung slot tidak tersedia untuk task baru.
+- **`BrowserPool.get_cookie_path(cookie_name)`** — resolve nama file ke `Path` lengkap,
+  dipakai `TaskProcessor` saat menyimpan session setelah task NEW.
+- **Status diagnostik** — `status_summary()` mengembalikan jumlah slot per status; di-log
+  setiap 60 detik oleh worker.
+
+#### Perbandingan dengan versi lama
+
+| | Versi lama | BrowserPool |
+|---|---|---|
+| Browser launch | Setiap task | Sekali saat startup |
+| Cold-start per request | ~5–15 detik | ~0 detik |
+| Konsistensi akun CONTINUE | ❌ Bisa salah slot | ✅ Cookie-pinned |
+| Respawn otomatis | ❌ | ✅ (maks 3x per slot) |
+
+---
+
+### `public.py` — Refactor: Integrasi BrowserPool + Fix Session & Cookie
+
+#### Perubahan arsitektur
+
+- **`CookieRotator` dihapus** — tugasnya diambil alih sepenuhnya oleh `BrowserPool`.
+- **`TaskProcessor`** tidak lagi spawn browser. Setiap task cukup memanggil
+  `async with pool.acquire(preferred_cookie=...) as (scraper, cookie_name)`.
+- **`_main()`** melakukan warm-up pool terlebih dahulu sebelum konek ke VPS, sehingga
+  saat task pertama masuk semua browser sudah siap.
+
+#### Fix Bug #1 — `Session.cookie_file` dikembalikan ke `Path`
+
+`Session` sempat menyimpan `cookie_file` sebagai `str` (nama file saja). Ini menyebabkan
+`TaskProcessor` tidak bisa meneruskan `Path` yang benar ke `SessionStore.get_or_create()` dan
+ke pool saat mode CONTINUE. Dikembalikan ke `cookie_file: Path` seperti versi aslinya.
+
+#### Fix Bug #3 — Pool tidak menjamin slot dengan cookie yang sama untuk CONTINUE
+
+`pool.acquire()` sebelumnya selalu mengambil slot idle mana saja tanpa mempertimbangkan cookie.
+Request CONTINUE bisa mendapat slot dengan akun berbeda, sehingga conversation di Qwen tidak
+nyambung. Sekarang `preferred_cookie` diteruskan ke `acquire()` dan pool menunggu slot yang
+tepat.
+
+#### Fix — Log nama akun selalu `account1`
+
+`_cookie_index` di `BaseAIChatScraper.__init__()` selalu dimulai dari `0`. Di arsitektur pool,
+`_discover_accounts()` memuat semua cookie ke `_cookie_files`, tapi `_cookie_index` tidak
+pernah diset sesuai posisi `slot.cookie_file` — akibatnya `scrape()` selalu log `account1`
+meski browser-nya pakai cookie berbeda.
+
+**Fix** (di `browser_pool.py`, method `_init_slot`): setelah `_discover_accounts()`, cari
+posisi `slot.cookie_file` di dalam `_cookie_files` dan set `_cookie_index` ke posisi tersebut.
+
+```
+Sebelum:  Slot#3 (account2.json) → _cookie_index=0 → log "account1" ❌
+Sesudah:  Slot#3 (account2.json) → _cookie_index=1 → log "account2" ✅
+```
+
+#### Fix — `Could not locate chat input field` pada mode CONTINUE
+
+**Masalah:** Setelah `goto(conv_url)`, kode lama hanya menunggu `await asyncio.sleep(1.5)`
+sebelum memanggil `scrape()`. Jika Qwen masih memproses output dari request sebelumnya
+(stop button masih visible, input field belum mount), `scrape()` langsung gagal dengan
+`RuntimeError: Could not locate chat input field`.
+
+**Fix:** `asyncio.sleep(1.5)` diganti dengan fungsi `_wait_page_ready(page, worker_label)`
+yang bekerja dalam dua langkah berurutan:
+
+1. **Tunggu stop button hilang** — poll setiap 0.5 detik sampai semua kandidat selector
+   stop/cancel button tidak visible (artinya Qwen sudah idle). Timeout 60 detik.
+2. **Tunggu input field visible** — poll sampai textarea/input field benar-benar mount dan
+   visible di DOM. Timeout 60 detik.
+
+Jika salah satu langkah melewati timeout, log warning ditulis tapi tidak raise exception —
+`scraper.scrape()` tetap dipanggil dan retry mechanism-nya yang menangani lebih lanjut.
+
+```
+Sebelum:  goto() → sleep(1.5s) → scrape()               ← tebak-tebakan timing
+Sesudah:  goto() → tunggu idle → tunggu input → scrape() ← deterministik
+```
+
+---
+
+### `vps_server.py` — Fix Bug #2: Typo `bind_session()`
+
+#### Masalah
+Sticky routing mode CONTINUE di VPS selalu gagal — session tidak pernah dirouting ke worker
+yang benar.
+
+#### Penyebab
+Typo satu baris di `WorkerManager.bind_session()`:
+
+```python
+# Sebelum (salah):
+self._session_worker[session_id] = session_id   # value seharusnya worker_id
+
+# Sesudah (benar):
+self._session_worker[session_id] = worker_id
+```
+
+`_session_worker` adalah dict `session_id → worker_id`. Karena value-nya diisi dengan
+`session_id` bukan `worker_id`, lookup `_session_worker[sid]` mengembalikan `session_id`
+lalu dicari di `_workers` — tidak ketemu — sehingga VPS selalu routing CONTINUE ke worker
+sembarang.
+
+---
+
 ## [Unreleased] – 2026-04-27
 
 ### `qwen_scraper.py` — Fix: Scraping Stuck pada Mode Continue
@@ -132,4 +258,26 @@ Sebelum:
 
 Sesudah:
   QwenScraper: Continue mode: think-mode UI not available – skipping (sekali, tanpa retry)
+```
+
+```
+Skenario: mode CONTINUE saat halaman masih memproses output sebelumnya
+
+Sebelum:
+  goto(conv_url) → sleep(1.5s) → scrape()
+  ❌ RuntimeError: Could not locate chat input field (jika Qwen belum idle)
+
+Sesudah:
+  goto(conv_url) → tunggu stop button hilang → tunggu input visible → scrape()
+  ✅ Input field pasti sudah mount sebelum prompt dikirim
+```
+
+```
+Skenario: log nama akun pada worker dengan banyak cookie
+
+Sebelum:
+  Slot#3 pakai account2.json → log "Attempt 1/12 using account 'account1'" ❌
+
+Sesudah:
+  Slot#3 pakai account2.json → log "Attempt 1/12 using account 'account2'" ✅
 ```

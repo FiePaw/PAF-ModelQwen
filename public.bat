@@ -1,0 +1,1 @@
+python public.py --vps ws://108.137.15.61:9000/ws/worker --workers 6 --token ASdhksadjksahjsDkjsah

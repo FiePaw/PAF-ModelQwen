@@ -14,7 +14,7 @@
 - [Referensi CLI](#referensi-cli)
 - [Endpoint API](#endpoint-api)
 - [Session & Continue Mode](#session--continue-mode)
-- [Cookie Rotation](#cookie-rotation)
+- [Cookie Rotation & BrowserPool](#cookie-rotation--browserpool)
 - [Panduan Client](#panduan-client)
   - [curl](#1-curl)
   - [Python requests](#2-python-requests)
@@ -30,40 +30,49 @@
 
 ## Cara Kerja
 
+### Arsitektur Distributed Worker (public.py)
+
 ```
 Client (OpenAI SDK / curl / requests)
         │
         │  POST /v1/chat/completions
         │  Header: X-Session-ID: <id>  ← opsional, untuk continue mode
         ▼
-  ┌──────────────────────────────┐
-  │       api_server.py          │  FastAPI + uvicorn
-  │                              │
-  │  SessionStore                │  ← menyimpan session_id → cookie_file
-  │    session_id                │                           + conv_url
-  │    cookie_file  ─────────────┼─→ mode: continue (cookie & URL terkunci)
-  │    conversation_url          │
-  │                              │
-  │  CookieRotator               │  ← round-robin, hanya untuk mode: new
-  │    account1.json             │
-  │    account2.json  ───────────┼─→ mode: new (pilih cookie berikutnya)
-  │    account3.json             │
-  └──────────────┬───────────────┘
-                 │  ScraperPool (semaphore)
-                 ▼
-  ┌──────────────────────────────┐
-  │  QwenScraper (Playwright)    │  ← Chromium headless
-  │  load_cookies(cookie_file)   │
-  │  goto(conversation_url)?     │  ← hanya jika continue mode
-  └──────────────┬───────────────┘
-                 │
-                 ▼
-           chat.qwen.ai
+  ┌──────────────────────────────────────┐
+  │           vps_server.py              │  FastAPI + uvicorn (di VPS)
+  │                                      │
+  │  SessionRouter                       │
+  │    session_id → worker_id (sticky)   │  ← CONTINUE dirouting ke worker
+  │                                      │     yang sama dengan saat NEW
+  └──────────────────┬───────────────────┘
+                     │  WebSocket
+                     ▼
+  ┌──────────────────────────────────────┐
+  │           public.py                  │  Local Worker (di mesin lokal)
+  │                                      │
+  │  SessionStore                        │
+  │    session_id → cookie_file (Path)   │  ← cookie dikunci sejak NEW
+  │                 conv_url             │
+  │                                      │
+  │  BrowserPool                         │
+  │    Slot #0: account1.json [IDLE]     │
+  │    Slot #1: account2.json [IDLE]     │  ← pre-warmed, tidak ada cold-start
+  │    Slot #2: account1.json [BUSY]     │
+  │    Slot #N: accountN.json [IDLE]     │
+  │                                      │
+  │  acquire(preferred_cookie=...)       │
+  │    mode NEW      → slot idle mana saja
+  │    mode CONTINUE → slot dengan cookie │  ← cookie-pinned, tunggu jika busy
+  │                    yang sama          │
+  └──────────────────────────────────────┘
+                     │
+                     ▼
+               chat.qwen.ai
 ```
 
-**Mode `new`** — cookie dipilih otomatis oleh rotator (round-robin), conversation URL baru dibuat, session baru dikembalikan ke client lewat header `X-Session-ID`.
+**Mode `new`** — slot idle dipilih otomatis dari pool (prioritas: paling lama idle). Cookie file yang dipakai slot tersebut dikunci ke session baru dan dikembalikan ke client lewat header `X-Session-ID`.
 
-**Mode `continue`** — client mengirim `X-Session-ID`, server mencari session yang tersimpan, mengunci ke cookie file yang sama, dan menavigasi browser ke conversation URL percakapan sebelumnya.
+**Mode `continue`** — client mengirim `X-Session-ID`, worker mencari session yang tersimpan, lalu pool **hanya** memilih slot dengan cookie file yang sama dengan saat NEW pertama kali. Browser di slot tersebut kemudian navigate ke `conversation_url` yang tersimpan sebelum mengirim prompt.
 
 ---
 
@@ -71,18 +80,17 @@ Client (OpenAI SDK / curl / requests)
 
 ```
 project/
-├── api_server.py              ← Server utama (entry point)
-├── main.py                    ← CLI scraper (terpisah)
+├── vps_server.py              ← Server VPS (entry point di VPS)
+├── public.py                  ← Local Worker (entry point di mesin lokal)
+├── browser_pool.py            ← BrowserPool – manajemen slot browser
+├── main.py                    ← CLI scraper standalone (terpisah)
 ├── config.py                  ← Konfigurasi global
-├── requirements_api.txt       ← Dependencies
+├── requirements.txt
 ├── cookies/                   ← Letakkan file cookie di sini
 │   ├── account1.json
 │   └── account2.json
 ├── output/                    ← Hasil scrape
 ├── logs/                      ← Log file
-├── examples/
-│   ├── chat_cli.py            ← CLI chatbot interaktif
-│   └── client_examples.py    ← Contoh berbagai client
 └── scrapers/
     ├── base_scraper.py
     ├── qwen_scraper.py
@@ -94,7 +102,7 @@ project/
 ## Instalasi
 
 ```bash
-pip install -r requirements_api.txt
+pip install -r requirements.txt
 playwright install chromium
 ```
 
@@ -109,7 +117,7 @@ playwright install chromium
 3. Klik ekstensi → **Export** → **Export as JSON**
 4. Simpan file ke folder `cookies/`, misal `account1.json`
 
-### Multi-akun (untuk cookie rotation)
+### Multi-akun
 
 ```
 cookies/
@@ -118,36 +126,46 @@ cookies/
 └── account3.json
 ```
 
-Rotasi berjalan **round-robin** dan hanya aktif untuk request **mode `new`**. Request **mode `continue`** selalu menggunakan cookie file yang sama dengan sesi pertama.
+Setiap slot di BrowserPool mendapat **satu cookie file secara dedicated**. Jika jumlah cookie file lebih sedikit dari `--workers`, cookie di-wrap secara round-robin (misal 3 cookie + 6 worker = 2 slot per akun).
+
+Request **mode `continue`** selalu menggunakan cookie file yang sama dengan sesi pertama — pool akan menunggu slot dengan cookie tersebut idle, tidak akan berpindah ke akun lain.
 
 ---
 
 ## Menjalankan Server
 
+### VPS Server
+
 ```bash
-# Default (localhost:8000, 1 worker)
-python api_server.py
+# Di VPS — jalankan server penerima request
+python vps_server.py --port 9000 --token YOUR_SECRET_TOKEN
 
-# Akses dari jaringan lokal
-python api_server.py --host 0.0.0.0 --port 8000
+# Akses publik
+python vps_server.py --host 0.0.0.0 --port 9000 --token YOUR_SECRET_TOKEN
+```
 
-# 3 sesi browser bersamaan
-python api_server.py --workers 3
+### Local Worker
+
+```bash
+# Di mesin lokal — jalankan worker yang konek ke VPS
+python public.py --vps ws://YOUR_VPS_IP:9000/ws/worker --workers 20 --token YOUR_SECRET_TOKEN
 
 # Tampilkan jendela browser (debugging)
-python api_server.py --no-headless
+python public.py --vps ws://... --workers 4 --no-headless
 
-# Session TTL 2 jam (default: 1 jam)
-python api_server.py --session-ttl 7200
+# Session TTL 2 jam
+python public.py --vps ws://... --workers 20 --session-ttl 7200
 
-# Log lebih detail
-python api_server.py --log-level debug
+# Override think mode default
+python public.py --vps ws://... --workers 20 --think-mode fast
 ```
+
+> Token harus sama antara `vps_server.py` dan `public.py`.
 
 ### Verifikasi
 
 ```bash
-curl http://127.0.0.1:8000/health
+curl http://YOUR_VPS_IP:9000/health
 # {"status": "ok", "timestamp": 1748000000}
 ```
 
@@ -155,16 +173,27 @@ curl http://127.0.0.1:8000/health
 
 ## Referensi CLI
 
+### vps_server.py
+
 | Argumen | Default | Keterangan |
 |---|---|---|
 | `--host` | `127.0.0.1` | Host/IP yang di-bind |
-| `--port` | `8000` | Port yang digunakan |
-| `--workers` | `1` | Jumlah sesi browser bersamaan |
+| `--port` | `9000` | Port yang digunakan |
+| `--token` | `None` | Token autentikasi worker |
+| `--log-level` | `info` | `debug/info/warning/error` |
+
+### public.py (Local Worker)
+
+| Argumen | Default | Keterangan |
+|---|---|---|
+| `--vps` | *(wajib)* | WebSocket URL VPS, contoh: `ws://1.2.3.4:9000/ws/worker` |
+| `--token` | `None` | Token autentikasi (harus sama dengan VPS) |
+| `--workers` | `4` | Jumlah slot browser di BrowserPool |
 | `--no-headless` | `False` | Tampilkan jendela browser |
 | `--cookies-dir` | `./cookies` | Folder file cookie JSON |
-| `--session-ttl` | `3600` | Detik sebelum sesi idle kedaluwarsa |
-| `--reload` | `False` | Auto-reload (mode dev) |
-| `--log-level` | `info` | `debug/info/warning/error` |
+| `--session-ttl` | `3600` | Session TTL dalam detik |
+| `--reconnect-delay` | `5.0` | Jeda sebelum reconnect ke VPS (detik) |
+| `--think-mode` | dari config | Default think mode: `auto`, `thinking`, atau `fast` |
 
 ---
 
@@ -183,7 +212,7 @@ Daftar model yang tersedia (format OpenAI).
 Daftar semua sesi continue-mode yang aktif.
 
 ```bash
-curl http://127.0.0.1:8000/v1/sessions
+curl http://YOUR_VPS_IP:9000/v1/sessions
 ```
 
 ```json
@@ -207,7 +236,7 @@ curl http://127.0.0.1:8000/v1/sessions
 Hapus sesi. Request berikutnya dengan ID ini akan memulai percakapan baru.
 
 ```bash
-curl -X DELETE http://127.0.0.1:8000/v1/sessions/a1b2c3d4...
+curl -X DELETE http://YOUR_VPS_IP:9000/v1/sessions/a1b2c3d4...
 ```
 
 ### `POST /v1/chat/completions`
@@ -219,7 +248,7 @@ Endpoint utama chat — lihat detail di bawah.
 
 Setiap percakapan memiliki **session** yang menyimpan:
 - `session_id` — pengenal unik sesi
-- `cookie_file` — cookie account yang digunakan (dikunci sejak awal sesi)
+- `cookie_file` — `Path` lengkap ke cookie file yang digunakan (dikunci sejak request NEW pertama)
 - `conversation_url` — URL percakapan Qwen yang aktif
 
 ### Alur lengkap
@@ -230,11 +259,12 @@ Setiap percakapan memiliki **session** yang menyimpan:
 Client → POST /v1/chat/completions
          (tanpa X-Session-ID)
               ↓
-         CookieRotator pilih: account2.json
-         Buka browser baru → chat.qwen.ai
-         Kirim prompt → tunggu respons
+         VPS terima request → kirim ke worker via WebSocket
+         Worker: BrowserPool.acquire() → pilih slot idle mana saja
+         Slot #1 (account2.json) dipilih
+         Browser sudah warm → langsung kirim prompt (tanpa cold-start)
          Simpan URL: chat.qwen.ai/c/xyz789
-         Buat session baru
+         Buat session: {cookie_file: account2.json, conv_url: ...}
               ↓
 Client ← Response + Headers:
          X-Session-ID: abc...
@@ -248,15 +278,17 @@ Client ← Response + Headers:
 Client → POST /v1/chat/completions
          Header: X-Session-ID: abc...
               ↓
-         Cari session "abc..." → ditemukan
-         Gunakan: account2.json (dikunci, tidak dirotasi)
-         Buka browser → goto(chat.qwen.ai/c/xyz789)
+         VPS: session "abc..." terikat ke worker#1 → routing ke worker#1
+         Worker#1: lookup session "abc..." → cookie_file = account2.json
+         BrowserPool.acquire(preferred_cookie="account2.json")
+           → tunggu slot dengan account2.json idle (tidak ambil slot lain)
+         Slot idle ditemukan → goto(chat.qwen.ai/c/xyz789)
          Kirim prompt → tunggu respons
               ↓
 Client ← Response + Headers:
          X-Session-ID: abc...          (sama)
          X-Cookie-File: account2.json  (sama)
-         X-Conversation-URL: ...       (sama)
+         X-Conversation-URL: ...       (sama atau diperbarui)
 ```
 
 ### Session TTL
@@ -265,25 +297,41 @@ Sesi kedaluwarsa otomatis setelah `--session-ttl` detik tidak digunakan (default
 
 ---
 
-## Cookie Rotation
+## Cookie Rotation & BrowserPool
 
-Rotasi berjalan **round-robin** di antara semua file `.json` di folder `cookies/`:
+### Perbedaan dari versi lama
+
+Versi lama menggunakan `CookieRotator` yang spawn browser baru per task (cold-start ~5–15 detik). Versi ini menggunakan **BrowserPool** dengan slot browser yang sudah warm sejak startup:
+
+| | Versi lama | BrowserPool |
+|---|---|---|
+| Browser launch | Setiap task | Sekali saat startup |
+| Cold-start per request | ~5–15 detik | ~0 detik |
+| Konsistensi akun CONTINUE | ❌ Bisa salah slot | ✅ Cookie-pinned |
+| Respawn otomatis | ❌ | ✅ (maks 3x per slot) |
+
+### Distribusi cookie ke slot
 
 ```
-Request 1 (new) → account1.json  → Session A terkunci ke account1.json
-Request 2 (new) → account2.json  → Session B terkunci ke account2.json
-Request 3 (new) → account3.json  → Session C terkunci ke account3.json
-Request 4 (new) → account1.json  → (mulai ulang)
+# 3 cookie file, 6 workers (wrap round-robin):
+Slot #0 → account1.json  ┐
+Slot #1 → account2.json  │ dedicated per slot
+Slot #2 → account3.json  │
+Slot #3 → account1.json  ┘ wrap
+Slot #4 → account2.json
+Slot #5 → account3.json
 
-Request 5 (continue, Session A) → account1.json  ← dikunci, tidak dirotasi
-Request 6 (continue, Session B) → account2.json  ← dikunci, tidak dirotasi
+# Request CONTINUE ke session yang pakai account2.json
+# → pool menunggu Slot #1 atau Slot #4 idle
+# → tidak akan diberikan ke Slot #0 (account1.json)
 ```
 
-Cek cookie yang tersedia:
+### Status slot
 
-```bash
-curl http://127.0.0.1:8000/
-# response.pool.available_cookies: ["account1.json", "account2.json"]
+Setiap slot memiliki status: `STARTING → IDLE → BUSY → DEAD`. Slot yang crash otomatis masuk ke antrian respawn. Status pool ter-log setiap 60 detik:
+
+```
+Pool status: total=20 idle=17 busy=3 dead=0 starting=0
 ```
 
 ---
@@ -295,7 +343,7 @@ curl http://127.0.0.1:8000/
 **Mode new (pertama kali):**
 
 ```bash
-curl http://127.0.0.1:8000/v1/chat/completions \
+curl http://YOUR_VPS_IP:9000/v1/chat/completions \
   -H "Content-Type: application/json" \
   -D - \
   -d '{"model":"qwen","messages":[{"role":"user","content":"Apa itu asyncio?"}]}'
@@ -306,7 +354,7 @@ Catat `X-Session-ID` dari response header, lalu:
 **Mode continue:**
 
 ```bash
-curl http://127.0.0.1:8000/v1/chat/completions \
+curl http://YOUR_VPS_IP:9000/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "X-Session-ID: a1b2c3d4..." \
   -d '{"model":"qwen","messages":[{"role":"user","content":"Berikan contoh kode."}]}'
@@ -319,7 +367,7 @@ curl http://127.0.0.1:8000/v1/chat/completions \
 ```python
 import requests
 
-BASE = "http://127.0.0.1:8000"
+BASE = "http://YOUR_VPS_IP:9000"
 session_id = None
 
 def chat(prompt: str) -> str:
@@ -351,7 +399,7 @@ Gunakan `x_meta.session_id` dari body response untuk membaca session tanpa akses
 ```python
 import requests
 
-BASE = "http://127.0.0.1:8000"
+BASE = "http://YOUR_VPS_IP:9000"
 session_id = None
 
 def chat(prompt: str) -> str:
@@ -385,7 +433,7 @@ print(chat("Contoh custom context manager?"))
 ```python
 import json, requests
 
-BASE = "http://127.0.0.1:8000"
+BASE = "http://YOUR_VPS_IP:9000"
 session_id = None
 
 def chat_stream(prompt: str) -> str:
@@ -430,7 +478,7 @@ Contoh kelas wrapper lengkap:
 import requests
 
 class QwenChat:
-    def __init__(self, base_url="http://127.0.0.1:8000"):
+    def __init__(self, base_url="http://YOUR_VPS_IP:9000"):
         self.base_url = base_url
         self.session_id = None
         self.cookie_file = None
@@ -474,11 +522,11 @@ print(qwen.send("Apa itu design pattern?"))
 qwen.info()
 
 print(qwen.send("Jelaskan Singleton."))      # continue
-print(qwen.send("Contoh di Python."))         # continue
+print(qwen.send("Contoh di Python."))        # continue
 
 qwen.reset()
 print(qwen.send("Apa itu Docker?"))          # new session
-qwen.info()                                   # cookie & URL baru
+qwen.info()                                  # cookie & URL baru
 ```
 
 ---
@@ -488,7 +536,7 @@ qwen.info()                                   # cookie & URL baru
 ```python
 import asyncio, httpx
 
-BASE = "http://127.0.0.1:8000"
+BASE = "http://YOUR_VPS_IP:9000"
 
 async def ask_qwen(prompt: str, session_id: str | None = None) -> tuple[str, str]:
     headers = {}
@@ -587,7 +635,7 @@ asyncio.run(main())
 | `404` | Session ID tidak ditemukan | Session expired atau ID salah |
 | `500` | Error internal | Cek `logs/scraper.log` |
 | `502` | Scraper gagal | Cek koneksi dan cookie |
-| `503` | Pool belum siap | Tunggu beberapa detik |
+| `503` | Pool belum siap / semua slot dead | Tunggu respawn atau restart worker |
 | `504` | Qwen timeout | Coba lagi |
 
 ---
@@ -596,17 +644,14 @@ asyncio.run(main())
 
 **Session expired** — Jika session ID tidak ditemukan, server otomatis membuat sesi baru dan mengembalikan `X-Session-ID` baru. Client perlu memperbarui ID yang disimpan.
 
-**Cookie rotation hanya untuk mode new** — Setiap sesi baru dipasangkan ke satu cookie file secara permanen. Rotasi terjadi di antara sesi-sesi baru, bukan di dalam satu sesi yang sama.
+**Cookie-pinned untuk CONTINUE** — Setiap sesi dikunci ke satu cookie file. Pool menjamin slot dengan cookie yang tepat dipakai untuk request CONTINUE — tidak akan berpindah akun di tengah percakapan.
+
+**Startup lebih lama, request lebih cepat** — BrowserPool warm-up semua browser saat `public.py` pertama dijalankan. Ini butuh beberapa detik (tergantung `--workers`), tapi setelah itu setiap request tidak ada cold-start sama sekali.
+
+**Respawn otomatis** — Slot yang crash akan di-respawn otomatis di background (maks 3 percobaan). Selama respawn berlangsung, slot tersebut tidak tersedia untuk request baru.
 
 **`x_meta` dalam response body** — Berisi `session_id`, `cookie_file`, dan `conversation_url` di dalam body JSON — alternatif bagi client yang tidak bisa membaca response headers.
 
-**Concurrent workers** — Setiap worker membuka satu instance Chromium (~200–400 MB RAM). Jangan set `--workers` terlalu tinggi.
+**RAM per slot** — Setiap slot browser memakan ~200–400 MB RAM. Sesuaikan `--workers` dengan kapasitas mesin lokal yang menjalankan `public.py`.
 
-**Swagger UI** — Tersedia di `http://127.0.0.1:8000/docs` selama server berjalan.
-
-**CLI chatbot** — `examples/chat_cli.py` mengelola session secara otomatis dan menampilkan info cookie + session setelah giliran pertama:
-
-```bash
-python examples/chat_cli.py --stream
-python examples/chat_cli.py --system "Kamu adalah tutor Python."
-```
+**Reconnect otomatis** — Jika koneksi WebSocket antara `public.py` dan VPS terputus, worker akan reconnect otomatis setiap `--reconnect-delay` detik (default 5 detik) tanpa perlu restart manual.
