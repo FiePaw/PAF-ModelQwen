@@ -1,23 +1,21 @@
 #!/usr/bin/env python3
 """
-public.py – Local Worker dengan BrowserPool
-============================================
-Konek ke VPS via WebSocket, menerima task, menjalankan QwenScraper
-dari pre-warmed BrowserPool, dan mengembalikan hasil ke VPS.
-
-Perbedaan utama dari versi lama:
-  • BrowserPool dibuat SEKALI saat startup → N browser sudah warm & login
-  • Task tidak lagi spawn browser baru → tidak ada cold-start per task
-  • Setiap slot dedicated ke 1 cookie file
-  • Slot crash → auto-respawn di background
+vps_server.py – Runs on VPS (Ubuntu)
+=====================================
+Menerima HTTP request dari Client (OpenAI-compatible),
+lalu meneruskan ke Local Worker (Windows) via WebSocket.
 
 Flow:
-  [public.py] → konek WebSocket → [vps_server.py]
-  [vps_server.py]   → kirim task      → [public.py]
-  [public.py] → ambil slot dari pool → send_prompt → kirim result → [vps_server.py]
+  [Client] → POST /v1/chat/completions
+           → VPS menunggu worker tersedia
+           → Forward payload ke worker via WebSocket
+           → Worker memproses dengan scraper
+           → Result dikembalikan ke client
 
 Usage:
-  python public.py --vps ws://YOUR_VPS_IP:9000/ws/worker --workers 20 --token YOUR_TOKEN
+  pip install fastapi uvicorn websockets
+  python vps_server.py
+  python vps_server.py --host 0.0.0.0 --port 8000 --token rahasia123
 """
 
 from __future__ import annotations
@@ -26,493 +24,562 @@ import argparse
 import asyncio
 import json
 import logging
-import sys
 import time
 import uuid
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import AsyncIterator
+from contextlib import asynccontextmanager
+from typing import AsyncIterator, Optional, Literal
 
-import websockets
-from websockets.exceptions import ConnectionClosed
+import uvicorn
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, StreamingResponse
+from pydantic import BaseModel, Field as PydanticField
 
-sys.path.insert(0, str(Path(__file__).parent))
+# ─── Logger ───────────────────────────────────────────────────────────────────
 
-from browser_pool import BrowserPool
-from config import COOKIES_DIR, PERSISTENT_CONTEXT_CONFIG
-from scrapers.utils import setup_logger
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%H:%M:%S",
+)
+logger = logging.getLogger("vps_server")
 
-logger = setup_logger("local_worker")
+# ─── Config (diset dari CLI) ──────────────────────────────────────────────────
 
+_config: dict = {
+    "auth_token": None,          # Token opsional untuk autentikasi worker
+    "request_timeout": 300,      # Timeout tunggu hasil dari worker (detik)
+    "worker_timeout": 60,        # Timeout tunggu worker tersedia (detik)
+}
 
-# ─── Session Store ─────────────────────────────────────────────────────────────
+# ─── Worker Manager ───────────────────────────────────────────────────────────
 
-@dataclass
-class Session:
-    session_id: str
-    cookie_file: Path                      # Path lengkap — dipakai untuk preferred_cookie di pool
-    conversation_url: str | None = None
-    created_at: float = field(default_factory=time.time)
-    last_used: float = field(default_factory=time.time)
-    turn_count: int = 0
+class WorkerManager:
+    """
+    Mengelola pool WebSocket connections dari Local Worker.
 
-    def touch(self) -> None:
-        self.last_used = time.time()
-        self.turn_count += 1
+    Perubahan model dari versi sebelumnya:
+    - Sebelumnya: worker ditandai busy=True (boolean), hanya bisa handle 1 task sekaligus.
+    - Sekarang:   worker menyimpan active_tasks (int) dan max_concurrent (int).
+                  Task NEW bisa dikirim ke worker mana pun yang masih punya slot kosong.
+                  Task CONTINUE dikirim ke worker yang sedang menangani session_id yang sama,
+                  atau ke worker dengan slot kosong jika belum ada yang memegang session itu.
 
+    session_id → worker_id  (untuk routing CONTINUE ke worker yang benar)
+    """
 
-class SessionStore:
-    def __init__(self, ttl: int = 3600) -> None:
-        self._sessions: dict[str, Session] = {}
+    def __init__(self):
+        # worker_id → {ws, active_tasks, max_concurrent, connected_at, sessions: set[str]}
+        self._workers: dict[str, dict] = {}
         self._lock = asyncio.Lock()
-        self.ttl = ttl
+        # session_id → worker_id  (sticky routing untuk mode continue)
+        self._session_worker: dict[str, str] = {}
+        # request_id → Future
+        self._pending: dict[str, asyncio.Future] = {}
 
-    async def create(self, cookie_file: Path, session_id: str | None = None) -> Session:
+    async def register(self, worker_id: str, ws: WebSocket, max_concurrent: int = 4) -> None:
         async with self._lock:
-            sid = session_id or uuid.uuid4().hex
-            session = Session(session_id=sid, cookie_file=cookie_file)
-            self._sessions[sid] = session
-            return session
-
-    async def get(self, session_id: str) -> Session | None:
-        async with self._lock:
-            s = self._sessions.get(session_id)
-            if s is None:
-                return None
-            if time.time() - s.last_used > self.ttl:
-                del self._sessions[session_id]
-                return None
-            return s
-
-    async def get_or_create(self, session_id: str | None, cookie_file: Path) -> Session:
-        if session_id:
-            existing = await self.get(session_id)
-            if existing:
-                return existing
-        return await self.create(cookie_file, session_id=session_id)
-
-    async def cleanup_expired(self) -> int:
-        """Hapus semua session expired. Return jumlah yang dihapus."""
-        async with self._lock:
-            now = time.time()
-            expired = [sid for sid, s in self._sessions.items()
-                       if now - s.last_used > self.ttl]
-            for sid in expired:
-                del self._sessions[sid]
-            return len(expired)
-
-    async def cleanup_expired(self) -> int:
-        """Hapus semua session expired. Return jumlah yang dihapus."""
-        async with self._lock:
-            now = time.time()
-            expired = [sid for sid, s in self._sessions.items()
-                       if now - s.last_used > self.ttl]
-            for sid in expired:
-                del self._sessions[sid]
-            return len(expired)
-
-
-# ─── Task Processor ────────────────────────────────────────────────────────────
-
-class TaskProcessor:
-    """
-    Memproses satu task menggunakan slot dari BrowserPool.
-    Tidak ada spawn browser di sini — semuanya diambil dari pool.
-    """
-
-    def __init__(self, pool: BrowserPool, session_ttl: int = 3600) -> None:
-        self.pool = pool
-        self.sessions = SessionStore(ttl=session_ttl)
-        # Per-session lock untuk task CONTINUE agar tidak tumpang tindih
-        self._session_locks: dict[str, asyncio.Lock] = {}
-        self._session_locks_meta: dict[str, float] = {}
-        self._locks_mutex = asyncio.Lock()
-
-    async def _get_session_lock(self, session_id: str) -> asyncio.Lock:
-        async with self._locks_mutex:
-            if session_id not in self._session_locks:
-                self._session_locks[session_id] = asyncio.Lock()
-            self._session_locks_meta[session_id] = time.time()
-            return self._session_locks[session_id]
-
-    async def _cleanup_session_locks(self, ttl: float = 3600.0) -> None:
-        async with self._locks_mutex:
-            now = time.time()
-            stale = [
-                sid for sid, ts in self._session_locks_meta.items()
-                if now - ts > ttl and not self._session_locks[sid].locked()
-            ]
-            for sid in stale:
-                del self._session_locks[sid]
-                del self._session_locks_meta[sid]
-
-    async def process(self, request_id: str, payload: dict, worker_label: str = "?") -> dict:
-        """
-        Proses satu task dari VPS.
-        Task NEW     → acquire slot idle mana saja dari pool.
-        Task CONTINUE → acquire slot dengan cookie yang SAMA dengan session awal,
-                        lalu navigate ke conv_url sebelum send_prompt.
-        """
-        messages   = payload.get("messages", [])
-        think_mode = payload.get("think_mode")
-        incoming_sid = payload.get("session_id")
-
-        user_msgs = [m["content"] for m in messages if m.get("role") == "user"]
-        prompt = user_msgs[-1] if user_msgs else ""
-
-        if not prompt:
-            return {"success": False, "error": "Prompt kosong"}
-
-        # ── Resolve session ────────────────────────────────────────────────────
-        mode = "new"
-        conv_url: str | None = None
-        preferred_cookie: str | None = None   # nama file, untuk pool.acquire()
-        session_cookie_file: Path | None = None  # Path lengkap, untuk SessionStore
-
-        if incoming_sid:
-            existing = await self.sessions.get(incoming_sid)
-            if existing:
-                mode = "continue"
-                conv_url = existing.conversation_url
-                # ← FIX Bug #1 & #3: ambil cookie Path dari session, teruskan ke pool
-                session_cookie_file = existing.cookie_file
-                preferred_cookie    = existing.cookie_file.name
-                logger.info(
-                    "Worker#%s CONTINUE [%s] session=%s cookie=%s conv_url=%s",
-                    worker_label, request_id[:8], incoming_sid[:8],
-                    preferred_cookie, conv_url,
-                )
-            else:
-                logger.info(
-                    "Worker#%s Session tidak ditemukan/expired [%s] → mode new",
-                    worker_label, request_id[:8],
-                )
-
-        if mode == "new":
-            logger.info("Worker#%s NEW [%s]", worker_label, request_id[:8])
-
-        # Per-session lock hanya untuk CONTINUE (agar 2 request ke session yg sama tidak tabrakan)
-        lock: asyncio.Lock | None = None
-        if mode == "continue" and incoming_sid:
-            lock = await self._get_session_lock(incoming_sid)
-
-        async def _run() -> dict:
-            logger.debug(
-                "Worker#%s Pool status: %s", worker_label, self.pool.status_summary(),
-            )
-
-            # ← FIX Bug #3: teruskan preferred_cookie ke acquire()
-            async with self.pool.acquire(preferred_cookie=preferred_cookie) as (scraper, cookie_name):
-                try:
-                    # Untuk CONTINUE: navigasi ke URL conversation yang tersimpan
-                    if mode == "continue" and conv_url and "chat.qwen.ai" in conv_url:
-                        logger.info(
-                            "Worker#%s Navigasi ke conversation: %s",
-                            worker_label, conv_url,
-                        )
-                        await scraper._page.goto(
-                            conv_url, wait_until="domcontentloaded", timeout=30_000
-                        )
-                        await asyncio.sleep(1.5)
-                        scraper._conversation_started = True
-
-                    # Override think_mode per-request jika dikirim dari VPS
-                    if think_mode:
-                        scraper._think_mode = think_mode
-                        scraper._think_mode_applied = False
-
-                    result = await scraper.scrape(prompt, mode=mode)
-                    current_url: str = scraper._page.url
-
-                except asyncio.TimeoutError:
-                    return {"success": False, "error": "Timeout: Qwen AI tidak merespons"}
-                except Exception as e:
-                    logger.error(
-                        "Worker#%s Scraper error [%s]: %s",
-                        worker_label, request_id[:8], e, exc_info=True,
-                    )
-                    raise  # biarkan pool.acquire() tangkap dan mark dead
-
-            if not result.get("success"):
-                return {"success": False, "error": result.get("error", "Unknown scraper error")}
-
-            response_text: str = result["response"]
-
-            # Resolusi cookie_file sebagai Path untuk disimpan di session:
-            # - CONTINUE: pakai Path yang sudah diketahui dari session sebelumnya
-            # - NEW: cari Path dari nama cookie yang dikembalikan pool
-            if session_cookie_file:
-                resolved_cookie_path = session_cookie_file
-            else:
-                # Cari Path dari pool berdasarkan nama file
-                resolved_cookie_path = self.pool.get_cookie_path(cookie_name)
-
-            # ← FIX Bug #1: simpan Path ke session, bukan string
-            session = await self.sessions.get_or_create(incoming_sid, resolved_cookie_path)
-            if current_url and "chat.qwen.ai" in current_url:
-                session.conversation_url = current_url
-            session.touch()
-
-            logger.info(
-                "Worker#%s ✅ [%s] %d chars | session=%s | cookie=%s | url=%s",
-                worker_label, request_id[:8], len(response_text),
-                session.session_id[:8], cookie_name,
-                session.conversation_url or "-",
-            )
-
-            return {
-                "success": True,
-                "response": response_text,
-                "session_id": session.session_id,
-                "cookie_file": cookie_name,
-                "conversation_url": session.conversation_url or "",
-                "account_used": cookie_name,
+            self._workers[worker_id] = {
+                "ws": ws,
+                "active_tasks": 0,
+                "max_concurrent": max_concurrent,
+                "connected_at": time.time(),
+                "sessions": set(),
             }
+        logger.info(
+            "✅ Worker terdaftar: %s (max_concurrent=%d, total workers: %d)",
+            worker_id[:8], max_concurrent, len(self._workers),
+        )
 
-        if lock:
-            async with lock:
-                return await _run()
-        else:
-            return await _run()
+    async def unregister(self, worker_id: str) -> None:
+        async with self._lock:
+            info = self._workers.pop(worker_id, None)
+            if info:
+                # Hapus semua session binding milik worker ini
+                for sid in list(self._session_worker.keys()):
+                    if self._session_worker[sid] == worker_id:
+                        del self._session_worker[sid]
+        logger.info("❌ Worker disconnect: %s (sisa: %d)", worker_id[:8], len(self._workers))
 
-
-# ─── WebSocket Worker ──────────────────────────────────────────────────────────
-
-class LocalWorker:
-    """
-    Konek ke VPS via WebSocket dan delegasikan task ke TaskProcessor.
-    Concurrency diatur oleh BrowserPool (jumlah slot idle).
-    """
-
-    _instance_counter: int = 0
-
-    def __init__(
+    async def get_worker_for_task(
         self,
-        vps_url: str,
-        processor: TaskProcessor,
-        max_concurrent: int = 4,
-        token: str | None = None,
-        reconnect_delay: float = 5.0,
-    ) -> None:
-        self.vps_url = vps_url
-        self.processor = processor
-        self.max_concurrent = max_concurrent
-        self.token = token
-        self.reconnect_delay = reconnect_delay
-        self._running = True
-        self._label = str(LocalWorker._instance_counter)
-        LocalWorker._instance_counter += 1
+        session_id: str | None,
+        timeout: float = 30,
+    ) -> tuple[str, dict] | None:
+        """
+        Pilih worker yang tepat berdasarkan tipe task:
 
-    def _build_url(self) -> str:
-        if self.token:
-            sep = "&" if "?" in self.vps_url else "?"
-            return f"{self.vps_url}{sep}token={self.token}"
-        return self.vps_url
+        - CONTINUE (session_id ada):
+            Cari worker yang sedang memegang session_id ini (sticky routing).
+            Jika tidak ditemukan (session baru / pertama kali), pilih worker
+            dengan slot kosong dan ikat session tersebut ke worker tersebut.
 
-    async def _handle_task(self, ws, request_id: str, payload: dict) -> None:
-        logger.info("Worker#%s ▶ Request [%s]", self._label, request_id[:8])
-        try:
-            result = await self.processor.process(request_id, payload, worker_label=self._label)
-            msg = {"type": "result", "request_id": request_id, "data": result}
-        except Exception as e:
-            logger.error("Worker#%s Error [%s]: %s", self._label, request_id[:8], e)
-            msg = {"type": "error", "request_id": request_id, "message": str(e)}
+        - NEW (session_id None):
+            Pilih worker mana saja yang masih punya slot kosong.
+            Tidak perlu menunggu worker tertentu selesai.
+        """
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            async with self._lock:
+                # ── Mode CONTINUE: cari worker pemegang session ini ───────────
+                if session_id and session_id in self._session_worker:
+                    wid = self._session_worker[session_id]
+                    info = self._workers.get(wid)
+                    if info and info["active_tasks"] < info["max_concurrent"]:
+                        info["active_tasks"] += 1
+                        return wid, info
+                    # Worker pemegang session penuh → tunggu
 
-        try:
-            await ws.send(json.dumps(msg))
-        except Exception as e:
-            logger.error("Worker#%s Gagal kirim result ke VPS: %s", self._label, e)
+                else:
+                    # ── Mode NEW atau session belum terikat: cari slot kosong ─
+                    # Urutkan by active_tasks ascending agar beban merata
+                    candidates = sorted(
+                        self._workers.items(),
+                        key=lambda x: x[1]["active_tasks"],
+                    )
+                    for wid, info in candidates:
+                        if info["active_tasks"] < info["max_concurrent"]:
+                            info["active_tasks"] += 1
+                            # Ikat session ke worker ini (jika CONTINUE baru)
+                            if session_id:
+                                info["sessions"].add(session_id)
+                                self._session_worker[session_id] = wid
+                            return wid, info
 
-    async def _keepalive(self, ws) -> None:
-        """Kirim ping ke VPS setiap 30 detik supaya koneksi tidak putus."""
-        while True:
-            await asyncio.sleep(30)
-            try:
-                await ws.send(json.dumps({"type": "ping"}))
-            except Exception:
-                break
+            await asyncio.sleep(0.2)
+        return None
 
-    async def _status_reporter(self) -> None:
-        """Log status pool setiap 60 detik."""
-        while self._running:
-            await asyncio.sleep(60)
-            try:
-                s = self.processor.pool.status_summary()
-                logger.info(
-                    "Pool status: total=%d idle=%d busy=%d dead=%d starting=%d",
-                    s["total"], s["idle"], s["busy"], s["dead"], s["starting"],
-                )
-                # Cleanup expired sessions dan locks secara berkala
-                cleaned = await self.processor.sessions.cleanup_expired()
-                if cleaned:
-                    logger.debug("Cleaned %d expired session(s)", cleaned)
-                await self.processor._cleanup_session_locks()
-            except Exception:
-                pass
+    async def release_task(self, worker_id: str, session_id: str | None = None) -> None:
+        """Kurangi active_tasks worker setelah task selesai."""
+        async with self._lock:
+            if worker_id in self._workers:
+                info = self._workers[worker_id]
+                info["active_tasks"] = max(0, info["active_tasks"] - 1)
 
-    async def _connect_and_run(self) -> None:
-        url = self._build_url()
-        logger.info("Worker#%s 🔌 Konek ke VPS: %s", self._label, self.vps_url)
+    def bind_session(self, session_id: str, worker_id: str) -> None:
+        """Ikat session_id ke worker tertentu (dipanggil setelah result diterima)."""
+        self._session_worker[session_id] = session_id
 
-        async with websockets.connect(url, ping_interval=20, ping_timeout=30) as ws:
-            await ws.send(json.dumps({
-                "type": "register",
-                "max_concurrent": self.max_concurrent,
-            }))
-            logger.info(
-                "Worker#%s ✅ Terhubung ke VPS! (max_concurrent=%d)",
-                self._label, self.max_concurrent,
-            )
+    def unbind_session(self, session_id: str) -> None:
+        """Lepas binding session → worker (saat session expired / error)."""
+        self._session_worker.pop(session_id, None)
 
-            keepalive_task = asyncio.create_task(self._keepalive(ws))
-            status_task    = asyncio.create_task(self._status_reporter())
+    def get_session_worker(self, session_id: str) -> str | None:
+        return self._session_worker.get(session_id)
 
-            try:
-                async for raw in ws:
-                    try:
-                        msg = json.loads(raw)
-                    except json.JSONDecodeError:
-                        logger.warning(
-                            "Worker#%s Pesan tidak valid dari VPS: %s",
-                            self._label, raw[:100],
-                        )
-                        continue
+    def create_future(self, request_id: str) -> asyncio.Future:
+        loop = asyncio.get_event_loop()
+        fut: asyncio.Future = loop.create_future()
+        self._pending[request_id] = fut
+        return fut
 
-                    msg_type = msg.get("type")
+    def resolve_future(self, request_id: str, result: dict) -> None:
+        fut = self._pending.pop(request_id, None)
+        if fut and not fut.done():
+            fut.set_result(result)
 
-                    if msg_type == "task":
-                        request_id = msg["request_id"]
-                        payload    = msg["payload"]
-                        logger.info(
-                            "Worker#%s → Request [%s] session=%s",
-                            self._label, request_id[:8],
-                            (payload.get("session_id") or "new")[:8],
-                        )
-                        # Non-blocking: task jalan paralel di background
-                        asyncio.create_task(self._handle_task(ws, request_id, payload))
+    def reject_future(self, request_id: str, error: str) -> None:
+        fut = self._pending.pop(request_id, None)
+        if fut and not fut.done():
+            fut.set_exception(RuntimeError(error))
 
-                    elif msg_type == "pong":
-                        logger.debug("Worker#%s Pong dari VPS", self._label)
-
-                    else:
-                        logger.debug(
-                            "Worker#%s Pesan tidak dikenal: %s",
-                            self._label, msg_type,
-                        )
-            finally:
-                keepalive_task.cancel()
-                status_task.cancel()
-
-    async def run(self) -> None:
-        """Loop utama dengan auto-reconnect."""
-        while self._running:
-            try:
-                await self._connect_and_run()
-            except ConnectionClosed as e:
-                logger.warning("❌ Koneksi ke VPS terputus: %s", e)
-            except OSError as e:
-                logger.warning("❌ Tidak bisa konek ke VPS: %s", e)
-            except Exception as e:
-                logger.error("❌ Error tidak terduga: %s", e, exc_info=True)
-
-            if self._running:
-                logger.info("🔄 Reconnect dalam %.0f detik...", self.reconnect_delay)
-                await asyncio.sleep(self.reconnect_delay)
-
-    def stop(self) -> None:
-        self._running = False
+    @property
+    def stats(self) -> dict:
+        total = len(self._workers)
+        total_slots = sum(w["max_concurrent"] for w in self._workers.values())
+        active = sum(w["active_tasks"] for w in self._workers.values())
+        return {
+            "total_workers": total,
+            "total_slots": total_slots,
+            "active_tasks": active,
+            "idle_slots": max(0, total_slots - active),
+            "pending_requests": len(self._pending),
+            "tracked_sessions": len(self._session_worker),
+        }
 
 
-# ─── CLI ───────────────────────────────────────────────────────────────────────
+# ─── Global state ─────────────────────────────────────────────────────────────
 
-def main() -> None:
-    parser = argparse.ArgumentParser(
-        prog="local-worker",
-        description="Local Worker – BrowserPool + WebSocket ke VPS",
-    )
-    parser.add_argument(
-        "--vps", required=True, metavar="URL",
-        help="WebSocket URL VPS, contoh: ws://1.2.3.4:9000/ws/worker",
-    )
-    parser.add_argument(
-        "--token", default=None,
-        help="Token autentikasi (harus sama dengan --token di vps_server.py)",
-    )
-    parser.add_argument(
-        "--workers", type=int, default=4,
-        help="Jumlah slot browser di pool (default: 4)",
-    )
-    parser.add_argument(
-        "--no-headless", action="store_true",
-        help="Tampilkan jendela browser",
-    )
-    parser.add_argument(
-        "--cookies-dir", metavar="DIR", type=Path, default=COOKIES_DIR,
-    )
-    parser.add_argument(
-        "--session-ttl", type=int, default=3600,
-        help="Session TTL dalam detik (default: 3600)",
-    )
-    parser.add_argument(
-        "--reconnect-delay", type=float, default=5.0,
-        help="Jeda sebelum reconnect ke VPS (detik)",
-    )
-    parser.add_argument(
-        "--think-mode", default=None,
-        choices=["auto", "thinking", "fast"],
-        help="Default think mode untuk semua slot (default: dari config)",
-    )
-    args = parser.parse_args()
+workers = WorkerManager()
 
-    headless = not args.no_headless
 
-    logger.info("=" * 58)
-    logger.info("  Local Worker – AIChatScraper (BrowserPool)")
-    logger.info("  VPS         : %s", args.vps)
-    logger.info("  Pool size   : %d browser", args.workers)
-    logger.info("  Headless    : %s", headless)
-    logger.info("  Cookies dir : %s", args.cookies_dir)
-    logger.info("  Think mode  : %s", args.think_mode or "dari config")
-    logger.info("  Token       : %s", "✅ Aktif" if args.token else "❌ Tidak diset")
-    logger.info("=" * 58)
+# ─── Pydantic Models (OpenAI-compatible) ──────────────────────────────────────
 
-    async def _main() -> None:
-        # 1. Buat dan warm-up pool
-        pool = BrowserPool(
-            cookies_dir=args.cookies_dir,
-            pool_size=args.workers,
-            headless=headless,
-            think_mode=args.think_mode,
-        )
-        try:
-            logger.info("Warming up %d browser slot(s)...", args.workers)
-            await pool.start()
-            logger.info("Pool ready → %s", pool)
-        except Exception as e:
-            logger.critical("Gagal start BrowserPool: %s", e)
-            sys.exit(1)
+class ChatMessage(BaseModel):
+    role: Literal["system", "user", "assistant"] = "user"
+    content: str
 
-        # 2. Buat processor dan worker
-        processor = TaskProcessor(pool=pool, session_ttl=args.session_ttl)
-        worker = LocalWorker(
-            vps_url=args.vps,
-            processor=processor,
-            max_concurrent=args.workers,
-            token=args.token,
-            reconnect_delay=args.reconnect_delay,
-        )
 
-        # 3. Jalankan worker; tutup pool saat selesai
-        try:
-            await worker.run()
-        finally:
-            logger.info("Menutup BrowserPool...")
-            await pool.stop()
+class ChatCompletionRequest(BaseModel):
+    model: str = "qwen"
+    messages: list[ChatMessage]
+    stream: bool = False
+    temperature: Optional[float] = None
+    max_tokens: Optional[int] = None
+    top_p: Optional[float] = None
+    think_mode: Optional[Literal["auto", "thinking", "fast"]] = None
+
+    @property
+    def last_user_message(self) -> str:
+        msgs = [m.content for m in self.messages if m.role == "user"]
+        return msgs[-1] if msgs else ""
+
+
+def _token_estimate(text: str) -> int:
+    return max(1, len(text) // 4)
+
+
+def _make_id() -> str:
+    return f"chatcmpl-{uuid.uuid4().hex[:24]}"
+
+
+# ─── SSE Streaming helper ─────────────────────────────────────────────────────
+
+async def _sse_stream(
+    request: ChatCompletionRequest,
+    response_text: str,
+    completion_id: str,
+) -> AsyncIterator[str]:
+    created = int(time.time())
+
+    def chunk(delta: dict, finish: str | None = None) -> str:
+        return "data: " + json.dumps({
+            "id": completion_id,
+            "object": "chat.completion.chunk",
+            "created": created,
+            "model": request.model,
+            "choices": [{"index": 0, "delta": delta, "finish_reason": finish}],
+        }) + "\n\n"
+
+    yield chunk({"role": "assistant", "content": ""})
+    buffer = ""
+    for word in response_text.split(" "):
+        buffer += word + " "
+        if len(buffer) >= 8:
+            yield chunk({"content": buffer})
+            buffer = ""
+            await asyncio.sleep(0.01)
+    if buffer:
+        yield chunk({"content": buffer})
+    yield chunk({}, finish="stop")
+    yield "data: [DONE]\n\n"
+
+
+# ─── FastAPI App ──────────────────────────────────────────────────────────────
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("=" * 55)
+    logger.info("  VPS Proxy Server ready")
+    logger.info("  Menunggu Local Worker konek di /ws/worker")
+    logger.info("=" * 55)
+    yield
+    logger.info("Server shutting down")
+
+
+app = FastAPI(
+    title="AIChatScraper – VPS Proxy",
+    description="Forward HTTP requests ke Local Worker via WebSocket",
+    version="1.0.0",
+    lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["X-Session-ID", "X-Cookie-File", "X-Conversation-URL"],
+)
+
+
+# ─── WebSocket endpoint untuk Local Worker ────────────────────────────────────
+
+@app.websocket("/ws/worker")
+async def worker_endpoint(ws: WebSocket):
+    """
+    Local Worker konek ke sini saat startup.
+    Protokol pesan (JSON):
+
+    Worker → VPS (saat connect): {"type": "register", "max_concurrent": 4}
+    VPS → Worker:  {"type": "task", "request_id": "...", "payload": {...}}
+    Worker → VPS:  {"type": "result", "request_id": "...", "data": {...}}
+                   {"type": "error",  "request_id": "...", "message": "..."}
+                   {"type": "ping"}  (keepalive)
+    """
+    token = ws.query_params.get("token", "")
+    if _config["auth_token"] and token != _config["auth_token"]:
+        await ws.close(code=4001, reason="Unauthorized")
+        logger.warning("Worker ditolak: token salah")
+        return
+
+    await ws.accept()
+    worker_id = uuid.uuid4().hex
+
+    # Tunggu pesan registrasi pertama dari worker (max 5 detik)
+    # Worker mengirim {"type": "register", "max_concurrent": N}
+    # Jika tidak ada, default ke 4
+    max_concurrent = 4
+    try:
+        raw_reg = await asyncio.wait_for(ws.receive_text(), timeout=5.0)
+        reg_msg = json.loads(raw_reg)
+        if reg_msg.get("type") == "register":
+            max_concurrent = int(reg_msg.get("max_concurrent", 4))
+    except (asyncio.TimeoutError, Exception):
+        pass  # Tidak ada registrasi → pakai default
+
+    await workers.register(worker_id, ws, max_concurrent=max_concurrent)
 
     try:
-        asyncio.run(_main())
-    except KeyboardInterrupt:
-        logger.info("Worker dihentikan.")
+        while True:
+            raw = await ws.receive_text()
+            msg = json.loads(raw)
+            msg_type = msg.get("type")
+
+            if msg_type == "result":
+                request_id = msg["request_id"]
+                result_data = msg["data"]
+                # Bind session_id ke worker ini untuk sticky routing CONTINUE
+                sid = result_data.get("session_id")
+                if sid:
+                    workers._session_worker[sid] = worker_id
+                workers.resolve_future(request_id, result_data)
+                await workers.release_task(worker_id, sid)
+                logger.info(
+                    "✔ Result diterima [req=%s] session=%s",
+                    request_id[:8], (sid or "")[:8],
+                )
+
+            elif msg_type == "error":
+                request_id = msg["request_id"]
+                workers.reject_future(request_id, msg.get("message", "Unknown error"))
+                await workers.release_task(worker_id)
+                logger.warning(
+                    "✖ Error dari worker [req=%s]: %s",
+                    request_id[:8], msg.get("message"),
+                )
+
+            elif msg_type == "ping":
+                await ws.send_text(json.dumps({"type": "pong"}))
+
+            else:
+                logger.debug("Pesan tidak dikenal dari worker: %s", msg_type)
+
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        logger.error("Worker error: %s", e)
+    finally:
+        await workers.unregister(worker_id)
+
+
+# ─── HTTP Routes (OpenAI-compatible) ─────────────────────────────────────────
+
+@app.get("/")
+async def root():
+    return {
+        "status": "ok",
+        "service": "AIChatScraper – VPS Proxy",
+        "version": "1.0.0",
+        "workers": workers.stats,
+    }
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok", "timestamp": int(time.time()), "workers": workers.stats}
+
+
+@app.get("/v1/models")
+async def list_models():
+    now = int(time.time())
+    return {
+        "object": "list",
+        "data": [
+            {"id": "qwen", "object": "model", "created": now, "owned_by": "qwen-ai"},
+            {"id": "qwen-turbo", "object": "model", "created": now, "owned_by": "qwen-ai"},
+        ],
+    }
+
+
+@app.post("/v1/chat/completions")
+async def chat_completions(req: ChatCompletionRequest, raw_req: Request):
+    prompt = req.last_user_message
+    if not prompt:
+        raise HTTPException(status_code=400, detail="No user message found")
+
+    # Ambil session headers dari client
+    incoming_sid = raw_req.headers.get("X-Session-ID", "").strip() or None
+    request_id = uuid.uuid4().hex
+    completion_id = _make_id()
+    task_mode = "CONTINUE" if incoming_sid else "NEW"
+
+    logger.info(
+        "📨 Request [%s] mode=%s prompt=%d chars session=%s",
+        request_id[:8], task_mode, len(prompt),
+        incoming_sid[:8] if incoming_sid else "-",
+    )
+
+    # Pilih worker berdasarkan mode (NEW → slot kosong mana saja,
+    # CONTINUE → worker yang memegang session ini)
+    worker_timeout = _config["worker_timeout"]
+    worker = await workers.get_worker_for_task(
+        session_id=incoming_sid,
+        timeout=worker_timeout,
+    )
+    if worker is None:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Tidak ada worker tersedia. Pastikan local_worker.py sudah berjalan di Windows."
+                if not incoming_sid else
+                f"Worker untuk session {incoming_sid[:8]} tidak tersedia atau penuh."
+            ),
+        )
+
+    worker_id, worker_info = worker
+    ws: WebSocket = worker_info["ws"]
+    logger.info("📤 Task [%s] → Worker#%s [mode=%s]", request_id[:8], worker_id[:8], task_mode)
+
+    # Buat future untuk menunggu hasil
+    future = workers.create_future(request_id)
+
+    # Kirim task ke worker
+    task_payload = {
+        "type": "task",
+        "request_id": request_id,
+        "payload": {
+            "messages": [{"role": m.role, "content": m.content} for m in req.messages],
+            "model": req.model,
+            "stream": req.stream,
+            "think_mode": req.think_mode,
+            "session_id": incoming_sid,
+        },
+    }
+
+    try:
+        await ws.send_text(json.dumps(task_payload))
+    except Exception as e:
+        await workers.release_task(worker_id, incoming_sid)
+        workers.reject_future(request_id, str(e))
+        raise HTTPException(status_code=502, detail=f"Gagal mengirim ke worker: {e}")
+
+    # Tunggu hasil dari worker
+    try:
+        result = await asyncio.wait_for(future, timeout=_config["request_timeout"])
+    except asyncio.TimeoutError:
+        await workers.release_task(worker_id, incoming_sid)
+        raise HTTPException(status_code=504, detail="Worker tidak merespons dalam waktu yang ditentukan")
+    except RuntimeError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+    if not result.get("success"):
+        raise HTTPException(status_code=502, detail=f"Scraper error: {result.get('error', 'Unknown')}")
+
+    response_text: str = result["response"]
+    session_id: str = result.get("session_id", request_id)
+    cookie_file: str = result.get("cookie_file", "")
+    conversation_url: str = result.get("conversation_url", "")
+
+    extra_headers = {
+        "X-Session-ID": session_id,
+        "X-Cookie-File": cookie_file,
+        "X-Conversation-URL": conversation_url,
+    }
+
+    logger.info(
+        "✅ Done [%s] %d chars session=%s",
+        request_id[:8], len(response_text), session_id[:8],
+    )
+
+    # Streaming
+    if req.stream:
+        return StreamingResponse(
+            _sse_stream(req, response_text, completion_id),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+                "Connection": "keep-alive",
+                **extra_headers,
+            },
+        )
+
+    # Non-streaming
+    pt = _token_estimate(prompt)
+    ct = _token_estimate(response_text)
+    return JSONResponse(
+        content={
+            "id": completion_id,
+            "object": "chat.completion",
+            "created": int(time.time()),
+            "model": req.model,
+            "choices": [{
+                "index": 0,
+                "message": {"role": "assistant", "content": response_text},
+                "finish_reason": "stop",
+            }],
+            "usage": {
+                "prompt_tokens": pt,
+                "completion_tokens": ct,
+                "total_tokens": pt + ct,
+            },
+            "x_meta": {
+                "session_id": session_id,
+                "cookie_file": cookie_file,
+                "conversation_url": conversation_url,
+                "think_mode": req.think_mode or "auto",
+            },
+        },
+        headers=extra_headers,
+    )
+
+
+# ─── Error handler ────────────────────────────────────────────────────────────
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error("Unhandled: %s", exc, exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"error": {"message": str(exc), "type": "internal_server_error", "code": 500}},
+    )
+
+
+# ─── CLI ──────────────────────────────────────────────────────────────────────
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog="vps-server",
+        description="VPS Proxy Server – forward HTTP ke Local Worker via WebSocket",
+    )
+    parser.add_argument("--host", default="0.0.0.0", help="Bind host (default: 0.0.0.0)")
+    parser.add_argument("--port", type=int, default=8000, help="Port (default: 8000)")
+    parser.add_argument("--token", default=None, help="Token autentikasi worker (opsional)")
+    parser.add_argument("--request-timeout", type=int, default=300, help="Timeout tunggu hasil worker (detik)")
+    parser.add_argument("--worker-timeout", type=int, default=30, help="Timeout tunggu worker idle (detik)")
+    parser.add_argument("--log-level", default="info", choices=["debug", "info", "warning", "error"])
+    args = parser.parse_args()
+
+    _config["auth_token"] = args.token
+    _config["request_timeout"] = args.request_timeout
+    _config["worker_timeout"] = args.worker_timeout
+
+    logger.info("=" * 55)
+    logger.info("  VPS Proxy Server")
+    logger.info("  URL    : http://%s:%d", args.host, args.port)
+    logger.info("  Worker : ws://%s:%d/ws/worker", args.host, args.port)
+    logger.info("  Token  : %s", "✅ Aktif" if args.token else "❌ Tidak diset (semua worker diterima)")
+    logger.info("=" * 55)
+
+    uvicorn.run(
+        "vps_server:app",
+        host=args.host,
+        port=args.port,
+        log_level=args.log_level,
+        access_log=True,
+    )
 
 
 if __name__ == "__main__":
