@@ -420,7 +420,7 @@ class BaseAIChatScraper(ABC):
 
     # ── High-level scrape with auto-rotation ─────────────────────────────────
 
-    async def scrape(self, prompt: str, mode: str = "new") -> dict:
+    async def scrape(self, prompt: str, mode: str = "new", attachments: list | None = None) -> dict:
         # _discover_accounts() is already called in __aenter__ before browser launch.
         # In persistent mode, launch_browser() already handled cookie seeding.
         # In ephemeral mode, inject cookies manually after navigating to the domain.
@@ -443,7 +443,11 @@ class BaseAIChatScraper(ABC):
             )
 
             try:
-                response_text = await self.send_prompt(prompt, mode, **self._extra_send_kwargs())
+                # Gabungkan kwargs dari subclass (misal think_mode) + attachments
+                extra = self._extra_send_kwargs()
+                if attachments:
+                    extra["attachments"] = attachments
+                response_text = await self.send_prompt(prompt, mode, **extra)
 
                 if contains_any(response_text, ROTATION_CONFIG["rate_limit_phrases"]):
                     self.logger.warning("Rate limit detected – rotating account")

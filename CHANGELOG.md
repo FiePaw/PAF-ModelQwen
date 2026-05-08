@@ -7,6 +7,184 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased] – 2026-05-08
 
+### `utils.py` — Baru: Pretty Console Logger dengan Dukungan Windows ANSI
+
+#### Latar Belakang
+Output log sebelumnya menggunakan `logging.Formatter` standar yang menghasilkan baris panjang
+tanpa warna, sulit dibaca saat banyak worker berjalan bersamaan. Di Windows, percobaan awal
+menambahkan ANSI color codes justru menghasilkan karakter escape mentah (`←[92m`) di cmd.exe
+karena Virtual Terminal Processing belum aktif.
+
+#### Perubahan di `setup_logger()`
+Fungsi tetap memiliki signature yang sama — tidak ada perubahan di sisi pemanggil.
+
+- **`_PrettyConsoleFormatter`** (baru) — formatter khusus console dengan layout kolom:
+  ```
+  HH:MM:SS  LEVEL    logger_name     │  pesan
+  ```
+  Setiap kolom memiliki lebar tetap sehingga pesan sejajar vertikal meskipun nama logger
+  berbeda-beda (`local_worker`, `browser_pool`, `QwenScraper`, dst.).
+
+- **Highlight otomatis dalam pesan** — kata kunci penting diberi warna berbeda tanpa mengubah
+  teks aslinya:
+
+  | Elemen | Warna |
+  |---|---|
+  | `Worker#N` | Biru bold |
+  | `[request_id]` | Kuning |
+  | `NEW` / `CONTINUE` | Cyan bold / Magenta bold |
+  | `✅` / `❌` / `🔌` / `🔄` | Hijau / Merah / Cyan / Kuning |
+  | `idle=` / `busy=` / `dead=` | Hijau / Kuning / Merah |
+  | `Pool ready`, `Terhubung` | Hijau bold |
+  | `Error`, `Gagal`, `Timeout` | Merah |
+
+- **Level styling**:
+  - `DEBUG` — abu-abu redup (tidak mengganggu saat verbose)
+  - `INFO` — hijau
+  - `WARN` — kuning
+  - `ERROR` — merah
+  - `CRIT` — background merah
+
+- **File handler tidak berubah** — rotating file handler tetap menulis plain text tanpa kode
+  ANSI, sehingga log file tetap bisa dibaca dengan text editor biasa.
+
+#### Fix — ANSI codes muncul sebagai teks mentah di Windows
+
+**Masalah:** cmd.exe dan PowerShell lama tidak mengaktifkan ANSI processing secara default,
+sehingga kode seperti `\033[92m` tampil sebagai `←[92m` di layar.
+
+**Fix:** Tambah `_enable_windows_ansi()` yang memanggil Windows API
+(`SetConsoleMode` + flag `ENABLE_VIRTUAL_TERMINAL_PROCESSING`) sebelum output pertama ditulis.
+Deteksi dilakukan satu kali saat import via `_supports_color()`:
+
+- Jika `stderr.isatty()` False (output di-pipe/redirect) → semua warna dinonaktifkan, plain text.
+- Jika Windows dan VT mode berhasil diaktifkan → warna tampil normal di cmd.exe / PowerShell / Windows Terminal.
+- Jika Windows dan VT mode gagal (versi lama, tidak ada console) → fallback plain text.
+- Linux / macOS dengan terminal → warna aktif langsung.
+
+```
+Sebelum (Windows cmd):
+  ←[2m02:57:15←[0m  ←[92mINFO   ←[0m  ←[2mlocal_worker  ←[0m  ←[2m│←[0m  ...
+
+Sesudah (semua platform):
+  02:57:15  INFO     local_worker    │  Worker#0 🔌 Konek ke VPS: ws://...
+```
+
+---
+
+## [Unreleased] – 2026-05-08 (2)
+
+### Fitur Baru: Upload File / Attachment via Clipboard CDP
+
+Menambahkan dukungan upload file (gambar, PDF, dokumen, dll) ke Qwen AI melalui mekanisme
+clipboard berbasis CDP (Chrome DevTools Protocol). Fitur ini bekerja pada percakapan baru
+maupun turn lanjutan (mode `continue`).
+
+---
+
+#### `qwen_scraper.py` — Tambah: Class `Attachment` + Upload via Clipboard CDP
+
+##### Class `Attachment` (baru)
+
+Class helper untuk merepresentasikan satu file attachment sebelum dikirim ke Qwen.
+
+- **`Attachment.from_path(path)`** — buat dari file lokal di mesin yang menjalankan worker.
+- **`Attachment.from_base64(b64_data, filename, mime_type?)`** — buat dari string base64.
+  Mendukung raw base64 (`"iVBOR..."`) maupun Data URI (`"data:image/png;base64,iVBOR..."`).
+- **`att.to_temp_file()`** — tulis data ke file sementara (dipakai secara internal).
+- **`att.is_supported()`** — validasi ringan apakah MIME type dikenal Qwen.
+
+##### Method upload baru di `QwenScraper`
+
+- **`_upload_attachments(attachments)`** — orkestrator utama. Membuat CDP session sekali
+  untuk semua file, iterasi per attachment, jeda 1.2 detik antar file.
+
+- **`_paste_attachment_via_cdp(cdp, att)`** — inti upload. Melakukan 6 langkah di dalam
+  satu `page.evaluate()`:
+  1. Decode base64 → `Uint8Array` di browser.
+  2. Buat `Blob` + `File` object dengan nama dan MIME type yang benar.
+  3. Coba tulis ke `navigator.clipboard` (opsional, tidak blocking jika gagal).
+  4. Masukkan `File` ke `DataTransfer`.
+  5. Fokus ke textarea input Qwen.
+  6. Dispatch `ClipboardEvent('paste')` ke textarea.
+
+  Setelah `paste`, tunggu preview 5 detik. Jika preview tidak muncul, baru coba
+  `DragEvent('drop')` sebagai fallback — **tidak** keduanya sekaligus, untuk mencegah
+  file terdaftar dua kali di Qwen.
+
+- **`_wait_attachment_preview(timeout)`** — poll setiap 0.3 detik menunggu elemen
+  thumbnail/preview attachment muncul di UI Qwen. Return `True` jika terdeteksi,
+  `False` jika timeout. Tidak blocking — scrape tetap dilanjutkan walau preview tidak
+  terdeteksi.
+
+##### Fix: File muncul 2x di Qwen
+
+Versi awal men-dispatch `paste` dan `drop` sekaligus dalam satu JS call. Qwen merespons
+keduanya sehingga file terdaftar dua kali. Diperbaiki dengan urutan sekuensial:
+
+```
+dispatch paste → tunggu preview 5s
+  ├── preview muncul? → ✅ selesai, drop TIDAK dijalankan
+  └── tidak muncul?  → dispatch drop → tunggu preview 5s lagi
+```
+
+##### Kenapa clipboard, bukan file chooser?
+
+Qwen menggunakan custom upload handler — bukan `<input type="file">` standar. Metode
+`expect_file_chooser` dan `set_input_files()` dari Playwright tidak dapat menginterceptnya.
+Clipboard paste via CDP bekerja langsung di level DOM event sehingga tidak bergantung pada
+implementasi UI Qwen.
+
+---
+
+#### `vps_server.py` — Tambah: Model `AttachmentPayload` + Field `attachments`
+
+- **`AttachmentPayload`** (Pydantic model baru):
+  ```python
+  class AttachmentPayload(BaseModel):
+      filename: str
+      data: str          # raw base64 atau Data URI
+      mime_type: Optional[str] = None
+  ```
+- **`ChatCompletionRequest`** — tambah field `attachments: Optional[list[AttachmentPayload]]`.
+- **`chat_completions` endpoint** — attachment di-serialize ke `task_payload` dan diteruskan
+  ke worker sebagai list of dict `{filename, data, mime_type}`.
+- Log request kini menyertakan jumlah attachment: `attachments=N`.
+
+---
+
+#### `public.py` — Tambah: Parse Attachment di `TaskProcessor.process()`
+
+- `process()` membaca field `attachments` dari payload, mengkonversi setiap item ke objek
+  `Attachment` via `Attachment.from_base64()` (untuk data dari API) atau `Attachment.from_path()`
+  (untuk path lokal).
+- Attachment yang gagal di-parse di-skip dengan log warning — tidak menggagalkan seluruh task.
+- List `Attachment` diteruskan ke `scraper.scrape(..., attachments=attachments)`.
+
+---
+
+#### `base_scraper.py` — Update: `scrape()` terima parameter `attachments`
+
+`scrape(prompt, mode, attachments)` menerima `attachments: list | None = None` dan
+meneruskannya ke `send_prompt()` via `extra kwargs`.
+
+---
+
+#### `HowToUseAPI.md` — Update: Dokumentasi Fitur Attachment
+
+- Tambah section baru **"Mengirim File / Attachment"** dengan:
+  - Tabel format field `attachments` (`filename`, `data`, `mime_type`)
+  - Tabel tipe file yang didukung (gambar, dokumen, spreadsheet, teks, audio, video)
+  - Contoh curl (satu file dan multi-file)
+  - Contoh Python dari file lokal
+  - Contoh Python dari bytes/memory (misal screenshot PIL)
+- Update tabel **Request Body** di section referensi — tambah baris `attachments` dan sub-field.
+- Update contoh JSON request body — sertakan contoh `attachments`.
+- Update **Tips Praktis** — tambah tip bahwa attachment bisa dikirim di turn mana saja.
+
+---
+
+
 ### `browser_pool.py` — Baru: Pre-warmed Browser Pool
 
 #### Latar Belakang

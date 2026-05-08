@@ -5,6 +5,7 @@ Utility / helper functions for AIChatScraper
 import json
 import logging
 import re
+import sys
 import time
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
@@ -16,6 +17,120 @@ from config import LOG_CONFIG, OUTPUT_CONFIG
 
 # ─── Logging Setup ────────────────────────────────────────────────────────────
 
+# ── ANSI support detection ────────────────────────────────────────────────────
+
+def _enable_windows_ansi() -> bool:
+    """Aktifkan Virtual Terminal Processing di Windows cmd/PowerShell."""
+    try:
+        import ctypes
+        import ctypes.wintypes
+        kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+        handle = kernel32.GetStdHandle(-11)  # STD_OUTPUT_HANDLE
+        mode = ctypes.wintypes.DWORD()
+        if not kernel32.GetConsoleMode(handle, ctypes.byref(mode)):
+            return False
+        ENABLE_VT = 0x0004
+        if mode.value & ENABLE_VT:
+            return True
+        return bool(kernel32.SetConsoleMode(handle, mode.value | ENABLE_VT))
+    except Exception:
+        return False
+
+
+def _supports_color() -> bool:
+    """Deteksi apakah stderr mendukung ANSI color output."""
+    if not hasattr(sys.stderr, "isatty") or not sys.stderr.isatty():
+        return False
+    if sys.platform == "win32":
+        return _enable_windows_ansi()
+    return True
+
+
+_COLOR_ON = _supports_color()
+
+
+def _c(code: str) -> str:
+    """Return ANSI code jika warna didukung, string kosong jika tidak."""
+    return code if _COLOR_ON else ""
+
+
+# ── ANSI color codes ──────────────────────────────────────────────────────────
+_RESET   = _c("\033[0m")
+_BOLD    = _c("\033[1m")
+_DIM     = _c("\033[2m")
+_RED     = _c("\033[91m")
+_GREEN   = _c("\033[92m")
+_YELLOW  = _c("\033[93m")
+_BLUE    = _c("\033[94m")
+_MAGENTA = _c("\033[95m")
+_CYAN    = _c("\033[96m")
+_WHITE   = _c("\033[37m")
+_BG_RED  = _c("\033[41m")
+
+_LEVEL_STYLES: dict[int, tuple[str, str]] = {
+    logging.DEBUG:    (_DIM + _CYAN,            "DEBUG  "),
+    logging.INFO:     (_GREEN,                  "INFO   "),
+    logging.WARNING:  (_YELLOW,                 "WARN   "),
+    logging.ERROR:    (_RED,                    "ERROR  "),
+    logging.CRITICAL: (_BOLD + _BG_RED + _WHITE, "CRIT   "),
+}
+
+_HIGHLIGHTS: list[tuple[str, str]] = [
+    ("✅",        f"{_GREEN}✅{_RESET}"),
+    ("❌",        f"{_RED}❌{_RESET}"),
+    ("🔌",        f"{_CYAN}🔌{_RESET}"),
+    ("🔄",        f"{_YELLOW}🔄{_RESET}"),
+    ("Pool ready", f"{_GREEN}{_BOLD}Pool ready{_RESET}"),
+    ("Terhubung",  f"{_GREEN}Terhubung{_RESET}"),
+    ("Warming up", f"{_CYAN}Warming up{_RESET}"),
+    ("CONTINUE",   f"{_MAGENTA}{_BOLD}CONTINUE{_RESET}"),
+    ("NEW",        f"{_CYAN}{_BOLD}NEW{_RESET}"),
+    ("Gagal",      f"{_RED}Gagal{_RESET}"),
+    ("Error",      f"{_RED}Error{_RESET}"),
+    ("error",      f"{_RED}error{_RESET}"),
+    ("Timeout",    f"{_RED}Timeout{_RESET}"),
+    ("Reconnect",  f"{_YELLOW}Reconnect{_RESET}"),
+    ("reconnect",  f"{_YELLOW}reconnect{_RESET}"),
+    ("Konek",      f"{_CYAN}Konek{_RESET}"),
+    ("Menutup",    f"{_YELLOW}Menutup{_RESET}"),
+    ("dihentikan", f"{_YELLOW}dihentikan{_RESET}"),
+    ("idle=",      f"{_GREEN}idle={_RESET}"),
+    ("busy=",      f"{_YELLOW}busy={_RESET}"),
+    ("dead=",      f"{_RED}dead={_RESET}"),
+    ("starting=",  f"{_CYAN}starting={_RESET}"),
+    ("total=",     f"{_WHITE}total={_RESET}"),
+]
+
+
+def _colorize(msg: str) -> str:
+    msg = re.sub(r"(Worker#\d+)", lambda m: f"{_BLUE}{_BOLD}{m.group(1)}{_RESET}", msg)
+    msg = re.sub(r"(\[[0-9a-f]{6,}\])", lambda m: f"{_YELLOW}{m.group(1)}{_RESET}", msg)
+    for kw, colored in _HIGHLIGHTS:
+        if kw in msg:
+            msg = msg.replace(kw, colored, 1)
+    return msg
+
+
+class _PrettyConsoleFormatter(logging.Formatter):
+    """Colorful, compact formatter for console output only."""
+    _SEP = f"{_DIM}│{_RESET}"
+
+    def format(self, record: logging.LogRecord) -> str:  # noqa: A003
+        ts = self.formatTime(record, "%H:%M:%S")
+        color, label = _LEVEL_STYLES.get(record.levelno, (_WHITE, f"{record.levelname:<7}"))
+        name = record.name[:14]
+        msg  = _colorize(record.getMessage())
+        if record.exc_info:
+            exc = self.formatException(record.exc_info)
+            msg += "\n" + "\n".join(f"  {_RED}{l}{_RESET}" for l in exc.splitlines())
+        return (
+            f"{_DIM}{ts}{_RESET}  "
+            f"{color}{label}{_RESET}  "
+            f"{_DIM}{name:<14}{_RESET}  "
+            f"{self._SEP}  {msg}"
+        )
+
+
 def setup_logger(name: str) -> logging.Logger:
     """Create a named logger with both console and rotating file handlers."""
     logger = logging.getLogger(name)
@@ -23,24 +138,26 @@ def setup_logger(name: str) -> logging.Logger:
         return logger
 
     logger.setLevel(LOG_CONFIG["level"])
-    formatter = logging.Formatter(
+
+    # Plain formatter untuk file (tanpa ANSI agar log file tetap bersih)
+    plain_formatter = logging.Formatter(
         fmt=LOG_CONFIG["format"],
         datefmt=LOG_CONFIG["date_format"],
     )
 
-    # Console handler
-    ch = logging.StreamHandler()
-    ch.setFormatter(formatter)
+    # Console handler — pakai pretty formatter berwarna
+    ch = logging.StreamHandler(sys.stderr)
+    ch.setFormatter(_PrettyConsoleFormatter())
     logger.addHandler(ch)
 
-    # File handler (rotating)
+    # File handler (rotating) — tetap plain text, tidak berubah
     fh = RotatingFileHandler(
         LOG_CONFIG["log_file"],
         maxBytes=LOG_CONFIG["max_bytes"],
         backupCount=LOG_CONFIG["backup_count"],
         encoding="utf-8",
     )
-    fh.setFormatter(formatter)
+    fh.setFormatter(plain_formatter)
     logger.addHandler(fh)
 
     return logger

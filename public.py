@@ -242,15 +242,55 @@ class TaskProcessor:
         Task CONTINUE → acquire slot dengan cookie yang SAMA dengan session awal,
                         lalu navigate ke conv_url sebelum send_prompt.
         """
-        messages   = payload.get("messages", [])
-        think_mode = payload.get("think_mode")
+        messages     = payload.get("messages", [])
+        think_mode   = payload.get("think_mode")
         incoming_sid = payload.get("session_id")
+        raw_attachments: list[dict] = payload.get("attachments") or []
 
         user_msgs = [m["content"] for m in messages if m.get("role") == "user"]
         prompt = user_msgs[-1] if user_msgs else ""
 
         if not prompt:
             return {"success": False, "error": "Prompt kosong"}
+
+        # ── Parse attachments dari payload ────────────────────────────────────
+        # Konversi list of dict → list of Attachment objects
+        attachments = []
+        if raw_attachments:
+            from scrapers.qwen_scraper import Attachment  # local import untuk hindari circular
+            for raw in raw_attachments:
+                try:
+                    # Dukung dua sumber: base64 dari API, atau path lokal
+                    if "data" in raw and raw["data"]:
+                        att = Attachment.from_base64(
+                            b64_data=raw["data"],
+                            filename=raw.get("filename", "attachment"),
+                            mime_type=raw.get("mime_type"),
+                        )
+                    elif "path" in raw and raw["path"]:
+                        att = Attachment.from_path(raw["path"])
+                    else:
+                        logger.warning(
+                            "Worker#%s Attachment dilewati (tidak ada data/path): %s",
+                            worker_label, raw.get("filename"),
+                        )
+                        continue
+                    attachments.append(att)
+                    logger.debug(
+                        "Worker#%s Attachment parsed: %s", worker_label, att,
+                    )
+                except Exception as e:
+                    logger.warning(
+                        "Worker#%s Gagal parse attachment '%s': %s",
+                        worker_label, raw.get("filename"), e,
+                    )
+
+        if attachments:
+            logger.info(
+                "Worker#%s [%s] %d attachment(s): %s",
+                worker_label, request_id[:8], len(attachments),
+                [a.name for a in attachments],
+            )
 
         # ── Resolve session ────────────────────────────────────────────────────
         mode = "new"
@@ -313,7 +353,7 @@ class TaskProcessor:
                         scraper._think_mode = think_mode
                         scraper._think_mode_applied = False
 
-                    result = await scraper.scrape(prompt, mode=mode)
+                    result = await scraper.scrape(prompt, mode=mode, attachments=attachments or None)
                     current_url: str = scraper._page.url
 
                 except asyncio.TimeoutError:

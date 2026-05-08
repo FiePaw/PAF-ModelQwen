@@ -5,12 +5,124 @@ QwenScraper – concrete scraper for https://chat.qwen.ai
 from __future__ import annotations
 
 import asyncio
+import base64
+import mimetypes
+import tempfile
 from pathlib import Path
 from typing import Literal
 
 from config import QWEN_CONFIG, ROTATION_CONFIG
 from scrapers.base_scraper import BaseAIChatScraper
 from scrapers.utils import contains_any, discover_cookie_files
+
+
+# ─── Attachment helper types ──────────────────────────────────────────────────
+
+class Attachment:
+    """
+    Representasi satu file attachment yang akan diupload ke Qwen.
+
+    Bisa dibuat dari:
+      • Path file lokal  : Attachment.from_path("/path/to/image.png")
+      • Base64 string    : Attachment.from_base64("data:image/png;base64,iVBOR...", "image.png")
+                           atau Attachment.from_base64("iVBOR...", "image.png", "image/png")
+
+    Attribute:
+      name      – nama file (ditampilkan di UI Qwen)
+      data      – bytes isi file
+      mime_type – MIME type, misalnya "image/png"
+    """
+
+    # Tipe file yang didukung Qwen (untuk validasi ringan)
+    SUPPORTED_MIME_PREFIXES = (
+        "image/",          # jpg, png, webp, gif, bmp, tiff, svg, ico
+        "application/pdf",
+        "text/",           # txt, csv, html, xml, markdown, dll
+        "application/json",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument",   # docx, xlsx, pptx
+        "application/vnd.ms-",                              # xls, ppt
+        "audio/",
+        "video/",
+    )
+
+    def __init__(self, name: str, data: bytes, mime_type: str) -> None:
+        self.name = name
+        self.data = data
+        self.mime_type = mime_type
+
+    # ── Factory methods ───────────────────────────────────────────────────────
+
+    @classmethod
+    def from_path(cls, path: str | Path) -> "Attachment":
+        """Buat Attachment dari path file lokal."""
+        p = Path(path)
+        if not p.exists():
+            raise FileNotFoundError(f"File tidak ditemukan: {p}")
+        mime, _ = mimetypes.guess_type(str(p))
+        if not mime:
+            mime = "application/octet-stream"
+        return cls(name=p.name, data=p.read_bytes(), mime_type=mime)
+
+    @classmethod
+    def from_base64(
+        cls,
+        b64_data: str,
+        filename: str,
+        mime_type: str | None = None,
+    ) -> "Attachment":
+        """
+        Buat Attachment dari string base64.
+
+        b64_data bisa berupa:
+          • Data URI: "data:image/png;base64,iVBOR..."
+          • Raw base64: "iVBOR..."
+
+        mime_type opsional; jika tidak diisi akan di-guess dari filename
+        atau diambil dari Data URI prefix.
+        """
+        if b64_data.startswith("data:"):
+            # Format: "data:<mime>;base64,<data>"
+            header, _, raw = b64_data.partition(",")
+            if not mime_type:
+                # Ambil MIME dari header "data:image/png;base64"
+                mime_part = header[5:]  # buang "data:"
+                mime_type = mime_part.split(";")[0]
+            b64_data = raw
+
+        # Padding fix
+        b64_data = b64_data.strip()
+        missing = len(b64_data) % 4
+        if missing:
+            b64_data += "=" * (4 - missing)
+
+        data = base64.b64decode(b64_data)
+
+        if not mime_type:
+            guessed, _ = mimetypes.guess_type(filename)
+            mime_type = guessed or "application/octet-stream"
+
+        return cls(name=filename, data=data, mime_type=mime_type)
+
+    # ── Helpers ───────────────────────────────────────────────────────────────
+
+    def is_supported(self) -> bool:
+        return any(self.mime_type.startswith(p) for p in self.SUPPORTED_MIME_PREFIXES)
+
+    def to_temp_file(self) -> Path:
+        """
+        Tulis data ke file sementara dan return Path-nya.
+        Caller bertanggung jawab menghapus file setelah selesai.
+        """
+        suffix = Path(self.name).suffix or mimetypes.guess_extension(self.mime_type) or ".bin"
+        fd, tmp_path = tempfile.mkstemp(suffix=suffix, prefix="qwen_attach_")
+        import os
+        os.close(fd)
+        Path(tmp_path).write_bytes(self.data)
+        return Path(tmp_path)
+
+    def __repr__(self) -> str:
+        return f"<Attachment name={self.name!r} mime={self.mime_type} size={len(self.data)}B>"
 
 
 _TIMEOUT = QWEN_CONFIG["timeouts"]
@@ -494,6 +606,269 @@ class QwenScraper(BaseAIChatScraper):
         """)
         return bool(result)
 
+    # ── Attachment upload ─────────────────────────────────────────────────────
+
+    # ── Attachment upload via Clipboard ───────────────────────────────────────
+    #
+    # Kenapa clipboard?
+    # Qwen menggunakan custom upload handler (bukan <input type="file"> standar).
+    # File chooser dan set_input_files() gagal karena Playwright tidak bisa
+    # intercept event handler milik Qwen. Clipboard paste adalah cara yang
+    # paling reliable: kita inject ClipboardItem berisi file data langsung
+    # ke clipboard browser via CDP (Chrome DevTools Protocol), lalu simulasikan
+    # Ctrl+V ke textarea — persis seperti user melakukan copy-paste file.
+    #
+    # Urutan untuk SETIAP file:
+    #   1. Encode file → base64
+    #   2. Inject ke clipboard browser via CDP Page.addScriptToEvaluateOnNewDocument
+    #      + Runtime.evaluate (setClipboardContents tidak perlu permission user)
+    #   3. Fokus ke textarea
+    #   4. Dispatch ClipboardEvent 'paste' dengan DataTransfer berisi file
+    #   5. Tunggu preview/thumbnail muncul → konfirmasi berhasil
+    #
+    # Untuk non-image (PDF, txt, dll): gunakan DataTransfer dengan file blob,
+    # bukan ImageBitmap — Qwen membaca tipe file dari DataTransfer.files[0].type.
+
+    async def _upload_attachments(self, attachments: list[Attachment]) -> bool:
+        """
+        Upload semua attachment ke Qwen via clipboard paste (CDP).
+
+        Mengembalikan True jika semua attachment berhasil di-paste,
+        False jika ada yang gagal (scrape tetap dilanjutkan).
+        """
+        if not attachments:
+            return True
+
+        # Dapatkan CDP session untuk operasi clipboard
+        cdp = await self._page.context.new_cdp_session(self._page)
+        all_ok = True
+
+        for att in attachments:
+            if not att.is_supported():
+                self.logger.warning(
+                    "Attachment '%s' (MIME: %s) mungkin tidak didukung Qwen — tetap dicoba",
+                    att.name, att.mime_type,
+                )
+            ok = await self._paste_attachment_via_cdp(cdp, att)
+            if ok:
+                # Jeda antar file agar Qwen sempat memproses upload sebelumnya
+                await asyncio.sleep(1.2)
+            else:
+                all_ok = False
+                self.logger.warning("Gagal paste attachment '%s'", att.name)
+
+        await cdp.detach()
+        return all_ok
+
+    async def _paste_attachment_via_cdp(self, cdp, att: Attachment) -> bool:
+        """
+        Paste satu Attachment ke input Qwen menggunakan CDP Runtime.evaluate.
+
+        Strategi:
+        1. Encode data file ke base64.
+        2. Inject JS ke halaman yang:
+           a. Membuat Blob dari base64 data.
+           b. Membuat File object dengan nama dan MIME type yang benar.
+           c. Membuat DataTransfer dan masukkan File ke dalamnya.
+           d. Dispatch ClipboardEvent 'paste' ke textarea/input yang aktif.
+        3. Tunggu preview attachment muncul sebagai konfirmasi.
+        """
+        try:
+            b64_data = base64.b64encode(att.data).decode("ascii")
+            mime     = att.mime_type
+            name     = att.name.replace("'", "\\'")   # escape untuk JS string
+
+            self.logger.debug(
+                "CDP paste: '%s' (%s, %d bytes)", att.name, mime, len(att.data),
+            )
+
+            # Fokus ke input area dulu agar paste event diterima
+            await self._page.evaluate("""
+            () => {
+                const candidates = [
+                    'textarea[placeholder]',
+                    'textarea',
+                    'div[contenteditable="true"]',
+                ];
+                for (const sel of candidates) {
+                    const el = document.querySelector(sel);
+                    if (el) { el.focus(); return; }
+                }
+            }
+            """)
+            await asyncio.sleep(0.2)
+
+            # Inject file via DataTransfer + paste event
+            result = await self._page.evaluate(f"""
+            async () => {{
+                try {{
+                    // 1. Decode base64 → Uint8Array
+                    const b64 = '{b64_data}';
+                    const bin = atob(b64);
+                    const arr = new Uint8Array(bin.length);
+                    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+
+                    // 2. Buat File object
+                    const blob = new Blob([arr], {{ type: '{mime}' }});
+                    const file = new File([blob], '{name}', {{ type: '{mime}' }});
+
+                    // 3. Coba tulis ke clipboard API (butuh permission, mungkin gagal)
+                    try {{
+                        const item = new ClipboardItem({{ '{mime}': blob }});
+                        await navigator.clipboard.write([item]);
+                    }} catch (_) {{
+                        // Clipboard API tidak tersedia / blocked — lanjut dengan paste event
+                    }}
+
+                    // 4. Buat DataTransfer dengan file
+                    const dt = new DataTransfer();
+                    dt.items.add(file);
+
+                    // 5. Cari target element (textarea atau contenteditable)
+                    const selectors = [
+                        'textarea[placeholder]',
+                        'textarea',
+                        'div[contenteditable="true"]',
+                        '.chat-input',
+                        '[class*="input-area"]',
+                    ];
+                    let target = null;
+                    for (const sel of selectors) {{
+                        const el = document.querySelector(sel);
+                        if (el) {{ target = el; break; }}
+                    }}
+                    if (!target) return {{ ok: false, reason: 'input not found' }};
+
+                    target.focus();
+
+                    // 6. Dispatch paste event SAJA dulu.
+                    //    Drop event hanya akan dicoba dari Python jika paste
+                    //    tidak menghasilkan preview — dispatch keduanya sekaligus
+                    //    menyebabkan file terdaftar 2x di Qwen.
+                    const pasteEvent = new ClipboardEvent('paste', {{
+                        bubbles: true,
+                        cancelable: true,
+                        clipboardData: dt,
+                    }});
+                    const accepted = target.dispatchEvent(pasteEvent);
+
+                    return {{ ok: true, fileName: '{name}', mime: '{mime}', accepted }};
+
+                }} catch (e) {{
+                    return {{ ok: false, reason: e.toString() }};
+                }}
+            }}
+            """)
+
+            if not result or not result.get("ok"):
+                reason = result.get("reason", "unknown") if result else "null result"
+                self.logger.debug("CDP paste JS error untuk '%s': %s", att.name, reason)
+                return False
+
+            self.logger.info(
+                "✅ Clipboard paste berhasil: '%s' (%s)", att.name, mime,
+            )
+
+            # Cek preview dulu dari paste event
+            preview_ok = await self._wait_attachment_preview(timeout=5.0)
+
+            # Jika paste tidak menghasilkan preview, coba drop event sebagai fallback
+            if not preview_ok:
+                self.logger.debug(
+                    "Paste event tidak menghasilkan preview untuk '%s' — coba drop event",
+                    att.name,
+                )
+                dropped = await self._page.evaluate(f"""
+                async () => {{
+                    try {{
+                        const b64 = '{b64_data}';
+                        const bin = atob(b64);
+                        const arr = new Uint8Array(bin.length);
+                        for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+                        const blob = new Blob([arr], {{ type: '{mime}' }});
+                        const file = new File([blob], '{name}', {{ type: '{mime}' }});
+                        const dt = new DataTransfer();
+                        dt.items.add(file);
+                        const selectors = [
+                            'textarea[placeholder]', 'textarea',
+                            'div[contenteditable="true"]', '.chat-input',
+                            '[class*="input-area"]',
+                        ];
+                        let target = null;
+                        for (const sel of selectors) {{
+                            const el = document.querySelector(sel);
+                            if (el) {{ target = el; break; }}
+                        }}
+                        if (!target) return false;
+                        target.focus();
+                        const dropEvent = new DragEvent('drop', {{
+                            bubbles: true, cancelable: true, dataTransfer: dt,
+                        }});
+                        target.dispatchEvent(dropEvent);
+                        return true;
+                    }} catch (e) {{ return false; }}
+                }}
+                """)
+                if dropped:
+                    preview_ok = await self._wait_attachment_preview(timeout=5.0)
+
+            if not preview_ok:
+                self.logger.warning(
+                    "Preview '%s' tidak terdeteksi — file mungkin tidak diterima Qwen",
+                    att.name,
+                )
+            return preview_ok
+
+        except Exception as e:
+            self.logger.error(
+                "CDP paste exception untuk '%s': %s", att.name, e, exc_info=True,
+            )
+            return False
+
+    async def _wait_attachment_preview(self, timeout: float = 10.0) -> bool:
+        """
+        Tunggu sampai elemen preview/thumbnail attachment muncul di UI Qwen.
+        Return True jika preview terdeteksi, False jika timeout.
+
+        Qwen menampilkan preview berupa:
+        - Thumbnail gambar (img) di area input
+        - Badge/chip dengan nama file
+        - Indikator upload (spinner yang kemudian berubah jadi preview)
+        """
+        _PREVIEW_SELECTORS = [
+            # Selector spesifik Qwen (update jika class berubah)
+            "[class*='attachment']",
+            "[class*='file-preview']",
+            "[class*='upload-preview']",
+            "[class*='file-card']",
+            "[class*='file-chip']",
+            "[class*='attached']",
+            # Gambar thumbnail di area input
+            ".chat-input-area img:not([class*='avatar'])",
+            ".input-area img:not([class*='avatar'])",
+            # Generic fallback
+            "[class*='preview-item']",
+            "[class*='upload-item']",
+        ]
+
+        deadline = asyncio.get_event_loop().time() + timeout
+        while asyncio.get_event_loop().time() < deadline:
+            for sel in _PREVIEW_SELECTORS:
+                try:
+                    els = await self._page.query_selector_all(sel)
+                    for el in els:
+                        if await el.is_visible():
+                            self.logger.debug(
+                                "Attachment preview terdeteksi via '%s'", sel,
+                            )
+                            return True
+                except Exception:
+                    continue
+            await asyncio.sleep(0.3)
+
+        self.logger.debug("Attachment preview timeout setelah %.0fs", timeout)
+        return False
+
     # ── Core send_prompt ──────────────────────────────────────────────────────
 
     async def send_prompt(
@@ -501,6 +876,7 @@ class QwenScraper(BaseAIChatScraper):
         prompt: str,
         mode: str = "new",
         think_mode: ThinkMode | None = None,
+        attachments: list[Attachment] | None = None,
     ) -> str:
         await self._ensure_page_ready(mode)
         self._last_prompt = prompt
@@ -515,6 +891,18 @@ class QwenScraper(BaseAIChatScraper):
                 # Run diagnostic scan so the user can identify correct selectors
                 await self.debug_think_mode_selectors()
 
+        # ── Upload attachments SEBELUM mengisi prompt ─────────────────────────
+        # Urutan ini penting: Qwen membutuhkan file terupload lebih dulu
+        # sebelum prompt diketik agar keduanya terkirim dalam satu request.
+        if attachments:
+            self.logger.info(
+                "Uploading %d attachment(s): %s",
+                len(attachments), [a.name for a in attachments],
+            )
+            await self._upload_attachments(attachments)
+            # Jeda singkat agar Qwen memproses upload sebelum prompt diketik
+            await asyncio.sleep(0.5)
+
         input_el = await self._find_input()
 
         # Snapshot jumlah response SEBELUM mengisi prompt dan submit,
@@ -522,8 +910,8 @@ class QwenScraper(BaseAIChatScraper):
         pre_count = await self._count_response_elements()
 
         self.logger.info(
-            "Submitting prompt (%d chars) [think_mode=%s, pre_count=%d]",
-            len(prompt), effective_think, pre_count,
+            "Submitting prompt (%d chars) [think_mode=%s, pre_count=%d, attachments=%d]",
+            len(prompt), effective_think, pre_count, len(attachments) if attachments else 0,
         )
 
         await input_el.click()
