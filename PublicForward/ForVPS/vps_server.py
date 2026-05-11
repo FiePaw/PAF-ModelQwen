@@ -210,6 +210,23 @@ class ChatMessage(BaseModel):
     content: str
 
 
+class AttachmentPayload(BaseModel):
+    """
+    Representasi satu file attachment yang dikirim dari client ke VPS.
+
+    Field:
+      filename  – nama file asli, misal "diagram.png"
+      data      – konten file dalam format base64.
+                  Bisa berupa raw base64 ("iVBOR...") atau
+                  Data URI ("data:image/png;base64,iVBOR...").
+      mime_type – MIME type opsional. Jika tidak diisi, di-guess dari filename.
+                  Contoh: "image/png", "application/pdf", "text/plain"
+    """
+    filename: str
+    data: str                          # base64 string atau Data URI
+    mime_type: Optional[str] = None
+
+
 class ChatCompletionRequest(BaseModel):
     model: str = "qwen"
     messages: list[ChatMessage]
@@ -218,6 +235,7 @@ class ChatCompletionRequest(BaseModel):
     max_tokens: Optional[int] = None
     top_p: Optional[float] = None
     think_mode: Optional[Literal["auto", "thinking", "fast"]] = None
+    attachments: Optional[list[AttachmentPayload]] = None   # ← NEW
 
     @property
     def last_user_message(self) -> str:
@@ -416,9 +434,10 @@ async def chat_completions(req: ChatCompletionRequest, raw_req: Request):
     task_mode = "CONTINUE" if incoming_sid else "NEW"
 
     logger.info(
-        "📨 Request [%s] mode=%s prompt=%d chars session=%s",
+        "📨 Request [%s] mode=%s prompt=%d chars session=%s attachments=%d",
         request_id[:8], task_mode, len(prompt),
         incoming_sid[:8] if incoming_sid else "-",
+        len(req.attachments) if req.attachments else 0,
     )
 
     # Pilih worker berdasarkan mode (NEW → slot kosong mana saja,
@@ -455,6 +474,16 @@ async def chat_completions(req: ChatCompletionRequest, raw_req: Request):
             "stream": req.stream,
             "think_mode": req.think_mode,
             "session_id": incoming_sid,
+            # Attachments dikirim as-is (list of {filename, data, mime_type})
+            # Worker/TaskProcessor akan mengkonversi ke objek Attachment
+            "attachments": [
+                {
+                    "filename": a.filename,
+                    "data": a.data,
+                    "mime_type": a.mime_type,
+                }
+                for a in req.attachments
+            ] if req.attachments else [],
         },
     }
 

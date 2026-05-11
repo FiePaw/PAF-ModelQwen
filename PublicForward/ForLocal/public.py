@@ -112,6 +112,95 @@ class SessionStore:
             return len(expired)
 
 
+
+# ─── Page Readiness Helper ─────────────────────────────────────────────────────
+
+# Selector stop/cancel button yang muncul saat Qwen sedang memproses output.
+# Selama tombol ini visible, halaman belum siap untuk menerima input baru.
+_STOP_BTN_SELECTORS = [
+    "button[aria-label='Stop']",
+    "button[aria-label='Stop generating']",
+    "button[data-testid='stop-button']",
+    # fallback: cari button yang mengandung teks stop
+    "button.stop-btn",
+    ".generation-stop-btn",
+]
+
+# Selector input field — sama dengan kandidat di QwenScraper._find_input()
+_INPUT_SELECTORS = [
+    "textarea[placeholder]",
+    "textarea#chat-input",
+    "textarea[data-testid='chat-input']",
+    "div[contenteditable='true'][data-testid]",
+    "div[contenteditable='true']",
+    "textarea",
+]
+
+_PAGE_READY_TIMEOUT = 60.0   # detik maks menunggu halaman siap
+_PAGE_READY_POLL   = 0.5    # interval polling
+
+
+async def _wait_page_ready(page, worker_label: str = "?") -> None:
+    """
+    Tunggu sampai halaman conversation Qwen benar-benar siap menerima input:
+
+    Langkah 1 — Tunggu stop/cancel button HILANG dari halaman.
+                 Selama Qwen masih memproses output sebelumnya, tombol ini visible.
+                 Timeout: _PAGE_READY_TIMEOUT detik.
+
+    Langkah 2 — Tunggu input field muncul dan visible.
+                 Pastikan React component sudah mount dan input siap diketik.
+                 Timeout: _PAGE_READY_TIMEOUT detik.
+
+    Kedua langkah menggunakan polling ringan dengan asyncio.sleep
+    agar tidak memblokir event loop.
+    """
+    deadline = asyncio.get_event_loop().time() + _PAGE_READY_TIMEOUT
+
+    # ── Langkah 1: tunggu stop button hilang ──────────────────────────────────
+    logger.debug("Worker#%s Menunggu Qwen selesai memproses...", worker_label)
+    while asyncio.get_event_loop().time() < deadline:
+        stop_visible = False
+        for sel in _STOP_BTN_SELECTORS:
+            try:
+                el = await page.query_selector(sel)
+                if el and await el.is_visible():
+                    stop_visible = True
+                    break
+            except Exception:
+                continue
+        if not stop_visible:
+            break
+        await asyncio.sleep(_PAGE_READY_POLL)
+    else:
+        logger.warning(
+            "Worker#%s Stop button masih visible setelah %.0fs — lanjut anyway",
+            worker_label, _PAGE_READY_TIMEOUT,
+        )
+
+    # ── Langkah 2: tunggu input field visible ─────────────────────────────────
+    logger.debug("Worker#%s Menunggu input field muncul...", worker_label)
+    deadline2 = asyncio.get_event_loop().time() + _PAGE_READY_TIMEOUT
+    while asyncio.get_event_loop().time() < deadline2:
+        for sel in _INPUT_SELECTORS:
+            try:
+                el = await page.wait_for_selector(sel, timeout=1_000, state="visible")
+                if el:
+                    logger.debug(
+                        "Worker#%s Input field siap (%s)", worker_label, sel
+                    )
+                    return   # ✅ halaman siap
+            except Exception:
+                continue
+        await asyncio.sleep(_PAGE_READY_POLL)
+
+    # Kalau sampai sini, input field tidak ditemukan — biarkan scraper yang handle error
+    logger.warning(
+        "Worker#%s Input field tidak ditemukan setelah %.0fs — scraper akan retry sendiri",
+        worker_label, _PAGE_READY_TIMEOUT,
+    )
+
+
 # ─── Task Processor ────────────────────────────────────────────────────────────
 
 class TaskProcessor:
@@ -153,15 +242,55 @@ class TaskProcessor:
         Task CONTINUE → acquire slot dengan cookie yang SAMA dengan session awal,
                         lalu navigate ke conv_url sebelum send_prompt.
         """
-        messages   = payload.get("messages", [])
-        think_mode = payload.get("think_mode")
+        messages     = payload.get("messages", [])
+        think_mode   = payload.get("think_mode")
         incoming_sid = payload.get("session_id")
+        raw_attachments: list[dict] = payload.get("attachments") or []
 
         user_msgs = [m["content"] for m in messages if m.get("role") == "user"]
         prompt = user_msgs[-1] if user_msgs else ""
 
         if not prompt:
             return {"success": False, "error": "Prompt kosong"}
+
+        # ── Parse attachments dari payload ────────────────────────────────────
+        # Konversi list of dict → list of Attachment objects
+        attachments = []
+        if raw_attachments:
+            from scrapers.qwen_scraper import Attachment  # local import untuk hindari circular
+            for raw in raw_attachments:
+                try:
+                    # Dukung dua sumber: base64 dari API, atau path lokal
+                    if "data" in raw and raw["data"]:
+                        att = Attachment.from_base64(
+                            b64_data=raw["data"],
+                            filename=raw.get("filename", "attachment"),
+                            mime_type=raw.get("mime_type"),
+                        )
+                    elif "path" in raw and raw["path"]:
+                        att = Attachment.from_path(raw["path"])
+                    else:
+                        logger.warning(
+                            "Worker#%s Attachment dilewati (tidak ada data/path): %s",
+                            worker_label, raw.get("filename"),
+                        )
+                        continue
+                    attachments.append(att)
+                    logger.debug(
+                        "Worker#%s Attachment parsed: %s", worker_label, att,
+                    )
+                except Exception as e:
+                    logger.warning(
+                        "Worker#%s Gagal parse attachment '%s': %s",
+                        worker_label, raw.get("filename"), e,
+                    )
+
+        if attachments:
+            logger.info(
+                "Worker#%s [%s] %d attachment(s): %s",
+                worker_label, request_id[:8], len(attachments),
+                [a.name for a in attachments],
+            )
 
         # ── Resolve session ────────────────────────────────────────────────────
         mode = "new"
@@ -213,7 +342,10 @@ class TaskProcessor:
                         await scraper._page.goto(
                             conv_url, wait_until="domcontentloaded", timeout=30_000
                         )
-                        await asyncio.sleep(1.5)
+                        # Tunggu halaman benar-benar siap sebelum scrape():
+                        # 1. Tunggu Qwen selesai memproses (stop button hilang)
+                        # 2. Tunggu input field visible dan enabled
+                        await _wait_page_ready(scraper._page, worker_label)
                         scraper._conversation_started = True
 
                     # Override think_mode per-request jika dikirim dari VPS
@@ -221,7 +353,7 @@ class TaskProcessor:
                         scraper._think_mode = think_mode
                         scraper._think_mode_applied = False
 
-                    result = await scraper.scrape(prompt, mode=mode)
+                    result = await scraper.scrape(prompt, mode=mode, attachments=attachments or None)
                     current_url: str = scraper._page.url
 
                 except asyncio.TimeoutError:

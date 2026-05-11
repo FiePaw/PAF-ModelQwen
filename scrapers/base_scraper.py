@@ -283,11 +283,13 @@ class BaseAIChatScraper(ABC):
         total = len(self._cookie_files)
         if total <= 1:
             self.logger.error("No additional accounts available for rotation")
+            await self.take_debug_screenshot("no_accounts_to_rotate")
             return False
 
         next_index = (self._cookie_index + 1) % total
         if next_index == 0:
             self.logger.error("All accounts exhausted – no more rotation possible")
+            await self.take_debug_screenshot("all_accounts_exhausted")
             return False
 
         self.logger.warning(
@@ -418,6 +420,41 @@ class BaseAIChatScraper(ABC):
         """
         return {}
 
+    # ── Debug screenshot ──────────────────────────────────────────────────────
+
+    async def take_debug_screenshot(self, reason: str = "error") -> Path | None:
+        """
+        Ambil screenshot halaman saat ini dan simpan ke folder /debug/.
+
+        Dipanggil otomatis pada setiap error / exhausted / timeout agar
+        developer bisa melihat kondisi browser ketika masalah terjadi.
+
+        Nama file format: debug_YYYYMMDD_HHMMSS_<reason>.png
+        Return: Path file screenshot, atau None jika gagal.
+        """
+        try:
+            if not self._page:
+                self.logger.warning("Screenshot gagal: _page belum tersedia")
+                return None
+
+            debug_dir = Path("debug")
+            debug_dir.mkdir(parents=True, exist_ok=True)
+
+            # Sanitasi reason untuk nama file (ganti karakter tidak aman)
+            import re as _re
+            safe_reason = _re.sub(r"[^\w\-]", "_", reason)[:60]
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"debug_{ts}_{safe_reason}.png"
+            path = debug_dir / filename
+
+            await self._page.screenshot(path=str(path), full_page=True)
+            self.logger.info("📸 Debug screenshot disimpan: %s", path)
+            return path
+
+        except Exception as e:
+            self.logger.warning("Gagal mengambil debug screenshot: %s", e)
+            return None
+
     # ── High-level scrape with auto-rotation ─────────────────────────────────
 
     async def scrape(self, prompt: str, mode: str = "new", attachments: list | None = None) -> dict:
@@ -451,12 +488,14 @@ class BaseAIChatScraper(ABC):
 
                 if contains_any(response_text, ROTATION_CONFIG["rate_limit_phrases"]):
                     self.logger.warning("Rate limit detected – rotating account")
+                    await self.take_debug_screenshot("rate_limit")
                     if not await self._rotate_account():
                         break
                     continue
 
                 if contains_any(response_text, ROTATION_CONFIG["session_expired_phrases"]):
                     self.logger.warning("Session expired – rotating account")
+                    await self.take_debug_screenshot("session_expired")
                     if not await self._rotate_account():
                         break
                     continue
@@ -481,15 +520,20 @@ class BaseAIChatScraper(ABC):
 
             except TimeoutError as exc:
                 self.logger.error("Timeout on attempt %d: %s", attempt, exc)
+                await self.take_debug_screenshot(f"timeout_attempt{attempt}")
                 retry_sleep(ROTATION_CONFIG["retry_delay"])
 
             except Exception as exc:
                 self.logger.error("Error on attempt %d: %s", attempt, exc, exc_info=True)
+                await self.take_debug_screenshot(f"error_attempt{attempt}")
                 if await self.is_rate_limited() or await self.is_session_expired():
                     if not await self._rotate_account():
                         break
                 else:
                     retry_sleep(ROTATION_CONFIG["retry_delay"])
+
+        # Semua attempt habis — ambil screenshot kondisi akhir browser
+        await self.take_debug_screenshot("all_attempts_exhausted")
 
         return {
             "prompt": prompt,

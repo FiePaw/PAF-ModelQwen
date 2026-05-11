@@ -1,0 +1,11 @@
+{
+  "prompt": "Hello, can you explain me something cool about indonesia stock?",
+  "response": "Hello Fie. Here is something cool about the Indonesia Stock Exchange (IDX or BEI):\nThe IDX has a unique mechanism called the Auto Rejection (ARB) and Automatic Order Rejection (AOR) limits that are designed to protect investors from extreme volatility, but what makes it particularly interesting is how it handles \"Gocap\" stocks.\nIn many markets, if a stock price drops to near zero, it might be delisted quickly. In Indonesia, there is a specific board for stocks with very low prices (below IDR 50), often referred to as the \"Gocap\" zone (from \"gocap\" meaning 50 rupiah, the smallest tick). The IDX implemented strict rules where stocks in this zone have wider daily fluctuation limits but also face stricter surveillance. If a stock stays in this zone for too long without improvement, it faces delisting. This creates a high-risk, high-reward environment that attracts speculative traders who look for \"turnaround\" stories, making the micro-cap segment of the IDX uniquely active compared to other emerging markets where such stocks might just vanish.\nAnother cool fact is the dominance of the banking sector. The IDX is heavily weighted towards the \"Big Four\" banks (BBCA, BBRI, BMRI, BBNI). Their performance often dictates the direction of the entire index (IHSG). This concentration means that understanding Indonesian macroeconomics and interest rate policies gives you a disproportionate advantage in predicting the overall market movement compared to more diversified indices like the S&P 500.",
+  "file_type": "text",
+  "code_blocks": [],
+  "code_block_count": 0,
+  "account_used": "account1",
+  "timestamp": "2026-04-30T19:25:14.012201",
+  "success": true,
+  "error": null
+}
