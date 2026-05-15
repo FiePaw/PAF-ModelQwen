@@ -11,9 +11,13 @@ Dokumen ini ditujukan untuk **pengguna API** — Anda tidak perlu mengetahui car
 - [Cara Kerja Singkat](#cara-kerja-singkat)
 - [Endpoint](#endpoint)
 - [Mengirim Chat (Endpoint Utama)](#mengirim-chat-endpoint-utama)
+- [Memilih Akun (Model Selector)](#memilih-akun-model-selector)
 - [Session & Percakapan Berkelanjutan](#session--percakapan-berkelanjutan)
 - [Think Mode](#think-mode)
 - [Mengirim File / Attachment](#mengirim-file--attachment)
+- [Generate Gambar (Create Image)](#generate-gambar-create-image)
+- [Generate Video (Create Video)](#generate-video-create-video)
+- [Pencarian Web (Web Search)](#pencarian-web-web-search)
 - [Contoh Kode](#contoh-kode)
   - [curl](#curl)
   - [Python (requests)](#python-requests)
@@ -27,12 +31,6 @@ Dokumen ini ditujukan untuk **pengguna API** — Anda tidak perlu mengetahui car
 ---
 
 ## Base URL
-
-```
-http://108.137.15.61:9000
-```
-
-Minta base URL kepada operator server. Contoh:
 
 ```
 http://108.137.15.61:9000
@@ -93,18 +91,20 @@ curl http://108.137.15.61:9000/health
 
 ### `GET /v1/models`
 
-Daftar model yang tersedia.
+Daftar akun (cookie) yang tersedia di worker. Setiap `id` bisa dipakai sebagai nilai field `model` di request untuk memilih akun tertentu. Listing ini **dinamis** — otomatis sinkron dengan cookie yang aktif di worker, tidak perlu konfigurasi manual.
 
 ```bash
 curl http://108.137.15.61:9000/v1/models
 ```
 
-**Response:**
+**Response (contoh — bergantung pada cookie yang terdaftar di worker):**
 ```json
 {
   "object": "list",
   "data": [
-    {"id": "qwen", "object": "model", "owned_by": "qwen"}
+    {"id": "account1", "object": "model", "owned_by": "qwen-ai"},
+    {"id": "account2", "object": "model", "owned_by": "qwen-ai"},
+    {"id": "account6", "object": "model", "owned_by": "qwen-ai"}
   ]
 }
 ```
@@ -163,7 +163,7 @@ curl -X DELETE http://108.137.15.61:9000/v1/sessions/a1b2c3d4e5f6...
 curl http://108.137.15.61:9000/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "qwen",
+    "model": "account1",
     "messages": [
       {"role": "user", "content": "Jelaskan apa itu recursion."}
     ]
@@ -181,15 +181,16 @@ curl http://108.137.15.61:9000/v1/chat/completions \
 
 | Field | Tipe | Wajib | Keterangan |
 |---|---|---|---|
-| `model` | string | ✅ | Isi dengan `"qwen"` |
+| `model` | string | ✅ | Nama akun yang ingin dipakai, misal `"account1"`. Lihat [Memilih Akun](#memilih-akun-model-selector) |
 | `messages` | array | ✅ | Minimal satu objek `{"role": "user", "content": "..."}` |
 | `stream` | boolean | ❌ | `true` untuk streaming SSE, default `false` |
 | `think_mode` | string | ❌ | `"auto"`, `"thinking"`, atau `"fast"` |
-| `attachments` | array | ❌ | Daftar file yang akan diupload ke Qwen (lihat [Mengirim File / Attachment](#mengirim-file--attachment)) |
+| `attachments` | array | ❌ | Daftar file yang akan diupload ke Qwen |
+| `task_type` | string | ❌ | Mode task khusus. Kosongkan untuk chat biasa |
 
 **Nilai `role` yang diterima:** `"user"`, `"assistant"`, `"system"`
 
-> Hanya pesan `"user"` terakhir yang dikirim ke Qwen. Pesan `"system"` dan riwayat `"assistant"` disertakan sebagai konteks untuk kompatibilitas dengan OpenAI SDK, namun pengelolaan riwayat percakapan sebenarnya dikelola oleh session di sisi server.
+> Hanya pesan `"user"` terakhir yang dikirim ke Qwen. Pengelolaan riwayat percakapan dikelola oleh session di sisi server.
 
 ### Response Headers
 
@@ -206,7 +207,7 @@ curl http://108.137.15.61:9000/v1/chat/completions \
   "id": "chatcmpl-a1b2c3d4e5f6",
   "object": "chat.completion",
   "created": 1748000000,
-  "model": "qwen",
+  "model": "account1",
   "choices": [
     {
       "index": 0,
@@ -224,16 +225,97 @@ curl http://108.137.15.61:9000/v1/chat/completions \
   },
   "x_meta": {
     "session_id": "a1b2c3d4e5f6...",
-    "cookie_file": "account2.json",
+    "cookie_file": "account1.json",
     "conversation_url": "https://chat.qwen.ai/c/xyz789",
-    "account_used": "account2"
+    "account_used": "account1"
   }
 }
 ```
 
 Respons Qwen ada di: `choices[0].message.content`
 
-`x_meta` adalah ekstensi tambahan — berisi `session_id` di dalam body, berguna jika library Anda tidak bisa membaca response headers secara langsung.
+`x_meta` berisi `session_id` di dalam body — berguna jika library Anda tidak bisa membaca response headers secara langsung.
+
+---
+
+## Memilih Akun (Model Selector)
+
+Field `model` di request body berfungsi sebagai **selector akun**. Setiap akun di worker memiliki file cookie sendiri (misal `account1.json`, `account6.json`). Dengan menentukan nama akun di `model`, request Anda akan selalu diproses menggunakan akun tersebut.
+
+### Cara Melihat Akun yang Tersedia
+
+```bash
+curl http://108.137.15.61:9000/v1/models
+```
+
+Listing ini dinamis — otomatis mencerminkan cookie yang sedang aktif di worker.
+
+### Cara Menggunakan Akun Tertentu
+
+```bash
+# Gunakan account1
+curl http://108.137.15.61:9000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model": "account1", "messages": [{"role": "user", "content": "Halo!"}]}'
+
+# Gunakan account6
+curl http://108.137.15.61:9000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model": "account6", "messages": [{"role": "user", "content": "Halo!"}]}'
+```
+
+### Perilaku Pemilihan Akun
+
+| Nilai `model` | Perilaku |
+|---|---|
+| Nama akun spesifik (`"account1"`, `"account6"`, dst.) | Worker memilih slot browser dengan cookie file yang sesuai |
+| `"qwen"` (generic) | Worker memilih slot idle mana saja (load balance otomatis) |
+
+> **Akun terikat ke session:** Setelah turn pertama, akun yang dipakai sudah dikunci ke session. Mengganti `model` di turn berikutnya tidak akan mengubah akun — gunakan session baru untuk berganti akun.
+
+### Contoh Python — Pilih Akun Spesifik
+
+```python
+import requests
+
+BASE_URL = "http://108.137.15.61:9000"
+
+def list_accounts() -> list[str]:
+    """Ambil daftar akun yang tersedia dari server."""
+    r = requests.get(f"{BASE_URL}/v1/models", timeout=10)
+    r.raise_for_status()
+    return [m["id"] for m in r.json()["data"]]
+
+def chat(prompt: str, account: str, session_id: str = None) -> tuple[str, str]:
+    headers = {"Content-Type": "application/json"}
+    if session_id:
+        headers["X-Session-ID"] = session_id
+
+    r = requests.post(
+        f"{BASE_URL}/v1/chat/completions",
+        headers=headers,
+        json={"model": account, "messages": [{"role": "user", "content": prompt}]},
+        timeout=180,
+    )
+    r.raise_for_status()
+    data = r.json()
+    new_sid = r.headers.get("X-Session-ID") or data.get("x_meta", {}).get("session_id") or session_id
+    return data["choices"][0]["message"]["content"], new_sid
+
+
+# Lihat akun yang tersedia
+accounts = list_accounts()
+print("Akun tersedia:", accounts)
+# Output: ['account1', 'account2', 'account6']
+
+# Pakai account6 secara spesifik
+reply, sid = chat("Apa itu binary search?", account="account6")
+print(f"[account6] {reply}")
+
+# Lanjutkan percakapan — akun sudah terikat ke session
+reply2, sid = chat("Beri contoh kodenya.", account="account6", session_id=sid)
+print(f"[lanjut] {reply2}")
+```
 
 ---
 
@@ -241,13 +323,9 @@ Respons Qwen ada di: `choices[0].message.content`
 
 ### Konsep
 
-Secara default, setiap request adalah **percakapan baru**. Untuk membuat percakapan multi-turn (tanya-jawab yang nyambung), Anda perlu menyimpan `X-Session-ID` dari response pertama dan mengirimkannya kembali di request berikutnya.
+Secara default, setiap request adalah **percakapan baru**. Untuk membuat percakapan multi-turn, simpan `X-Session-ID` dari response pertama dan kirimkan kembali di request berikutnya.
 
-Server menyimpan:
-- Akun mana yang dipakai untuk sesi Anda
-- URL percakapan Qwen yang aktif
-
-Sehingga ketika Anda mengirim prompt berikutnya, Qwen "ingat" konteks percakapan sebelumnya.
+Server menyimpan akun mana yang dipakai dan URL percakapan Qwen yang aktif, sehingga Qwen "ingat" konteks percakapan sebelumnya.
 
 ### Alur Lengkap
 
@@ -255,7 +333,7 @@ Sehingga ketika Anda mengirim prompt berikutnya, Qwen "ingat" konteks percakapan
 
 ```
 POST /v1/chat/completions
-Body: {"model":"qwen","messages":[{"role":"user","content":"Apa itu OOP?"}]}
+Body: {"model":"account1","messages":[{"role":"user","content":"Apa itu OOP?"}]}
 
 Response:
   Header: X-Session-ID: abc123def456...
@@ -267,7 +345,7 @@ Response:
 ```
 POST /v1/chat/completions
 Header: X-Session-ID: abc123def456...
-Body: {"model":"qwen","messages":[{"role":"user","content":"Jelaskan inheritance-nya."}]}
+Body: {"model":"account1","messages":[{"role":"user","content":"Jelaskan inheritance-nya."}]}
 
 Response:
   Header: X-Session-ID: abc123def456...   ← sama
@@ -277,11 +355,9 @@ Response:
 
 ### Session Expired
 
-Sesi otomatis kedaluwarsa setelah **1 jam tidak digunakan**. Jika `X-Session-ID` yang Anda kirim sudah expired, server akan membuat sesi baru secara otomatis — Anda akan menerima `X-Session-ID` baru di response. Perbarui ID yang Anda simpan.
+Sesi otomatis kedaluwarsa setelah **1 jam tidak digunakan**. Jika `X-Session-ID` sudah expired, server akan membuat sesi baru secara otomatis — Anda akan menerima `X-Session-ID` baru di response.
 
 ### Menghapus Sesi Manual
-
-Jika ingin memulai percakapan baru tanpa menunggu TTL:
 
 ```bash
 curl -X DELETE http://108.137.15.61:9000/v1/sessions/abc123def456...
@@ -291,507 +367,352 @@ curl -X DELETE http://108.137.15.61:9000/v1/sessions/abc123def456...
 
 ## Think Mode
 
-Qwen AI memiliki tiga mode berpikir yang bisa Anda pilih per-request:
-
 | Mode | Keterangan | Cocok untuk |
 |---|---|---|
 | `"fast"` | Cepat, tanpa reasoning panjang (default) | Pertanyaan umum, percakapan ringan |
 | `"auto"` | Qwen memilih sendiri sesuai kompleksitas | Penggunaan umum |
 | `"thinking"` | Reasoning mendalam, lebih lambat tapi akurat | Matematika, logika, analisis kompleks |
 
-**Cara menggunakannya — tambahkan field `think_mode` di request body:**
-
 ```json
 {
-  "model": "qwen",
+  "model": "account1",
   "messages": [{"role": "user", "content": "Buktikan bahwa sqrt(2) adalah bilangan irasional."}],
   "think_mode": "thinking"
 }
 ```
 
-> Think mode hanya bisa diatur pada **turn pertama** (mode `new`). Pada turn lanjutan (mode `continue`), UI Qwen tidak menyediakan kontrol think mode di dalam halaman percakapan, sehingga mode yang dipakai mengikuti setelan awal.
+> Think mode hanya bisa diatur pada **turn pertama**. Turn lanjutan mengikuti mode awal.
 
 ---
 
 ## Mengirim File / Attachment
 
-Anda bisa melampirkan satu atau lebih file ke setiap request — baik pada percakapan baru maupun pada turn lanjutan (mode `continue`). File dikirim sebagai **base64** di dalam field `attachments` pada request body.
-
 ### Format Attachment
-
-Setiap item dalam array `attachments` berisi tiga field:
 
 | Field | Tipe | Wajib | Keterangan |
 |---|---|---|---|
-| `filename` | string | ✅ | Nama file asli, misal `"foto.jpg"` atau `"laporan.pdf"` |
-| `data` | string | ✅ | Konten file dalam format **base64**. Bisa raw base64 (`"iVBOR..."`) atau Data URI (`"data:image/png;base64,iVBOR..."`) |
-| `mime_type` | string | ❌ | MIME type file. Jika tidak diisi, server akan meng-guess dari `filename`. Contoh: `"image/jpeg"`, `"application/pdf"`, `"text/plain"` |
+| `filename` | string | ✅ | Nama file asli, misal `"foto.jpg"` |
+| `data` | string | ✅ | Konten file dalam format **base64** (raw atau Data URI) |
+| `mime_type` | string | ❌ | MIME type. Jika tidak diisi, di-guess dari `filename` |
 
 ### Tipe File yang Didukung
-
-Semua tipe file yang didukung Qwen AI dapat dikirim, di antaranya:
 
 | Kategori | Contoh Format |
 |---|---|
 | Gambar | `image/jpeg`, `image/png`, `image/webp`, `image/gif` |
-| Dokumen | `application/pdf`, `application/msword`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document` |
-| Spreadsheet | `application/vnd.ms-excel`, `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` |
+| Dokumen | `application/pdf`, `application/msword`, `.docx` |
+| Spreadsheet | `application/vnd.ms-excel`, `.xlsx` |
 | Teks | `text/plain`, `text/csv`, `text/html`, `application/json` |
 | Audio | `audio/mpeg`, `audio/wav` |
 | Video | `video/mp4`, `video/webm` |
 
-### Contoh Request dengan Attachment
-
-**curl — kirim satu gambar:**
+### Contoh curl — Kirim Gambar
 
 ```bash
-# Encode file ke base64 dulu
 B64=$(base64 -w 0 foto.jpg)
 
 curl http://108.137.15.61:9000/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d "{
-    \"model\": \"qwen\",
+    \"model\": \"account1\",
     \"messages\": [{\"role\": \"user\", \"content\": \"Apa yang ada di gambar ini?\"}],
     \"attachments\": [
-      {
-        \"filename\": \"foto.jpg\",
-        \"data\": \"$B64\",
-        \"mime_type\": \"image/jpeg\"
-      }
+      {\"filename\": \"foto.jpg\", \"data\": \"$B64\", \"mime_type\": \"image/jpeg\"}
     ]
   }"
 ```
 
-**curl — kirim beberapa file sekaligus:**
-
-```bash
-B64_IMG=$(base64 -w 0 diagram.png)
-B64_PDF=$(base64 -w 0 laporan.pdf)
-
-curl http://108.137.15.61:9000/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d "{
-    \"model\": \"qwen\",
-    \"messages\": [{\"role\": \"user\", \"content\": \"Jelaskan isi dokumen dan gambar ini.\"}],
-    \"attachments\": [
-      {\"filename\": \"diagram.png\", \"data\": \"$B64_IMG\", \"mime_type\": \"image/png\"},
-      {\"filename\": \"laporan.pdf\", \"data\": \"$B64_PDF\", \"mime_type\": \"application/pdf\"}
-    ]
-  }"
-```
-
-**Python — kirim gambar dari file lokal:**
+### Contoh Python — Kirim File dari Lokal
 
 ```python
-import base64
-import requests
+import base64, mimetypes, requests
 
 BASE_URL = "http://108.137.15.61:9000"
 
-def encode_file(path: str) -> str:
-    """Encode file lokal ke base64 string."""
-    with open(path, "rb") as f:
-        return base64.b64encode(f.read()).decode()
-
-def chat_with_attachment(
-    prompt: str,
-    file_paths: list[str],
-    session_id: str = None,
-    think_mode: str = None,
-) -> tuple[str, str]:
+def chat_with_attachment(prompt: str, file_paths: list[str], account: str = "account1", session_id: str = None) -> tuple[str, str]:
     headers = {"Content-Type": "application/json"}
     if session_id:
         headers["X-Session-ID"] = session_id
 
-    # Bangun daftar attachment dari file lokal
     attachments = []
     for path in file_paths:
-        import mimetypes
         mime, _ = mimetypes.guess_type(path)
-        attachments.append({
-            "filename": path.split("/")[-1],
-            "data": encode_file(path),
-            "mime_type": mime or "application/octet-stream",
-        })
-
-    body = {
-        "model": "qwen",
-        "messages": [{"role": "user", "content": prompt}],
-        "attachments": attachments,
-    }
-    if think_mode:
-        body["think_mode"] = think_mode
+        with open(path, "rb") as f:
+            attachments.append({
+                "filename": path.split("/")[-1],
+                "data": base64.b64encode(f.read()).decode(),
+                "mime_type": mime or "application/octet-stream",
+            })
 
     r = requests.post(
         f"{BASE_URL}/v1/chat/completions",
         headers=headers,
-        json=body,
+        json={
+            "model": account,
+            "messages": [{"role": "user", "content": prompt}],
+            "attachments": attachments,
+        },
         timeout=180,
     )
     r.raise_for_status()
     data = r.json()
-
-    new_sid = (
-        r.headers.get("X-Session-ID")
-        or data.get("x_meta", {}).get("session_id")
-        or session_id
-    )
+    new_sid = r.headers.get("X-Session-ID") or data.get("x_meta", {}).get("session_id") or session_id
     return data["choices"][0]["message"]["content"], new_sid
 
 
-# ── Contoh penggunaan ──────────────────────────────────────────────────────────
-
-# Kirim satu gambar
 reply, sid = chat_with_attachment(
-    prompt="Deskripsikan isi gambar ini secara detail.",
+    prompt="Deskripsikan isi gambar ini.",
     file_paths=["foto.jpg"],
-)
-print(f"[Turn 1] {reply}\n")
-
-# Lanjutkan percakapan dengan gambar baru (turn 2, session sama)
-reply2, sid = chat_with_attachment(
-    prompt="Bandingkan dengan gambar berikut ini.",
-    file_paths=["foto2.jpg"],
-    session_id=sid,
-)
-print(f"[Turn 2] {reply2}\n")
-
-# Kirim beberapa file sekaligus
-reply3, sid2 = chat_with_attachment(
-    prompt="Analisis dokumen dan diagram ini.",
-    file_paths=["laporan.pdf", "diagram.png"],
-    think_mode="thinking",
-)
-print(f"[Multi-file] {reply3}\n")
-```
-
-**Python — kirim dari bytes / memory (tanpa file fisik):**
-
-```python
-import base64, requests
-
-def chat_with_bytes(
-    prompt: str,
-    file_bytes: bytes,
-    filename: str,
-    mime_type: str,
-    session_id: str = None,
-) -> tuple[str, str]:
-    headers = {"Content-Type": "application/json"}
-    if session_id:
-        headers["X-Session-ID"] = session_id
-
-    body = {
-        "model": "qwen",
-        "messages": [{"role": "user", "content": prompt}],
-        "attachments": [
-            {
-                "filename": filename,
-                "data": base64.b64encode(file_bytes).decode(),
-                "mime_type": mime_type,
-            }
-        ],
-    }
-
-    r = requests.post(
-        "http://108.137.15.61:9000/v1/chat/completions",
-        headers=headers,
-        json=body,
-        timeout=180,
-    )
-    r.raise_for_status()
-    data = r.json()
-    new_sid = r.headers.get("X-Session-ID", session_id)
-    return data["choices"][0]["message"]["content"], new_sid
-
-
-# Contoh: screenshot dari PIL
-from PIL import ImageGrab
-import io
-
-screenshot = ImageGrab.grab()
-buf = io.BytesIO()
-screenshot.save(buf, format="PNG")
-img_bytes = buf.getvalue()
-
-reply, sid = chat_with_bytes(
-    prompt="Ada apa di layar saya?",
-    file_bytes=img_bytes,
-    filename="screenshot.png",
-    mime_type="image/png",
+    account="account1",
 )
 print(reply)
 ```
 
 ### Tips Penggunaan Attachment
 
-**Ukuran file** — Tidak ada batasan eksplisit dari API ini, namun Qwen AI sendiri memiliki batasan ukuran upload. Disarankan tidak melebihi **20 MB per file**.
+**Ukuran file** — Disarankan tidak melebihi **20 MB per file**.
 
-**Attachment di turn lanjutan** — Attachment bisa dikirim di turn mana saja, tidak hanya turn pertama. Ini berguna untuk percakapan analisis bertahap (misal: kirim grafik di turn 2 untuk dibahas lebih lanjut dari konteks turn 1).
+**Attachment di turn lanjutan** — Attachment bisa dikirim di turn mana saja, tidak hanya turn pertama.
 
-**Data URI juga diterima** — Selain raw base64, format Data URI juga valid:
+**Data URI juga diterima:**
 ```json
-{
-  "filename": "foto.png",
-  "data": "data:image/png;base64,iVBORw0KGgo...",
-  "mime_type": "image/png"
-}
+{"filename": "foto.png", "data": "data:image/png;base64,iVBORw0KGgo...", "mime_type": "image/png"}
 ```
-
-**mime_type opsional tapi disarankan** — Jika tidak diisi, server meng-guess dari ekstensi filename. Untuk keandalan maksimal, selalu sertakan `mime_type` secara eksplisit.
 
 ---
 
+## Generate Gambar (Create Image)
+
+Gunakan field `task_type: "create_image"`. URL gambar ada di field **`urls`** (array) pada response.
+
+```json
+{
+  "model": "account1",
+  "task_type": "create_image",
+  "messages": [{"role": "user", "content": "Pemandangan kota futuristik di malam hari"}]
+}
+```
+
+```python
+import requests
+
+def create_image(prompt: str, account: str = "account1") -> list[str]:
+    r = requests.post(
+        "http://108.137.15.61:9000/v1/chat/completions",
+        json={"model": account, "task_type": "create_image", "messages": [{"role": "user", "content": prompt}]},
+        timeout=180,
+    )
+    r.raise_for_status()
+    return r.json().get("urls", [])
+
+urls = create_image("Kucing astronaut di luar angkasa, gaya anime", account="account2")
+print(urls)
+```
+
+> Generate gambar membutuhkan waktu ~20–60 detik. Set timeout minimal **120 detik**.
+
+---
+
+## Generate Video (Create Video)
+
+Gunakan `task_type: "create_video"`. URL video ada di field **`urls`**.
+
+```python
+import requests
+
+def create_video(prompt: str, account: str = "account1") -> list[str]:
+    r = requests.post(
+        "http://108.137.15.61:9000/v1/chat/completions",
+        json={"model": account, "task_type": "create_video", "messages": [{"role": "user", "content": prompt}]},
+        timeout=300,
+    )
+    r.raise_for_status()
+    return r.json().get("urls", [])
+```
+
+> Generate video bisa 60–180 detik. Set timeout minimal **300 detik**.
+
+---
+
+## Pencarian Web (Web Search)
+
+Gunakan `task_type: "web_search"`. Output tetap berupa teks, field `urls` selalu `[]`.
+
+```python
+import requests
+
+def web_search(prompt: str, account: str = "account1") -> str:
+    r = requests.post(
+        "http://108.137.15.61:9000/v1/chat/completions",
+        json={"model": account, "task_type": "web_search", "messages": [{"role": "user", "content": prompt}]},
+        timeout=120,
+    )
+    r.raise_for_status()
+    return r.json()["choices"][0]["message"]["content"]
+
+answer = web_search("Siapa juara Formula 1 terbaru?")
+print(answer)
+```
+
+---
+
+## Contoh Kode
 
 ### curl
 
 **Percakapan baru:**
-
 ```bash
 curl http://108.137.15.61:9000/v1/chat/completions \
   -H "Content-Type: application/json" \
   -D - \
-  -d '{
-    "model": "qwen",
-    "messages": [{"role": "user", "content": "Apa itu list comprehension di Python?"}]
-  }'
+  -d '{"model": "account1", "messages": [{"role": "user", "content": "Apa itu list comprehension di Python?"}]}'
 ```
 
-Flag `-D -` menampilkan response headers di terminal — gunakan ini untuk melihat `X-Session-ID`.
+Flag `-D -` menampilkan response headers — gunakan untuk melihat `X-Session-ID`.
 
 **Melanjutkan percakapan:**
-
 ```bash
 curl http://108.137.15.61:9000/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "X-Session-ID: abc123def456..." \
-  -d '{
-    "model": "qwen",
-    "messages": [{"role": "user", "content": "Berikan contoh kodenya."}]
-  }'
+  -d '{"model": "account1", "messages": [{"role": "user", "content": "Berikan contoh kodenya."}]}'
 ```
 
 **Dengan think mode:**
-
 ```bash
 curl http://108.137.15.61:9000/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -d '{
-    "model": "qwen",
-    "think_mode": "thinking",
-    "messages": [{"role": "user", "content": "Jelaskan algoritma Dijkstra secara detail."}]
-  }'
+  -d '{"model": "account1", "think_mode": "thinking", "messages": [{"role": "user", "content": "Jelaskan algoritma Dijkstra."}]}'
 ```
 
 ---
 
 ### Python (requests)
 
-**Instalasi:**
-```bash
-pip install requests
-```
-
-**Penggunaan dasar:**
-
 ```python
 import requests
 
 BASE_URL = "http://108.137.15.61:9000"
 
-def chat(prompt: str, session_id: str = None, think_mode: str = None) -> tuple[str, str]:
-    """
-    Kirim pesan ke Qwen AI.
-    Mengembalikan (teks_respons, session_id).
-    """
+def chat(prompt: str, account: str = "account1", session_id: str = None, think_mode: str = None) -> tuple[str, str]:
     headers = {"Content-Type": "application/json"}
     if session_id:
         headers["X-Session-ID"] = session_id
 
-    body = {
-        "model": "qwen",
-        "messages": [{"role": "user", "content": prompt}],
-    }
+    body = {"model": account, "messages": [{"role": "user", "content": prompt}]}
     if think_mode:
         body["think_mode"] = think_mode
 
-    response = requests.post(
-        f"{BASE_URL}/v1/chat/completions",
-        headers=headers,
-        json=body,
-        timeout=180,
-    )
-    response.raise_for_status()
-
-    data = response.json()
-    text = data["choices"][0]["message"]["content"]
-
-    # Ambil session_id dari header atau dari x_meta di body
-    new_session_id = (
-        response.headers.get("X-Session-ID")
-        or data.get("x_meta", {}).get("session_id")
-        or session_id
-    )
-    return text, new_session_id
+    r = requests.post(f"{BASE_URL}/v1/chat/completions", headers=headers, json=body, timeout=180)
+    r.raise_for_status()
+    data = r.json()
+    new_sid = r.headers.get("X-Session-ID") or data.get("x_meta", {}).get("session_id") or session_id
+    return data["choices"][0]["message"]["content"], new_sid
 
 
-# ── Contoh penggunaan ──────────────────────────────────────────────────────────
-
-# Turn pertama — percakapan baru
-reply1, sid = chat("Apa itu decorator di Python?")
+reply1, sid = chat("Apa itu decorator di Python?", account="account2")
 print(f"[Turn 1] {reply1}\n")
 
-# Turn kedua — melanjutkan percakapan (konteks tersimpan)
 reply2, sid = chat("Beri contoh penggunaannya.", session_id=sid)
 print(f"[Turn 2] {reply2}\n")
 
-# Turn ketiga — masih sesi yang sama
-reply3, sid = chat("Bagaimana cara membuat decorator dengan parameter?", session_id=sid)
-print(f"[Turn 3] {reply3}\n")
-
-# Mulai percakapan baru (tidak kirim session_id)
-reply4, sid2 = chat("Apa itu Docker?", think_mode="fast")
-print(f"[New session] {reply4}\n")
+reply3, sid2 = chat("Apa itu Docker?", account="account6", think_mode="fast")
+print(f"[New session, account6] {reply3}\n")
 ```
 
-**Kelas wrapper lengkap:**
+**Kelas wrapper:**
 
 ```python
 import requests
 
 class QwenClient:
-    def __init__(self, base_url: str):
+    def __init__(self, base_url: str, account: str = "account1"):
         self.base_url = base_url
+        self.account = account
         self.session_id: str | None = None
         self.cookie_file: str | None = None
         self.conversation_url: str | None = None
 
     def send(self, prompt: str, think_mode: str = None) -> str:
-        """Kirim pesan. Session dikelola otomatis."""
         headers = {"Content-Type": "application/json"}
         if self.session_id:
             headers["X-Session-ID"] = self.session_id
 
-        body = {
-            "model": "qwen",
-            "messages": [{"role": "user", "content": prompt}],
-        }
+        body = {"model": self.account, "messages": [{"role": "user", "content": prompt}]}
         if think_mode:
             body["think_mode"] = think_mode
 
-        r = requests.post(
-            f"{self.base_url}/v1/chat/completions",
-            headers=headers,
-            json=body,
-            timeout=180,
-        )
+        r = requests.post(f"{self.base_url}/v1/chat/completions", headers=headers, json=body, timeout=180)
         r.raise_for_status()
         data = r.json()
-
-        # Update session info
-        self.session_id = (
-            r.headers.get("X-Session-ID")
-            or data.get("x_meta", {}).get("session_id")
-            or self.session_id
-        )
+        self.session_id = r.headers.get("X-Session-ID") or data.get("x_meta", {}).get("session_id") or self.session_id
         self.cookie_file = r.headers.get("X-Cookie-File", self.cookie_file)
         self.conversation_url = r.headers.get("X-Conversation-URL", self.conversation_url)
-
         return data["choices"][0]["message"]["content"]
 
-    def new_conversation(self):
-        """Mulai percakapan baru — reset session."""
+    def new_conversation(self, account: str = None):
         if self.session_id:
             try:
                 requests.delete(f"{self.base_url}/v1/sessions/{self.session_id}", timeout=10)
             except Exception:
                 pass
-        self.session_id = None
-        self.cookie_file = None
-        self.conversation_url = None
+        self.session_id = self.cookie_file = self.conversation_url = None
+        if account:
+            self.account = account
 
     def info(self):
+        print(f"Akun       : {self.account}")
+        print(f"Cookie file: {self.cookie_file or '-'}")
         print(f"Session ID : {self.session_id or '(belum ada)'}")
-        print(f"Akun       : {self.cookie_file or '-'}")
         print(f"Conv URL   : {self.conversation_url or '-'}")
 
 
-# ── Contoh penggunaan ──────────────────────────────────────────────────────────
-
-client = QwenClient("http://108.137.15.61:9000")
-
+client = QwenClient("http://108.137.15.61:9000", account="account1")
 print(client.send("Apa itu context manager di Python?"))
+print(client.send("Beri contoh dengan kode."))
+
+client.new_conversation(account="account6")
+print(client.send("Jelaskan tentang asyncio.", think_mode="thinking"))
 client.info()
-
-print(client.send("Beri contoh dengan kode."))       # lanjut
-print(client.send("Bagaimana cara custom context manager?"))  # lanjut
-
-client.new_conversation()
-print(client.send("Sekarang jelaskan tentang asyncio.", think_mode="thinking"))
-client.info()   # session_id baru, akun mungkin berbeda
 ```
 
 ---
 
 ### Python (httpx async)
 
-**Instalasi:**
-```bash
-pip install httpx
-```
-
 ```python
-import asyncio
-import httpx
+import asyncio, httpx
 
 BASE_URL = "http://108.137.15.61:9000"
 
-async def chat(
-    client: httpx.AsyncClient,
-    prompt: str,
-    session_id: str = None,
-    think_mode: str = None,
-) -> tuple[str, str]:
+async def chat(client: httpx.AsyncClient, prompt: str, account: str = "account1", session_id: str = None) -> tuple[str, str]:
     headers = {}
     if session_id:
         headers["X-Session-ID"] = session_id
 
-    body = {
-        "model": "qwen",
-        "messages": [{"role": "user", "content": prompt}],
-    }
-    if think_mode:
-        body["think_mode"] = think_mode
-
-    r = await client.post("/v1/chat/completions", headers=headers, json=body)
+    r = await client.post("/v1/chat/completions", headers=headers,
+                          json={"model": account, "messages": [{"role": "user", "content": prompt}]})
     r.raise_for_status()
     data = r.json()
-
-    new_sid = (
-        r.headers.get("X-Session-ID")
-        or data.get("x_meta", {}).get("session_id")
-        or session_id
-    )
+    new_sid = r.headers.get("X-Session-ID") or data.get("x_meta", {}).get("session_id") or session_id
     return data["choices"][0]["message"]["content"], new_sid
 
 
 async def main():
     async with httpx.AsyncClient(base_url=BASE_URL, timeout=180) as client:
-        # Percakapan pertama
-        reply1, sid = await chat(client, "Apa itu Rust?")
+        reply1, sid = await chat(client, "Apa itu Rust?", account="account1")
         print(f"[1] {reply1[:200]}\n")
 
         reply2, sid = await chat(client, "Mengapa dibilang memory-safe?", session_id=sid)
         print(f"[2] {reply2[:200]}\n")
 
-        # Percakapan paralel (dua sesi berbeda bersamaan)
+        # Dua percakapan paralel di akun berbeda
         results = await asyncio.gather(
-            chat(client, "Jelaskan Go concurrency model"),
-            chat(client, "Jelaskan Kotlin coroutines"),
+            chat(client, "Jelaskan Go concurrency model", account="account1"),
+            chat(client, "Jelaskan Kotlin coroutines", account="account2"),
         )
-        for i, (text, s) in enumerate(results, 1):
-            print(f"[Paralel {i}] session={s[:8]} | {text[:150]}\n")
+        for i, (text, _) in enumerate(results, 1):
+            print(f"[Paralel {i}] {text[:150]}\n")
 
 asyncio.run(main())
 ```
@@ -804,35 +725,24 @@ asyncio.run(main())
 const BASE_URL = "http://108.137.15.61:9000";
 
 class QwenClient {
-  constructor(baseUrl) {
+  constructor(baseUrl, account = "account1") {
     this.baseUrl = baseUrl;
+    this.account = account;
     this.sessionId = null;
   }
 
   async send(prompt, thinkMode = null) {
     const headers = { "Content-Type": "application/json" };
-    if (this.sessionId) {
-      headers["X-Session-ID"] = this.sessionId;
-    }
+    if (this.sessionId) headers["X-Session-ID"] = this.sessionId;
 
-    const body = {
-      model: "qwen",
-      messages: [{ role: "user", content: prompt }],
-    };
+    const body = { model: this.account, messages: [{ role: "user", content: prompt }] };
     if (thinkMode) body.think_mode = thinkMode;
 
     const response = await fetch(`${this.baseUrl}/v1/chat/completions`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(body),
+      method: "POST", headers, body: JSON.stringify(body),
     });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-    if (!response.ok) {
-      const err = await response.text();
-      throw new Error(`HTTP ${response.status}: ${err}`);
-    }
-
-    // Simpan session ID dari header
     const newSid = response.headers.get("X-Session-ID");
     if (newSid) this.sessionId = newSid;
 
@@ -840,25 +750,24 @@ class QwenClient {
     return data.choices[0].message.content;
   }
 
-  resetSession() {
+  switchAccount(account) {
+    this.account = account;
     this.sessionId = null;
   }
 }
 
-// ── Contoh penggunaan ──────────────────────────────────────────────────────────
-
-const client = new QwenClient(BASE_URL);
+const client = new QwenClient(BASE_URL, "account1");
 
 (async () => {
   const r1 = await client.send("Apa itu event loop di JavaScript?");
   console.log("[1]", r1.slice(0, 200));
 
   const r2 = await client.send("Bedanya dengan Python asyncio?");
-  console.log("[2]", r2.slice(0, 200));   // konteks tersambung
+  console.log("[2]", r2.slice(0, 200));
 
-  client.resetSession();
+  client.switchAccount("account6");
   const r3 = await client.send("Jelaskan Docker.", "fast");
-  console.log("[New]", r3.slice(0, 200));
+  console.log("[New, account6]", r3.slice(0, 200));
 })();
 ```
 
@@ -866,60 +775,22 @@ const client = new QwenClient(BASE_URL);
 
 ### OpenAI SDK
 
-API ini kompatibel dengan OpenAI Python SDK. Arahkan `base_url` ke server ini.
-
-**Instalasi:**
-```bash
-pip install openai
-```
-
 ```python
 from openai import OpenAI
 
 client = OpenAI(
     base_url="http://108.137.15.61:9000/v1",
-    api_key="tidak-perlu",   # wajib diisi SDK tapi tidak diverifikasi server
+    api_key="tidak-perlu",
 )
 
-# ── Percakapan sederhana ───────────────────────────────────────────────────────
-
 response = client.chat.completions.create(
-    model="qwen",
+    model="account1",   # nama akun sebagai model
     messages=[{"role": "user", "content": "Apa itu list comprehension di Python?"}],
 )
 print(response.choices[0].message.content)
-
-# ── Percakapan multi-turn dengan session ──────────────────────────────────────
-# Catatan: OpenAI SDK tidak expose custom response headers secara langsung.
-# Gunakan x_meta dari response body, atau gunakan requests/httpx untuk
-# membaca header X-Session-ID secara langsung (lihat contoh di atas).
-
-# Alternatif: gunakan x_meta yang ada di response (via model_extra)
-import requests
-
-session_id = None
-BASE = "http://108.137.15.61:9000"
-
-def chat_with_session(prompt: str) -> str:
-    global session_id
-    headers = {"Content-Type": "application/json"}
-    if session_id:
-        headers["X-Session-ID"] = session_id
-
-    r = requests.post(
-        f"{BASE}/v1/chat/completions",
-        headers=headers,
-        json={"model": "qwen", "messages": [{"role": "user", "content": prompt}]},
-        timeout=180,
-    )
-    r.raise_for_status()
-    data = r.json()
-    session_id = r.headers.get("X-Session-ID", session_id)
-    return data["choices"][0]["message"]["content"]
-
-print(chat_with_session("Apa itu type hints di Python?"))
-print(chat_with_session("Beri contoh kodenya."))   # melanjutkan
 ```
+
+> OpenAI SDK tidak expose custom response headers secara langsung. Gunakan `requests` atau `httpx` jika perlu membaca `X-Session-ID` untuk mode continue.
 
 ---
 
@@ -927,43 +798,16 @@ print(chat_with_session("Beri contoh kodenya."))   # melanjutkan
 
 ### Request Body
 
-```json
-{
-  "model": "qwen",
-  "messages": [
-    {
-      "role": "system",
-      "content": "Kamu adalah asisten yang menjawab dalam Bahasa Indonesia."
-    },
-    {
-      "role": "user",
-      "content": "Jelaskan apa yang ada di gambar ini."
-    }
-  ],
-  "stream": false,
-  "think_mode": "auto",
-  "attachments": [
-    {
-      "filename": "foto.jpg",
-      "data": "iVBORw0KGgo...",
-      "mime_type": "image/jpeg"
-    }
-  ]
-}
-```
-
 | Field | Tipe | Default | Keterangan |
 |---|---|---|---|
-| `model` | string | — | Wajib. Isi `"qwen"` |
+| `model` | string | — | Wajib. Nama akun (`"account1"`, `"account6"`, dll.) atau `"qwen"` untuk auto |
 | `messages` | array | — | Wajib. Array objek `{role, content}` |
 | `messages[].role` | string | — | `"user"`, `"assistant"`, atau `"system"` |
 | `messages[].content` | string | — | Isi pesan |
 | `stream` | boolean | `false` | Aktifkan streaming SSE |
 | `think_mode` | string | `"fast"` | `"auto"`, `"thinking"`, atau `"fast"` |
-| `attachments` | array | `[]` | Daftar file attachment. Setiap item: `{filename, data (base64), mime_type?}` |
-| `attachments[].filename` | string | — | Nama file, misal `"foto.jpg"` |
-| `attachments[].data` | string | — | Konten file dalam base64 (raw atau Data URI) |
-| `attachments[].mime_type` | string | auto-detect | MIME type opsional, misal `"image/jpeg"` |
+| `attachments` | array | `[]` | File attachment. Setiap item: `{filename, data (base64), mime_type?}` |
+| `task_type` | string | `"chat"` | `"chat"`, `"create_image"`, `"create_video"`, `"web_search"` |
 
 ### Response Body (non-streaming)
 
@@ -972,30 +816,27 @@ print(chat_with_session("Beri contoh kodenya."))   # melanjutkan
   "id": "chatcmpl-a1b2c3d4e5f6",
   "object": "chat.completion",
   "created": 1748000000,
-  "model": "qwen",
+  "model": "account1",
   "choices": [
     {
       "index": 0,
-      "message": {
-        "role": "assistant",
-        "content": "Neural network adalah..."
-      },
+      "message": {"role": "assistant", "content": "..."},
       "finish_reason": "stop"
     }
   ],
-  "usage": {
-    "prompt_tokens": 20,
-    "completion_tokens": 312,
-    "total_tokens": 332
-  },
+  "usage": {"prompt_tokens": 20, "completion_tokens": 312, "total_tokens": 332},
+  "urls": [],
   "x_meta": {
     "session_id": "a1b2c3d4e5f6...",
-    "cookie_file": "account2.json",
+    "cookie_file": "account1.json",
     "conversation_url": "https://chat.qwen.ai/c/xyz789",
-    "account_used": "account2"
+    "task_type": "chat",
+    "url_count": 0
   }
 }
 ```
+
+> `urls` berisi URL media untuk `create_image` / `create_video`. Selalu `[]` untuk `chat` dan `web_search`.
 
 ### Response Body (streaming)
 
@@ -1006,17 +847,15 @@ data: {"id":"chatcmpl-...","choices":[{"delta":{"role":"assistant","content":"Ne
 
 data: {"id":"chatcmpl-...","choices":[{"delta":{"content":" network"},"index":0}]}
 
-data: {"id":"chatcmpl-...","choices":[{"delta":{"content":" adalah"},"index":0}]}
-
 data: [DONE]
 ```
 
-Contoh membaca streaming:
+**Contoh membaca streaming:**
 
 ```python
 import json, requests
 
-def chat_stream(prompt: str, session_id: str = None) -> tuple[str, str]:
+def chat_stream(prompt: str, account: str = "account1", session_id: str = None) -> tuple[str, str]:
     headers = {"Content-Type": "application/json"}
     if session_id:
         headers["X-Session-ID"] = session_id
@@ -1025,16 +864,14 @@ def chat_stream(prompt: str, session_id: str = None) -> tuple[str, str]:
     new_sid = session_id
 
     with requests.post(
-        f"http://108.137.15.61:9000/v1/chat/completions",
+        "http://108.137.15.61:9000/v1/chat/completions",
         headers=headers,
-        json={"model": "qwen", "stream": True,
-              "messages": [{"role": "user", "content": prompt}]},
+        json={"model": account, "stream": True, "messages": [{"role": "user", "content": prompt}]},
         stream=True,
         timeout=180,
     ) as resp:
         resp.raise_for_status()
         new_sid = resp.headers.get("X-Session-ID", session_id)
-
         for line in resp.iter_lines():
             if not line:
                 continue
@@ -1046,11 +883,11 @@ def chat_stream(prompt: str, session_id: str = None) -> tuple[str, str]:
             print(delta, end="", flush=True)
             full_text += delta
 
-    print()  # newline setelah stream selesai
+    print()
     return full_text, new_sid
 
 
-full_reply, sid = chat_stream("Jelaskan cara kerja HTTP request.")
+full_reply, sid = chat_stream("Jelaskan cara kerja HTTP request.", account="account1")
 print(f"\nSession: {sid[:8]}...")
 ```
 
@@ -1062,11 +899,11 @@ print(f"\nSession: {sid[:8]}...")
 |---|---|---|
 | `200` | Sukses | Baca `choices[0].message.content` |
 | `400` | Request tidak valid | Pastikan ada `{"role":"user","content":"..."}` di `messages` |
-| `404` | Session tidak ditemukan | Session expired atau ID salah — mulai percakapan baru (tidak kirim `X-Session-ID`) |
+| `404` | Session tidak ditemukan | Session expired — mulai percakapan baru tanpa `X-Session-ID` |
 | `500` | Error internal server | Coba lagi beberapa saat |
-| `502` | Scraper gagal memproses | Coba lagi — mungkin browser worker sedang restart |
-| `503` | Server belum siap | Tunggu beberapa detik lalu coba lagi |
-| `504` | Timeout dari Qwen AI | Coba lagi — Qwen mungkin lambat merespons, coba ganti `think_mode` ke `"fast"` |
+| `502` | Scraper gagal memproses | Coba lagi — browser worker mungkin sedang restart |
+| `503` | Tidak ada worker tersedia | Tunggu beberapa detik lalu coba lagi |
+| `504` | Timeout dari Qwen AI | Coba ganti `think_mode` ke `"fast"` dan coba lagi |
 
 **Contoh menangani error:**
 
@@ -1074,7 +911,7 @@ print(f"\nSession: {sid[:8]}...")
 import requests
 from requests.exceptions import HTTPError, Timeout
 
-def safe_chat(prompt: str, session_id: str = None) -> tuple[str | None, str | None]:
+def safe_chat(prompt: str, account: str = "account1", session_id: str = None) -> tuple[str | None, str | None]:
     try:
         headers = {"Content-Type": "application/json"}
         if session_id:
@@ -1083,7 +920,7 @@ def safe_chat(prompt: str, session_id: str = None) -> tuple[str | None, str | No
         r = requests.post(
             "http://108.137.15.61:9000/v1/chat/completions",
             headers=headers,
-            json={"model": "qwen", "messages": [{"role": "user", "content": prompt}]},
+            json={"model": account, "messages": [{"role": "user", "content": prompt}]},
             timeout=180,
         )
         r.raise_for_status()
@@ -1092,14 +929,13 @@ def safe_chat(prompt: str, session_id: str = None) -> tuple[str | None, str | No
         return data["choices"][0]["message"]["content"], new_sid
 
     except HTTPError as e:
-        status = e.response.status_code
-        if status == 404:
+        if e.response.status_code == 404:
             print("Session expired — memulai percakapan baru")
-            return safe_chat(prompt, session_id=None)   # retry tanpa session
-        elif status in (502, 503, 504):
-            print(f"Server error {status} — coba lagi nanti")
+            return safe_chat(prompt, account=account, session_id=None)
+        elif e.response.status_code in (502, 503, 504):
+            print(f"Server error {e.response.status_code} — coba lagi nanti")
         else:
-            print(f"Error {status}: {e.response.text}")
+            print(f"Error {e.response.status_code}: {e.response.text}")
         return None, session_id
 
     except Timeout:
@@ -1111,18 +947,29 @@ def safe_chat(prompt: str, session_id: str = None) -> tuple[str | None, str | No
 
 ## Tips Praktis
 
-**Selalu simpan `X-Session-ID`** — Simpan dari response pertama dan kirim di setiap request berikutnya agar percakapan tersambung. Jika lupa atau hilang, Anda hanya akan memulai percakapan baru.
+**Cek dulu akun yang tersedia** — Jalankan `GET /v1/models` sebelum mulai untuk tahu nama akun yang bisa dipakai.
 
-**Gunakan `x_meta` sebagai fallback** — Jika library Anda tidak mudah membaca response headers, `session_id` juga ada di `response.x_meta.session_id` dalam body JSON.
+**Selalu simpan `X-Session-ID`** — Simpan dari response pertama dan kirim di setiap request berikutnya. Jika hilang, percakapan dimulai ulang dari awal.
 
-**Timeout yang disarankan** — Set timeout minimal **120 detik** di client Anda. Qwen AI bisa membutuhkan waktu lama terutama untuk mode `thinking`.
+**Gunakan `x_meta` sebagai fallback** — `session_id` juga ada di `response.x_meta.session_id` jika library Anda tidak bisa membaca response headers.
 
-**Think mode `thinking` lebih lambat** — Gunakan hanya untuk pertanyaan yang benar-benar membutuhkan reasoning mendalam (matematika, logika, analisis). Untuk percakapan biasa, `fast` atau `auto` sudah cukup.
+**Akun terikat ke session** — Setelah turn pertama, akun dikunci ke session. Mengganti `model` di turn berikutnya tidak mengubah akun. Gunakan session baru untuk berganti akun.
 
-**Session TTL 1 jam** — Sesi kedaluwarsa setelah 1 jam tidak digunakan. Jika aplikasi Anda perlu sesi lebih lama, minta operator untuk menaikkan `--session-ttl`.
+**Timeout yang disarankan:**
+- `chat` / `web_search` — 120 detik
+- `create_image` — minimal 180 detik
+- `create_video` — minimal 300 detik
 
-**Percakapan paralel** — Setiap sesi menggunakan slot browser tersendiri. Anda bisa membuat beberapa sesi paralel (masing-masing dengan `session_id` berbeda) tanpa saling mengganggu.
+**Think mode `thinking` lebih lambat** — Gunakan hanya untuk pertanyaan yang benar-benar membutuhkan reasoning mendalam. Untuk percakapan biasa, `fast` atau `auto` sudah cukup.
 
-**Jangan kirim seluruh riwayat chat di `messages`** — Berbeda dengan OpenAI API asli, riwayat percakapan dikelola oleh server via session. Cukup kirim pesan `"user"` terbaru saja di setiap request.
+**Session TTL 1 jam** — Sesi kedaluwarsa setelah 1 jam tidak digunakan.
 
-**Attachment bisa dikirim di turn mana saja** — Tidak hanya turn pertama. Anda bisa mengirim gambar atau dokumen baru di turn ke-2, ke-3, dan seterusnya dalam sesi yang sama. File selalu di-encode sebagai base64 di dalam field `attachments`.
+**Percakapan paralel** — Setiap sesi menggunakan slot browser tersendiri. Anda bisa membuat beberapa sesi paralel dengan `session_id` berbeda tanpa saling mengganggu.
+
+**Jangan kirim seluruh riwayat chat di `messages`** — Riwayat percakapan dikelola oleh server via session. Cukup kirim pesan `"user"` terbaru saja di setiap request.
+
+**`task_type` tidak bisa dikombinasikan dengan session** — `create_image`, `create_video`, dan `web_search` selalu memulai sesi baru. Tidak perlu menyimpan `X-Session-ID` dari response-nya.
+
+**URL media ada di field `urls`** — Untuk `create_image` dan `create_video`, URL hasil generate ada di `response.urls` (array), bukan di `choices[0].message.content`.
+
+**Attachment bisa dikirim di turn mana saja** — Tidak hanya turn pertama. File selalu di-encode sebagai base64 di dalam field `attachments`.

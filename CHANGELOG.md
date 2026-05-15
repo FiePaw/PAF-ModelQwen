@@ -5,6 +5,462 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Unreleased] – 2026-05-15 — Optimasi & Model Selector
+
+### `public.py` — Fix: Skip `goto()` pada CONTINUE jika browser sudah di halaman yang benar
+
+#### Masalah
+
+Setiap request CONTINUE selalu memanggil `scraper._page.goto(conv_url)` meskipun browser
+sudah berada di URL conversation yang tepat. Pada arsitektur `BrowserPool`, slot browser
+berpotensi tetap berada di halaman yang sama setelah turn sebelumnya selesai — terutama
+jika tidak ada request lain yang "merebut" slot tersebut di antaranya.
+
+`goto()` pada halaman Qwen (SPA React berat) membutuhkan **2–6 detik** hanya untuk load,
+ditambah `_wait_page_ready()` yang ikut polling setelahnya. Ini overhead murni yang sia-sia
+jika browser sudah di halaman yang benar.
+
+#### Fix
+
+Sebelum memanggil `goto()`, bandingkan `scraper._page.url` dengan `conv_url` yang tersimpan
+di session. Jika sudah cocok, `goto()` dan `_wait_page_ready()` di-skip sepenuhnya.
+
+```python
+# Sebelum (selalu goto):
+await scraper._page.goto(conv_url, wait_until="domcontentloaded", timeout=30_000)
+await _wait_page_ready(scraper._page, worker_label)
+
+# Sesudah (cek dulu):
+current_url_now = scraper._page.url
+already_there = conv_url in current_url_now or current_url_now in conv_url
+if already_there:
+    logger.info("Skip goto() — browser sudah di halaman: %s", conv_url)
+else:
+    await scraper._page.goto(conv_url, ...)
+    await _wait_page_ready(...)
+```
+
+#### Dampak
+
+| Skenario | Sebelum | Sesudah |
+|---|---|---|
+| Slot langsung dipakai lagi (URL sama) | goto() + wait ~2–6s | Skip → 0s |
+| Slot dipakai session lain dulu (URL beda) | goto() + wait ~2–6s | goto() + wait ~2–6s (tidak berubah) |
+
+Turn pertama CONTINUE tetap melakukan `goto()` karena sesaat setelah mode NEW selesai,
+slot dikembalikan ke pool dan bisa diambil session lain. Keuntungan terbesar terasa pada
+percakapan dengan ritme cepat (turn pendek, jeda singkat antar request).
+
+---
+
+### `vps_server.py` + `public.py` — Fitur: Model Selector (Cookie via Field `model`)
+
+Field `model` di request body kini berfungsi sebagai **selector akun**. Sebelumnya field ini
+hanya di-echo kembali di response tanpa efek apapun pada pemilihan slot browser.
+
+#### `vps_server.py`
+
+- **`_available_cookie_names`** (global set baru) — menampung nama cookie (tanpa ekstensi)
+  yang dilaporkan semua worker aktif. Diisi saat worker konek dan mengirim pesan `register`.
+
+- **`GET /v1/models`** — listing sekarang dinamis dari `_available_cookie_names`, bukan
+  hardcoded `["qwen", "qwen-turbo"]`. Jika belum ada worker yang konek, fallback ke `"qwen"`.
+  ```json
+  { "data": [
+      {"id": "account1", ...},
+      {"id": "account2", ...}
+  ]}
+  ```
+
+- **`worker_endpoint`** — pesan registrasi worker kini membawa field `cookie_names`:
+  `{"type": "register", "max_concurrent": 4, "cookie_names": ["account1", "account2"]}`.
+  VPS meng-update `_available_cookie_names` dari nilai ini.
+
+- **`POST /v1/chat/completions`** — jika `model` bukan `"qwen"` / `"qwen-turbo"` (generic),
+  nilainya dipakai sebagai `preferred_cookie` dan disertakan di payload task ke worker.
+
+#### `public.py`
+
+- **Pesan registrasi** — saat konek ke VPS, worker kini melaporkan `cookie_names` yang
+  dikumpulkan dari nama unik semua slot di pool:
+  `[s.cookie_file.stem for s in pool._slots]` (deduplicated).
+
+- **`TaskProcessor.process()`** — membaca `preferred_cookie` dari payload. Untuk task NEW,
+  jika ada `preferred_cookie` dari field `model`, nilai tersebut diteruskan ke
+  `pool.acquire(preferred_cookie=...)` sehingga slot dengan cookie yang tepat dipilih.
+
+- **Fix unpack** — `pool.acquire()` yield 3 nilai `(scraper, cookie_name, slot_id)`.
+  Unpack sebelumnya hanya 2 nilai → `ValueError: too many values to unpack`. Diperbaiki
+  menjadi `(scraper, cookie_name, _slot_id)`.
+
+#### Behavior
+
+| Nilai `model` | Perilaku |
+|---|---|
+| `"account1"`, `"account2"`, dst. | Worker pilih slot dengan cookie file yang sesuai |
+| `"qwen"` / `"qwen-turbo"` (generic) | Worker pilih slot idle mana saja (round-robin) |
+
+> Untuk request CONTINUE, `preferred_cookie` ditentukan dari session yang tersimpan (akun
+> awal), bukan dari field `model` di request berikutnya — akun tidak bisa berganti di tengah
+> sesi.
+
+---
+
+### `HowToUseAPI(Updated).md` — Update: Dokumentasi Model Selector
+
+- Section **`GET /v1/models`** diperbarui: jelaskan bahwa listing dinamis dari cookie aktif di worker.
+- Section baru **"Memilih Akun (Model Selector)"** ditambahkan: cara kerja, tabel perilaku,
+  contoh Python `list_accounts()` + `chat(account=...)`.
+- Semua contoh kode: `"model": "qwen"` → `"model": "account1"` (atau nama akun spesifik).
+- Tabel request body: keterangan field `model` diperbarui.
+
+---
+
+### `example/account_selector.py` — Baru: Contoh Pemilihan Akun
+
+Script demonstrasi dua skenario:
+
+1. **Percakapan 3 turn** dengan akun yang dipilih secara spesifik.
+2. **Dua percakapan paralel** ke dua akun berbeda menggunakan `asyncio` + `httpx`.
+
+Mendukung `--account`, `--host`, `--port` via CLI.
+
+---
+
+### `example/chat.py` — Update: Tambah Pemilihan Akun Interaktif
+
+Versi baru `chat.py` (CLI chatbot) kini mendukung pemilihan akun:
+
+- Prompt input menampilkan akun aktif: `You [22:30:01][account1] ›`
+- **`/switch`** — ganti akun via picker interaktif, session otomatis reset.
+- **`/account`** — lihat akun yang sedang dipakai.
+- **`/accounts`** — lihat semua akun tersedia (refresh dari server).
+- Argumen `--account` untuk langsung menentukan akun tanpa picker.
+
+---
+
+Sesi perbaikan bug menyeluruh untuk fitur `create_image`, `create_video`, dan `web_search`
+yang ditambahkan di versi sebelumnya. Semua fitur kini berfungsi end-to-end.
+
+---
+
+### `PublicForward/ForVPS/vps_server.py`
+
+#### Fix: `task_type` tidak pernah diteruskan ke worker (NameError + AttributeError)
+
+Tiga bug terpisah yang ditemukan dan diperbaiki secara bertahap:
+
+1. **`NameError: media_urls`** — variable `media_urls` dan `result_task_type` di-assign di blok
+   yang salah (duplikat) sehingga tidak terdefinisi saat response dibangun. Fix: assign langsung
+   setelah `result` diterima dari worker, berlaku untuk semua `task_type`.
+
+2. **`AttributeError: task_type`** — field `task_type` tidak pernah ditambahkan ke
+   `ChatCompletionRequest` Pydantic model, sehingga Qwen selalu menjalankan mode `chat`.
+   Fix: tambah `task_type: Optional[str] = None` ke model.
+
+3. **`task_type` tidak di-forward ke worker** — meski sudah ada di model, nilai `task_type`
+   tidak dimasukkan ke `task_payload` yang dikirim ke worker via WebSocket.
+   Fix: tambah `"task_type": req.task_type or "chat"` ke payload.
+
+Setelah ketiga fix ini, `create_image` / `create_video` / `web_search` baru bisa
+benar-benar dieksekusi oleh worker.
+
+#### Tambah: field `urls` dan `task_type` di JSON response
+
+Response non-streaming kini menyertakan:
+- `"urls": [...]` di level atas — berisi URL media untuk `create_image`/`create_video`
+- `"x_meta.task_type"` — task type yang dieksekusi
+- `"x_meta.url_count"` — jumlah URL yang dikembalikan
+
+---
+
+### `scrapers/qwen_scraper.py`
+
+#### Fix: tombol Create Image/Video/Web search tidak ditemukan
+
+Beberapa lapisan fix untuk menemukan dan mengklik tombol yang benar di DOM Qwen:
+
+1. **Tombol ada di dalam submenu** — tombol tidak langsung visible di halaman, harus buka
+   dropdown dulu via tombol trigger. Tambah `_open_toolbar_menu()` dan `_find_and_click_menu_item()`.
+
+2. **Selector `mode-select-open` yang benar** — tombol trigger dropdown Qwen punya class
+   `mode-select-open`. Selector sebelumnya (`mode-select-btn`, `toolbar-btn`, `aria-haspopup`)
+   tidak cocok.
+
+3. **Selector Ant Design yang tepat** — item menu generate ada di dalam:
+   ```
+   .ant-dropdown-menu-item .mode-select-dropdown-item
+   ```
+   Sebelumnya selector tidak cocok dengan struktur DOM Qwen.
+
+4. **Casing keyword** — Qwen pakai `"Create image"` (lowercase `i`), bukan `"Create Image"`.
+
+#### Fix: navigate ke halaman baru setelah klik tombol mode
+
+`send_prompt(mode="new")` selalu memanggil `_goto_new_chat()` → halaman di-navigate ulang
+→ mode yang sudah diklik hilang. Fix: pisahkan method submit:
+
+- **`_submit_prompt(prompt)`** — kirim prompt tanpa navigasi, untuk `web_search`
+- **`_submit_prompt_media(prompt, mode)`** — kirim prompt + tunggu media, untuk
+  `create_image` / `create_video`
+
+#### Fix: create_image/video stuck setelah generate selesai
+
+`_wait_for_generation` menunggu `.qwen-markdown` / `.chat-response-message` yang tidak
+pernah muncul di mode Create Image/Video (Qwen hanya render elemen gambar). Tambah:
+
+- **`_count_media_elements()`** — hitung elemen `.qwen-chat-response-control-card` /
+  `.qwen-image` di DOM
+- **`_wait_for_generation_media(mode)`** — poll sederhana: tunggu `is_generating()=False`
+  AND `count_media_elements()>0`, tanpa log progress, tanpa timeout besar
+
+#### Fix: selector ekstraksi URL media salah
+
+Selector `.chat-message-container img` dan `.chat-response-message video` tidak ada di DOM
+Qwen untuk mode generate. Semua diganti dengan:
+```
+.qwen-chat-response-control-card img[src]
+.qwen-image img[src]
+.qwen-chat-response-control-card video[src]
+```
+
+#### Fix: method `web_search` dan `_click_web_search_button` hilang
+
+Kedua method terhapus tidak sengaja saat replace baris di commit sebelumnya. Dipulihkan kembali.
+
+---
+
+### `HowToUseAPI(Updated).md`
+
+Tambah tiga section baru:
+
+- **Generate Gambar (Create Image)** — format request/response, contoh Python + curl,
+  catatan timeout 120–180 detik
+- **Generate Video (Create Video)** — format request/response, contoh Python, catatan
+  timeout 300 detik
+- **Pencarian Web (Web Search)** — format request/response, contoh Python + curl
+
+Update bagian lain:
+- Daftar Isi: tambah link ke tiga section baru
+- Tabel request body: tambah field `task_type`
+- Referensi response body: tambah field `urls` dan `x_meta.task_type` / `url_count`
+- Tips Praktis: tambah tip tentang `task_type`, field `urls`, dan timeout per task type
+
+---
+
+## [Unreleased] – 2026-05-12 (2)
+
+### Fitur Baru: Web Search via Tombol "Web search" Qwen
+
+Menambahkan dukungan `task_type: "web_search"` yang mengaktifkan mode pencarian web
+di Qwen AI sebelum mengirim prompt. Output tetap berupa teks response chat biasa,
+namun Qwen menelusuri internet terlebih dahulu sehingga jawaban diperkaya data terkini.
+
+---
+
+#### `qwen_scraper.py` — Tambah: `_click_web_search_button()` + `web_search()`
+
+##### Selector `_SEL_WEB_SEARCH_BTN` (baru)
+
+Daftar selector CSS untuk menemukan tombol "Web search" di toolbar Qwen (ada di submenu More):
+`aria-label`, `data-testid`, class name, `title`, dan fallback scan innerText.
+
+##### Method `_click_web_search_button()` (baru)
+
+Mengklik tombol "Web search" dengan strategi dua tahap:
+1. Coba selector spesifik.
+2. Fallback: scan semua `<button>` / `[role="button"]` via `innerText` / `title` / `aria-label`.
+
+Pola identik dengan `_click_create_button()` — konsisten di seluruh codebase.
+
+##### Method `web_search(prompt, timeout)` (baru)
+
+High-level method untuk web search:
+
+1. Navigasi ke halaman chat baru.
+2. Klik tombol "Web search" via `_click_web_search_button()`.
+3. Kirim prompt dan tunggu response teks Qwen.
+
+Return dict:
+```python
+{
+    "success" : bool,
+    "prompt"  : str,
+    "response": str,   # jawaban Qwen berbasis pencarian web
+    "error"   : str | None,
+}
+```
+
+Berbeda dengan `create_image`/`create_video`, tidak ada ekstraksi URL media —
+output web search selalu berupa teks.
+
+---
+
+#### `public.py` — Update: Tambah `"web_search"` di `task_type` handler
+
+- `task_type` kini mendukung 4 nilai: `"chat"` | `"create_image"` | `"create_video"` | `"web_search"`.
+- `_run_media()` diperbarui dengan `elif`/`else` chain:
+  - `create_image` → `scraper.create_image(prompt)`
+  - `create_video` → `scraper.create_video(prompt)`
+  - `web_search`   → `scraper.web_search(prompt)` ← baru
+- Komentar field `urls` diperbarui: `"hanya terisi untuk create_image/create_video"`.
+
+---
+
+#### `example/web_search.py` — Baru: Contoh Penggunaan Web Search
+
+```python
+requests.post("http://108.137.15.61:9000/v1/chat/completions", json={
+    "model"    : "qwen",
+    "task_type": "web_search",
+    "messages" : [{"role": "user", "content": "Berita AI terbaru hari ini"}],
+})
+```
+
+Response:
+```json
+{
+    "success"  : true,
+    "task_type": "web_search",
+    "response" : "Berdasarkan pencarian web, ...",
+    "urls"     : []
+}
+```
+
+Dilengkapi argparse (`--host`, `--port`, `--prompt`, `--timeout`) dan error handling.
+
+---
+
+## [Unreleased] – 2026-05-12
+
+### Fitur Baru: Generate Gambar & Video via "Create Image" / "Create Video"
+
+Menambahkan dukungan untuk meminta Qwen AI membuat gambar dan video langsung dari prompt teks,
+menggunakan tombol **Create Image** dan **Create Video** yang tersedia di toolbar Qwen.
+Implementasi mengikuti pola yang sama dengan fitur upload attachment (clipboard CDP).
+
+---
+
+#### `qwen_scraper.py` — Tambah: Method Generate Gambar & Video
+
+##### Method `_click_create_button(mode)` (baru)
+
+Mengklik tombol "Create Image" atau "Create Video" di toolbar Qwen secara otomatis.
+
+- **Strategi multi-selector** — mencoba selector CSS spesifik satu per satu (aria-label,
+  data-testid, class name). Jika semua gagal, scan seluruh `<button>` dan `[role="button"]`
+  di halaman via `innerText` / `title` / `aria-label` — pola yang sama dengan attachment upload.
+- **mode `"image"`** → mencari tombol "Create Image".
+- **mode `"video"`** → mencari tombol "Create Video".
+- Return `True` jika berhasil diklik, `False` jika tombol tidak ditemukan.
+
+##### Method `_wait_media_output(mode, timeout)` (baru)
+
+Menunggu dan mengekstrak URL gambar/video hasil generate dari DOM halaman Qwen.
+
+- Poll setiap 1 detik hingga elemen `<img>` (image) atau `<video>` (video) berisi URL `http`
+  muncul di area response.
+- Selector mencakup class name Qwen yang umum (`generated-image`, `image-result`, `gen-image`,
+  dst.) serta fallback generik berdasarkan domain CDN (`aliyuncs`, `qwen`).
+- Log progress setiap 15 detik agar proses tidak tampak freeze.
+- Timeout default: **120 detik** untuk gambar, **180 detik** untuk video.
+- Jika URL tidak terdeteksi dari DOM, coba ekstrak dari teks response via regex
+  (fallback untuk format response teks yang menyertakan link langsung).
+
+##### Method `create_image(prompt, timeout)` (baru)
+
+High-level method untuk generate gambar:
+
+1. Navigasi ke halaman chat baru (`_goto_new_chat()`).
+2. Klik tombol "Create Image" via `_click_create_button("image")`.
+3. Kirim prompt dan tunggu response.
+4. Ekstrak URL gambar via `_wait_media_output("image")`.
+5. Fallback regex dari teks response jika URL tidak terdeteksi di DOM.
+
+Return dict:
+```python
+{
+    "success" : bool,
+    "prompt"  : str,
+    "urls"    : list[str],   # URL gambar hasil generate
+    "response": str,         # teks response Qwen (jika ada)
+    "error"   : str | None,
+}
+```
+
+##### Method `create_video(prompt, timeout)` (baru)
+
+Identik dengan `create_image` namun untuk video. Timeout default lebih panjang (180 detik)
+karena render video membutuhkan waktu lebih lama dari render gambar.
+
+---
+
+#### `public.py` — Tambah: `task_type` di `TaskProcessor.process()`
+
+- **Field baru `task_type`** dibaca dari payload: `"chat"` (default) | `"create_image"` | `"create_video"`.
+- **Shortcut path** — jika `task_type` adalah `create_image` atau `create_video`, task langsung
+  dijalankan via `scraper.create_image()` / `scraper.create_video()` **tanpa** melalui alur
+  session (tidak ada session_id, mode continue, dll).
+- **Log worker** diperbarui — baris log penerima task kini menyertakan `type=` agar mudah
+  dibedakan antara task chat biasa vs generate media:
+  ```
+  Worker#0 → Request [abc12345] type=create_image session=new
+  ```
+- **Response `create_image` / `create_video`** menyertakan field tambahan:
+  ```python
+  {
+      "success"     : True,
+      "task_type"   : "create_image",
+      "prompt"      : str,
+      "urls"        : list[str],
+      "response"    : str,
+      "cookie_file" : str,
+      "account_used": str,
+  }
+  ```
+
+---
+
+#### `example/create_image.py` — Baru: Contoh Penggunaan Create Image
+
+Script contoh lengkap untuk memanggil fitur create image dari Python:
+
+```python
+requests.post("http://108.137.15.61:9000/v1/chat/completions", json={
+    "model"    : "qwen",
+    "task_type": "create_image",
+    "messages" : [{"role": "user", "content": "Kucing astronaut di luar angkasa"}],
+})
+```
+
+Response yang dikembalikan server:
+```json
+{
+    "success"  : true,
+    "task_type": "create_image",
+    "urls"     : ["https://cdn.qwen.ai/...gambar.jpg"],
+    "response" : "..."
+}
+```
+
+Dilengkapi argparse (`--host`, `--port`, `--prompt`, `--timeout`) dan error handling lengkap.
+
+---
+
+#### `example/create_video.py` — Baru: Contoh Penggunaan Create Video
+
+Identik dengan `create_image.py` namun untuk video. Default timeout 240 detik.
+
+```python
+requests.post("http://108.137.15.61:9000/v1/chat/completions", json={
+    "model"    : "qwen",
+    "task_type": "create_video",
+    "messages" : [{"role": "user", "content": "Sunrise di pegunungan, sinematik"}],
+})
+```
+
+---
+
 ## [Unreleased] – 2026-05-08
 
 ### `utils.py` — Baru: Pretty Console Logger dengan Dukungan Windows ANSI

@@ -242,10 +242,11 @@ class TaskProcessor:
         Task CONTINUE → acquire slot dengan cookie yang SAMA dengan session awal,
                         lalu navigate ke conv_url sebelum send_prompt.
         """
-        messages     = payload.get("messages", [])
-        think_mode   = payload.get("think_mode")
-        incoming_sid = payload.get("session_id")
+        messages        = payload.get("messages", [])
+        think_mode      = payload.get("think_mode")
+        incoming_sid    = payload.get("session_id")
         raw_attachments: list[dict] = payload.get("attachments") or []
+        payload_preferred_cookie: str | None = payload.get("preferred_cookie")
 
         user_msgs = [m["content"] for m in messages if m.get("role") == "user"]
         prompt = user_msgs[-1] if user_msgs else ""
@@ -318,7 +319,21 @@ class TaskProcessor:
                 )
 
         if mode == "new":
-            logger.info("Worker#%s NEW [%s]", worker_label, request_id[:8])
+            # Jika client memilih akun spesifik via field `model` (misal "account6"),
+            # VPS mengirimnya sebagai preferred_cookie.
+            # Pool mencocokkan dengan cookie_file.name (misal "account6.json"),
+            # jadi tambahkan ekstensi jika belum ada.
+            if payload_preferred_cookie:
+                pc = payload_preferred_cookie
+                if not pc.endswith(".json"):
+                    pc = pc + ".json"
+                preferred_cookie = pc
+                logger.info(
+                    "Worker#%s NEW [%s] cookie hint dari model: %s",
+                    worker_label, request_id[:8], preferred_cookie,
+                )
+            else:
+                logger.info("Worker#%s NEW [%s]", worker_label, request_id[:8])
 
         # Per-session lock hanya untuk CONTINUE (agar 2 request ke session yg sama tidak tabrakan)
         lock: asyncio.Lock | None = None
@@ -331,21 +346,34 @@ class TaskProcessor:
             )
 
             # ← FIX Bug #3: teruskan preferred_cookie ke acquire()
-            async with self.pool.acquire(preferred_cookie=preferred_cookie) as (scraper, cookie_name):
+            async with self.pool.acquire(preferred_cookie=preferred_cookie) as (scraper, cookie_name, _slot_id):
                 try:
-                    # Untuk CONTINUE: navigasi ke URL conversation yang tersimpan
+                    # Untuk CONTINUE: navigasi ke URL conversation yang tersimpan,
+                    # HANYA jika browser belum berada di halaman tersebut.
+                    # Skip goto() jika current URL sudah sama → hemat 2–6 detik load time.
                     if mode == "continue" and conv_url and "chat.qwen.ai" in conv_url:
-                        logger.info(
-                            "Worker#%s Navigasi ke conversation: %s",
-                            worker_label, conv_url,
+                        current_url_now = scraper._page.url
+                        already_there = (
+                            conv_url in current_url_now
+                            or current_url_now in conv_url
                         )
-                        await scraper._page.goto(
-                            conv_url, wait_until="domcontentloaded", timeout=30_000
-                        )
-                        # Tunggu halaman benar-benar siap sebelum scrape():
-                        # 1. Tunggu Qwen selesai memproses (stop button hilang)
-                        # 2. Tunggu input field visible dan enabled
-                        await _wait_page_ready(scraper._page, worker_label)
+                        if already_there:
+                            logger.info(
+                                "Worker#%s Skip goto() — browser sudah di halaman: %s",
+                                worker_label, conv_url,
+                            )
+                        else:
+                            logger.info(
+                                "Worker#%s Navigasi ke conversation: %s",
+                                worker_label, conv_url,
+                            )
+                            await scraper._page.goto(
+                                conv_url, wait_until="domcontentloaded", timeout=30_000
+                            )
+                            # Tunggu halaman benar-benar siap sebelum scrape():
+                            # 1. Tunggu Qwen selesai memproses (stop button hilang)
+                            # 2. Tunggu input field visible dan enabled
+                            await _wait_page_ready(scraper._page, worker_label)
                         scraper._conversation_started = True
 
                     # Override think_mode per-request jika dikirim dari VPS

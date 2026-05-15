@@ -869,7 +869,635 @@ class QwenScraper(BaseAIChatScraper):
         self.logger.debug("Attachment preview timeout setelah %.0fs", timeout)
         return False
 
-    # ── Core send_prompt ──────────────────────────────────────────────────────
+    # ── Create Image / Create Video ───────────────────────────────────────────
+
+    # Selector untuk tombol "Create Image" dan "Create Video" di toolbar Qwen
+    _SEL_CREATE_IMAGE_BTN = [
+        "button[aria-label*='Create Image' i]",
+        "button[aria-label*='image' i][class*='create' i]",
+        "[class*='create-image']",
+        "[data-testid*='image-gen']",
+        "button[title*='Create Image' i]",
+        # Fallback: cari teks label di dalam button
+        "button",   # difilter via JS innerText di bawah
+    ]
+
+    _SEL_CREATE_VIDEO_BTN = [
+        "button[aria-label*='Create Video' i]",
+        "button[aria-label*='video' i][class*='create' i]",
+        "[class*='create-video']",
+        "[data-testid*='video-gen']",
+        "button[title*='Create Video' i]",
+        "button",   # difilter via JS innerText di bawah
+    ]
+
+    _SEL_WEB_SEARCH_BTN = [
+        "button[aria-label*='Web search' i]",
+        "button[aria-label*='Search' i][class*='web' i]",
+        "[class*='web-search']",
+        "[data-testid*='web-search']",
+        "button[title*='Web search' i]",
+        "button",   # fallback scan innerText
+    ]
+
+    async def _open_toolbar_menu(self) -> bool:
+        """
+        Klik elemen bertanda 'mode-select-open' untuk memunculkan dropdown
+        Ant Design yang berisi 'Create image', 'Create Video', 'Web search', dll.
+        """
+        selectors = [
+            # Selector utama — class yang diketahui dari DOM Qwen
+            ".mode-select-open",
+            "[class*='mode-select-open']",
+            "button.mode-select-open",
+            "span.mode-select-open",
+            "div.mode-select-open",
+            # Fallback tambahan
+            "button[class*='mode-select']",
+            "[class*='mode-select-btn']",
+            "[class*='mode-select-trigger']",
+        ]
+
+        for sel in selectors:
+            try:
+                els = await self._page.query_selector_all(sel)
+                for el in els:
+                    if await el.is_visible():
+                        await el.click()
+                        self.logger.info("✅ Toolbar menu dibuka via '%s'", sel)
+                        await asyncio.sleep(0.6)
+                        return True
+            except Exception:
+                continue
+
+        # Fallback JS — cari elemen apapun yang class-nya mengandung 'mode-select-open'
+        opened = await self._page.evaluate("""
+        () => {
+            const el = document.querySelector(
+                '[class*="mode-select-open"], [class*="mode-select-btn"], [class*="mode-select-trigger"]'
+            );
+            if (el) { el.click(); return true; }
+            return false;
+        }
+        """)
+        if opened:
+            self.logger.info("✅ Toolbar menu dibuka via JS querySelector")
+            await asyncio.sleep(0.6)
+            return True
+
+        self.logger.warning("⚠️  Tombol toolbar 'mode-select-open' tidak ditemukan")
+        return False
+
+    async def _find_and_click_menu_item(self, keyword: str) -> bool:
+        """
+        Cari dan klik item di dropdown Ant Design berdasarkan keyword.
+
+        Struktur DOM Qwen:
+          <li class="ant-dropdown-menu-item ant-dropdown-menu-item-only-child mode-select-common-item">
+            <span class="ant-dropdown-menu-title-content">
+              <span class="mode-select-dropdown-item">Create image</span>
+            </span>
+          </li>
+
+        Berlaku untuk: 'Create image', 'Create Video', 'Web search', dll.
+        """
+        keyword_low = keyword.lower()
+
+        # ── Selector spesifik Ant Design Qwen ─────────────────────────────────
+        ant_selectors = [
+            # Exact match via span dalam menu item
+            ".ant-dropdown-menu-item .mode-select-dropdown-item",
+            ".ant-dropdown-menu-item span.ant-dropdown-menu-title-content",
+            ".ant-dropdown-menu-item",
+            # Generic dropdown
+            "[class*='ant-dropdown'] li",
+            "[class*='ant-dropdown'] [class*='menu-item']",
+            "[class*='mode-select-dropdown-item']",
+            "[class*='mode-select-common-item']",
+        ]
+
+        for sel in ant_selectors:
+            try:
+                els = await self._page.query_selector_all(sel)
+                for el in els:
+                    if not await el.is_visible():
+                        continue
+                    text = (await el.inner_text() or "").lower().strip()
+                    if keyword_low in text:
+                        await el.click()
+                        self.logger.info(
+                            "✅ Menu item '%s' diklik via selector '%s'", keyword, sel
+                        )
+                        await asyncio.sleep(0.5)
+                        return True
+            except Exception:
+                continue
+
+        # ── Fallback JS scan seluruh DOM ──────────────────────────────────────
+        found = await self._page.evaluate(f"""
+        () => {{
+            const kw = '{keyword_low}';
+            // Prioritaskan elemen Ant Design
+            const priority = Array.from(document.querySelectorAll(
+                '.ant-dropdown-menu-item, [class*="mode-select"], [class*="dropdown-item"]'
+            ));
+            for (const el of priority) {{
+                if (el.offsetParent === null) continue;
+                const txt = (el.innerText || el.textContent || '').toLowerCase().trim();
+                if (txt.includes(kw)) {{ el.click(); return true; }}
+            }}
+            // Fallback: semua elemen interaktif
+            const all = Array.from(document.querySelectorAll(
+                'li, button, [role="menuitem"], [role="option"], a, span'
+            ));
+            for (const el of all) {{
+                if (el.offsetParent === null) continue;
+                const txt = (
+                    el.innerText || el.textContent ||
+                    el.getAttribute('aria-label') || ''
+                ).toLowerCase().trim();
+                if (txt === kw || (txt.includes(kw) && txt.length < kw.length + 10)) {{
+                    el.click();
+                    return true;
+                }}
+            }}
+            return false;
+        }}
+        """)
+
+        if found:
+            self.logger.info("✅ Menu item '%s' diklik via JS scan", keyword)
+            await asyncio.sleep(0.5)
+            return True
+
+        return False
+
+        """
+        Aktifkan mode Web Search di Qwen.
+
+        Alur: buka toolbar menu '+' → klik item 'Web search'.
+        Jika item sudah visible di halaman (tanpa buka menu), langsung klik.
+        """
+        keyword = "Web search"
+        self.logger.info("Mengaktifkan mode '%s' …", keyword)
+
+        # Coba langsung dulu (kalau sudah visible tanpa buka menu)
+        if await self._find_and_click_menu_item(keyword):
+            return True
+
+        # Buka toolbar menu dulu, lalu cari lagi
+        await self._open_toolbar_menu()
+        if await self._find_and_click_menu_item(keyword):
+            return True
+
+        # Last resort: coba klik "More" / "..." jika ada, lalu cari lagi
+        await self._find_and_click_menu_item("More")
+        await asyncio.sleep(0.4)
+        if await self._find_and_click_menu_item(keyword):
+            return True
+
+        self.logger.warning("⚠️  Tombol '%s' tidak ditemukan", keyword)
+        return False
+
+    async def _click_web_search_button(self) -> bool:
+        """
+        Aktifkan mode Web Search di Qwen.
+        Alur: buka toolbar menu (mode-select-open) → klik item 'Web search'.
+        """
+        keyword = "Web search"
+        self.logger.info("Mengaktifkan mode '%s' …", keyword)
+
+        if await self._find_and_click_menu_item(keyword):
+            return True
+
+        await self._open_toolbar_menu()
+        if await self._find_and_click_menu_item(keyword):
+            return True
+
+        await self._find_and_click_menu_item("More")
+        await asyncio.sleep(0.4)
+        if await self._find_and_click_menu_item(keyword):
+            return True
+
+        self.logger.warning("⚠️  Tombol '%s' tidak ditemukan", keyword)
+        return False
+
+    async def web_search(
+        self,
+        prompt: str,
+        timeout: float = 90.0,
+    ) -> dict:
+        """
+        Kirim pertanyaan ke Qwen AI dengan mode Web Search aktif.
+
+        Return dict:
+            {
+                "success"  : bool,
+                "prompt"   : str,
+                "response" : str,
+                "error"    : str | None,
+            }
+        """
+        self.logger.info("=== web_search: '%s'", prompt[:80])
+
+        try:
+            await self._goto_new_chat()
+
+            clicked = await self._click_web_search_button()
+            if not clicked:
+                return {
+                    "success" : False,
+                    "prompt"  : prompt,
+                    "response": "",
+                    "error"   : "Tombol 'Web search' tidak ditemukan di halaman Qwen",
+                }
+
+            response_text = await self._submit_prompt(prompt)
+
+            self.logger.info("✅ web_search selesai: %d chars", len(response_text))
+            return {
+                "success" : True,
+                "prompt"  : prompt,
+                "response": response_text,
+                "error"   : None,
+            }
+
+        except Exception as e:
+            self.logger.error("web_search error: %s", e, exc_info=True)
+            return {
+                "success" : False,
+                "prompt"  : prompt,
+                "response": "",
+                "error"   : str(e),
+            }
+
+    async def _click_create_button(self, mode: str) -> bool:
+        """
+        Klik tombol 'Create Image' atau 'Create Video' di toolbar Qwen.
+
+        mode: 'image' | 'video'
+
+        Alur: buka toolbar menu '+' → klik item 'Create Image'/'Create Video'.
+        Jika item sudah visible di halaman tanpa buka menu, langsung klik.
+        """
+        keyword = "Create image" if mode == "image" else "Create Video"
+        self.logger.info("Mengaktifkan mode '%s' …", keyword)
+
+        # Coba langsung dulu (kalau sudah visible tanpa buka menu)
+        if await self._find_and_click_menu_item(keyword):
+            return True
+
+        # Buka toolbar menu '+' dulu, lalu cari lagi
+        await self._open_toolbar_menu()
+        if await self._find_and_click_menu_item(keyword):
+            return True
+
+        # Last resort: coba klik "More" / "..." jika ada, lalu cari lagi
+        await self._find_and_click_menu_item("More")
+        await asyncio.sleep(0.4)
+        if await self._find_and_click_menu_item(keyword):
+            return True
+
+        self.logger.warning("⚠️  Tombol '%s' tidak ditemukan", keyword)
+        return False
+
+    async def _wait_media_output(
+        self,
+        mode: str,
+        timeout: float = 120.0,
+    ) -> list[str]:
+        """
+        Tunggu sampai Qwen selesai generate gambar/video dan ekstrak URL-nya.
+
+        mode    : 'image' | 'video'
+        timeout : detik maksimum menunggu (default 120s, generate media lebih lambat)
+
+        Return  : list URL (bisa kosong jika tidak terdeteksi dalam timeout)
+        """
+        # Selector gambar/video hasil generate Qwen
+        # Struktur DOM: .qwen-chat-response-control-card > .qwen-image > img/video
+        if mode == "image":
+            media_selectors = [
+                ".qwen-chat-response-control-card img[src]",
+                ".qwen-image img[src]",
+                ".qwen-chat-response-control-card .qwen-image img[src]",
+            ]
+        else:
+            media_selectors = [
+                ".qwen-chat-response-control-card video[src]",
+                ".qwen-image video[src]",
+                ".qwen-chat-response-control-card video source[src]",
+                ".qwen-chat-response-control-card .qwen-image video",
+            ]
+
+        deadline = asyncio.get_event_loop().time() + timeout
+        last_log = asyncio.get_event_loop().time()
+
+        # Tunggu sebentar agar DOM settle setelah Qwen selesai generate
+        await asyncio.sleep(2.0)
+
+        while asyncio.get_event_loop().time() < deadline:
+            # Log progress setiap 15 detik
+            now = asyncio.get_event_loop().time()
+            if now - last_log >= 15:
+                elapsed = now - (deadline - timeout)
+                self.logger.info(
+                    "Menunggu output %s … (%.0f/%.0fs)", mode, elapsed, timeout,
+                )
+                last_log = now
+
+            # ── Metode 1: selector CSS per elemen ─────────────────────────────
+            urls: list[str] = []
+            for sel in media_selectors:
+                try:
+                    els = await self._page.query_selector_all(sel)
+                    for el in els:
+                        src = await el.get_attribute("src")
+                        if src and src.startswith("http") and src not in urls:
+                            urls.append(src)
+                except Exception:
+                    continue
+
+            # ── Metode 2: JS scan via class Qwen yang diketahui ──────────────
+            if not urls:
+                try:
+                    if mode == "image":
+                        js_urls = await self._page.evaluate("""
+                        () => {
+                            const imgs = Array.from(document.querySelectorAll(
+                                '.qwen-chat-response-control-card img[src], .qwen-image img[src]'
+                            ));
+                            return imgs.map(i => i.src).filter(s => s && s.startsWith('http'));
+                        }
+                        """)
+                    else:
+                        js_urls = await self._page.evaluate("""
+                        () => {
+                            const vids = Array.from(document.querySelectorAll(
+                                '.qwen-chat-response-control-card video[src], ' +
+                                '.qwen-image video[src], ' +
+                                '.qwen-chat-response-control-card source[src]'
+                            ));
+                            return vids
+                                .map(v => v.src || v.getAttribute('src'))
+                                .filter(s => s && s.startsWith('http'));
+                        }
+                        """)
+                    for u in (js_urls or []):
+                        if u not in urls:
+                            urls.append(u)
+                except Exception as e:
+                    self.logger.debug("JS scan error: %s", e)
+
+            if urls:
+                self.logger.info(
+                    "✅ %d URL %s terdeteksi: %s",
+                    len(urls), mode, urls[:3],
+                )
+                return urls
+
+            await asyncio.sleep(1.0)
+
+        self.logger.warning(
+            "⏱  Timeout %.0fs: URL %s tidak terdeteksi", timeout, mode,
+        )
+        return []
+
+    async def create_image(
+        self,
+        prompt: str,
+        timeout: float = 120.0,
+    ) -> dict:
+        """
+        Generate gambar di Qwen AI via tombol 'Create Image'.
+
+        1. Navigasi ke halaman baru.
+        2. Klik tombol 'Create Image'.
+        3. Ketik prompt dan submit.
+        4. Tunggu gambar muncul + ekstrak URL.
+
+        Return dict:
+            {
+                "success"  : bool,
+                "prompt"   : str,
+                "urls"     : list[str],   # URL gambar hasil generate
+                "response" : str,         # teks response Qwen (jika ada)
+                "error"    : str | None,
+            }
+        """
+        self.logger.info("=== create_image: '%s'", prompt[:80])
+
+        try:
+            await self._goto_new_chat()
+
+            clicked = await self._click_create_button("image")
+            if not clicked:
+                return {
+                    "success": False,
+                    "prompt": prompt,
+                    "urls": [],
+                    "response": "",
+                    "error": "Tombol 'Create Image' tidak ditemukan di halaman Qwen",
+                }
+
+            # Kirim prompt langsung — mode sudah diset via _click_create_button
+            response_text = await self._submit_prompt_media(prompt, "image")
+
+            # Ekstrak URL gambar dari DOM
+            urls = await self._wait_media_output("image", timeout=timeout)
+
+            # Fallback: coba ekstrak URL dari teks response (kadang Qwen menyertakan link)
+            if not urls:
+                import re
+                found_urls = re.findall(r'https?://\S+\.(?:jpg|jpeg|png|webp|gif)', response_text, re.I)
+                urls = list(dict.fromkeys(found_urls))   # dedup, preserve order
+
+            return {
+                "success": True,
+                "prompt": prompt,
+                "urls": urls,
+                "response": response_text,
+                "error": None,
+            }
+
+        except Exception as e:
+            self.logger.error("create_image error: %s", e, exc_info=True)
+            return {
+                "success": False,
+                "prompt": prompt,
+                "urls": [],
+                "response": "",
+                "error": str(e),
+            }
+
+    async def create_video(
+        self,
+        prompt: str,
+        timeout: float = 180.0,
+    ) -> dict:
+        """
+        Generate video di Qwen AI via tombol 'Create Video'.
+
+        Sama dengan create_image namun untuk video.
+        Timeout default lebih panjang (180s) karena render video lebih lambat.
+
+        Return dict:
+            {
+                "success"  : bool,
+                "prompt"   : str,
+                "urls"     : list[str],   # URL video hasil generate
+                "response" : str,
+                "error"    : str | None,
+            }
+        """
+        self.logger.info("=== create_video: '%s'", prompt[:80])
+
+        try:
+            await self._goto_new_chat()
+
+            clicked = await self._click_create_button("video")
+            if not clicked:
+                return {
+                    "success": False,
+                    "prompt": prompt,
+                    "urls": [],
+                    "response": "",
+                    "error": "Tombol 'Create Video' tidak ditemukan di halaman Qwen",
+                }
+
+            # Kirim prompt langsung — mode sudah diset via _click_create_button
+            response_text = await self._submit_prompt_media(prompt, "video")
+
+            urls = await self._wait_media_output("video", timeout=timeout)
+
+            # Fallback: cari URL video dari teks response
+            if not urls:
+                import re
+                found_urls = re.findall(r'https?://\S+\.(?:mp4|webm|mov|avi)', response_text, re.I)
+                urls = list(dict.fromkeys(found_urls))
+
+            return {
+                "success": True,
+                "prompt": prompt,
+                "urls": urls,
+                "response": response_text,
+                "error": None,
+            }
+
+        except Exception as e:
+            self.logger.error("create_video error: %s", e, exc_info=True)
+            return {
+                "success": False,
+                "prompt": prompt,
+                "urls": [],
+                "response": "",
+                "error": str(e),
+            }
+
+    async def _count_media_elements(self) -> int:
+        """
+        Hitung elemen media hasil generate di DOM.
+
+        Struktur DOM Qwen untuk hasil generate:
+          .qwen-chat-response-control-card   ← container card hasil
+            .qwen-image                      ← wrapper gambar
+              img[src]                       ← gambar hasil
+            video[src]                       ← video hasil (jika ada)
+        """
+        return await self._page.evaluate("""
+        () => {
+            // Prioritas: card hasil generate Qwen
+            const cards = document.querySelectorAll(
+                '.qwen-chat-response-control-card, .qwen-image'
+            );
+            if (cards.length > 0) return cards.length;
+
+            // Fallback: img/video di dalam card
+            const imgs = document.querySelectorAll(
+                '.qwen-chat-response-control-card img[src], .qwen-image img[src]'
+            );
+            const vids = document.querySelectorAll(
+                '.qwen-chat-response-control-card video, .qwen-image video'
+            );
+            return imgs.length + vids.length;
+        }
+        """)
+
+    async def _wait_for_generation_media(self, mode: str) -> str:
+        """
+        Poll sampai Qwen selesai generate image/video:
+        - is_generating() False  AND
+        - ada elemen .qwen-chat-response-control-card / .qwen-image di DOM
+
+        Tidak ada log progress — selesai langsung return.
+        """
+        while True:
+            generating  = await self._is_generating()
+            media_count = await self._count_media_elements()
+
+            if not generating and media_count > 0:
+                self.logger.info("✅ %s generation done (%d card(s))", mode, media_count)
+                return await self._extract_last_response()
+
+            await asyncio.sleep(1.0)
+
+
+    async def _submit_prompt(self, prompt: str) -> str:
+        """
+        Kirim prompt dan tunggu response — TANPA navigasi, TANPA think-mode setup,
+        TANPA attachment. Dipakai oleh web_search yang output-nya teks biasa.
+        """
+        input_el  = await self._find_input()
+        pre_count = await self._count_response_elements()
+
+        self.logger.info(
+            "Submitting prompt (%d chars) [pre_count=%d]", len(prompt), pre_count,
+        )
+
+        await input_el.click()
+        await input_el.type("~", delay=1)
+        await input_el.fill(prompt, timeout=1_000)
+        #await asyncio.sleep(0.3)
+
+        send_btn = await self._find_send_button_enabled()
+        if send_btn:
+            await send_btn.click()
+            self.logger.debug("Send button clicked")
+        else:
+            await input_el.press("Enter")
+            self.logger.debug("Used Enter key to submit")
+
+        self._conversation_started = True
+        return await self._wait_for_generation(pre_count)
+
+    async def _submit_prompt_media(self, prompt: str, mode: str) -> str:
+        """
+        Kirim prompt dan tunggu output media (image/video) selesai di-generate.
+        Pakai _wait_for_generation_media yang deteksi elemen gambar/video di DOM.
+        """
+        input_el = await self._find_input()
+
+        self.logger.info(
+            "Submitting %s prompt (%d chars)", mode, len(prompt),
+        )
+
+        await input_el.click()
+        await input_el.type("~", delay=1)
+        await input_el.fill(prompt, timeout=1_000)
+        await asyncio.sleep(0.3)
+
+        send_btn = await self._find_send_button_enabled()
+        if send_btn:
+            await send_btn.click()
+            self.logger.debug("Send button clicked")
+        else:
+            await input_el.press("Enter")
+            self.logger.debug("Used Enter key to submit")
+
+        self._conversation_started = True
+        return await self._wait_for_generation_media(mode)
+
+        # ── Core send_prompt ──────────────────────────────────────────────────────
 
     async def send_prompt(
         self,
@@ -944,7 +1572,7 @@ class QwenScraper(BaseAIChatScraper):
     async def _wait_for_generation(self, pre_count: int = 0) -> str:
         timeout_s = _TIMEOUT["response_wait"] // 1000
         stability_interval = _TIMEOUT["stability_check"] / 1000
-        stability_needed = 2
+        stability_needed = 0.5
 
         deadline = asyncio.get_event_loop().time() + timeout_s
         prev_text = ""

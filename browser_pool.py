@@ -235,30 +235,39 @@ class BrowserPool:
     async def acquire(
         self,
         preferred_cookie: str | None = None,
-    ) -> AsyncIterator[tuple[QwenScraper, str]]:
+        preferred_slot_id: int | None = None,
+    ) -> AsyncIterator[tuple[QwenScraper, str, int]]:
         """
         Context manager: pinjam satu slot IDLE, kembalikan otomatis setelah selesai.
 
+        preferred_slot_id: slot_id spesifik yang diminta (mode CONTINUE optimal).
+            Kalau diberikan, langsung tunggu slot dengan ID ini tanpa cari yang lain.
+            Ini menghindari goto() ulang karena browser sudah di halaman yang benar.
+
         preferred_cookie: nama file cookie (misal "acc1.json") yang diprioritaskan.
-            Dipakai untuk mode CONTINUE agar slot yang dipilih menggunakan akun
-            yang sama dengan saat session pertama kali dibuat.
+            Dipakai sebagai fallback jika preferred_slot_id tidak diberikan.
             Kalau slot dengan cookie tersebut sedang BUSY, tunggu sampai slot itu
             idle — TIDAK mengambil slot dengan cookie berbeda.
             Kalau preferred_cookie=None (mode NEW), ambil slot idle mana saja.
 
-        Yield: tuple (scraper, cookie_file_name)
+        Yield: tuple (scraper, cookie_file_name, slot_id)
 
-        async with pool.acquire(preferred_cookie="acc1.json") as (scraper, cookie_name):
+        async with pool.acquire(preferred_slot_id=2) as (scraper, cookie_name, slot_id):
             result = await scraper.scrape(prompt)
         """
-        slot = await self._wait_for_idle_slot(preferred_cookie=preferred_cookie)
+        slot = await self._wait_for_idle_slot(
+            preferred_cookie=preferred_cookie,
+            preferred_slot_id=preferred_slot_id,
+        )
         slot.mark_busy()
         logger.debug(
-            "Slot#%d dipakai (cookie=%s, preferred=%s)",
-            slot.slot_id, slot.cookie_file.name, preferred_cookie or "-",
+            "Slot#%d dipakai (cookie=%s, preferred_slot=%s, preferred_cookie=%s)",
+            slot.slot_id, slot.cookie_file.name,
+            preferred_slot_id if preferred_slot_id is not None else "-",
+            preferred_cookie or "-",
         )
         try:
-            yield slot.scraper, slot.cookie_file.name
+            yield slot.scraper, slot.cookie_file.name, slot.slot_id
         except Exception as e:
             logger.error("Slot#%d error saat dipakai: %s", slot.slot_id, e)
             slot.mark_dead()
@@ -273,28 +282,51 @@ class BrowserPool:
     async def _wait_for_idle_slot(
         self,
         preferred_cookie: str | None = None,
+        preferred_slot_id: int | None = None,
     ) -> BrowserSlot:
         """
         Tunggu sampai ada slot IDLE yang sesuai, lalu return slot tersebut.
 
-        Logika pemilihan slot:
-        - Jika preferred_cookie diberikan (mode CONTINUE):
-            Hanya pertimbangkan slot dengan cookie_file.name == preferred_cookie.
-            Tunggu sampai slot tersebut idle — jangan ambil slot lain.
-            Ini penting agar akun Qwen konsisten dengan conversation yang tersimpan.
-        - Jika preferred_cookie=None (mode NEW):
-            Ambil slot idle mana saja (pilih yang paling lama idle untuk meratakan beban).
+        Logika pemilihan slot (prioritas urutan):
+        1. preferred_slot_id diberikan (mode CONTINUE optimal):
+             Langsung tunggu slot dengan ID ini — browser sudah di halaman yang benar,
+             tidak perlu goto() ulang.
+        2. preferred_cookie diberikan (mode CONTINUE fallback):
+             Tunggu slot dengan cookie_file.name == preferred_cookie.
+        3. Keduanya None (mode NEW):
+             Ambil slot idle mana saja (paling lama idle).
         """
         while True:
             async with self._lock:
+
+                # ── Prioritas 1: slot_id spesifik ────────────────────────────
+                if preferred_slot_id is not None:
+                    target = next(
+                        (s for s in self._slots if s.slot_id == preferred_slot_id),
+                        None,
+                    )
+                    if target and target.status == SlotStatus.IDLE and target.scraper:
+                        return target
+                    if target and target.status == SlotStatus.DEAD:
+                        # Slot mati → fallback ke cookie
+                        logger.warning(
+                            "Slot#%d mati, fallback ke preferred_cookie=%s",
+                            preferred_slot_id, preferred_cookie,
+                        )
+                        preferred_slot_id = None   # lanjut ke logika cookie
+                    else:
+                        # Slot ada tapi BUSY → tunggu
+                        self._idle_event.clear()
+                        await asyncio.sleep(self.ACQUIRE_POLL)
+                        continue
+
+                # ── Prioritas 2: cookie spesifik ─────────────────────────────
                 if preferred_cookie:
-                    # ── Mode CONTINUE: cari slot dengan cookie yang tepat ──────
                     matched_slots = [
                         s for s in self._slots
                         if s.cookie_file.name == preferred_cookie
                     ]
                     if not matched_slots:
-                        # Cookie tidak ada di pool sama sekali → fallback ke slot mana saja
                         logger.warning(
                             "Cookie '%s' tidak ditemukan di pool – fallback ke slot mana saja",
                             preferred_cookie,
@@ -306,19 +338,16 @@ class BrowserPool:
                         )
                         if idle_match:
                             return idle_match
-                        # Slot dengan cookie ini ada tapi sedang BUSY → tunggu, jangan ambil lain
                         self._idle_event.clear()
-                        # (tidak ada fallback ke slot lain, loop lagi)
                         await asyncio.sleep(self.ACQUIRE_POLL)
                         continue
 
-                # ── Mode NEW (atau fallback): ambil slot idle mana saja ────────
+                # ── Prioritas 3: slot idle mana saja (mode NEW) ───────────────
                 idle_slots = [
                     s for s in self._slots
                     if s.status == SlotStatus.IDLE and s.scraper
                 ]
                 if idle_slots:
-                    # Pilih slot yang paling lama idle (last_used terkecil)
                     return min(idle_slots, key=lambda s: s.last_used)
 
                 self._idle_event.clear()
