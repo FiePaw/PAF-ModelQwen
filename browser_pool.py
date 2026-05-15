@@ -255,17 +255,35 @@ class BrowserPool:
         async with pool.acquire(preferred_slot_id=2) as (scraper, cookie_name, slot_id):
             result = await scraper.scrape(prompt)
         """
-        slot = await self._wait_for_idle_slot(
-            preferred_cookie=preferred_cookie,
-            preferred_slot_id=preferred_slot_id,
-        )
-        slot.mark_busy()
-        logger.debug(
-            "Slot#%d dipakai (cookie=%s, preferred_slot=%s, preferred_cookie=%s)",
-            slot.slot_id, slot.cookie_file.name,
-            preferred_slot_id if preferred_slot_id is not None else "-",
-            preferred_cookie or "-",
-        )
+        while True:
+            slot = await self._wait_for_idle_slot(
+                preferred_cookie=preferred_cookie,
+                preferred_slot_id=preferred_slot_id,
+            )
+            slot.mark_busy()
+
+            # ── Cek page crash sebelum slot diserahkan ke task ────────────────
+            # Jika crash terdeteksi, tandai DEAD, jadwalkan respawn, dan cari slot lain.
+            try:
+                if slot.scraper and await slot.scraper._is_page_crashed():
+                    logger.warning(
+                        "Slot#%d: crash terdeteksi saat acquire – marking DEAD dan cari slot lain",
+                        slot.slot_id,
+                    )
+                    slot.mark_dead()
+                    self._schedule_respawn(slot)
+                    continue   # balik ke while True, cari slot idle lain
+            except Exception:
+                pass  # jika cek crash sendiri gagal, lanjutkan (biarkan task yang handle)
+
+            logger.debug(
+                "Slot#%d dipakai (cookie=%s, preferred_slot=%s, preferred_cookie=%s)",
+                slot.slot_id, slot.cookie_file.name,
+                preferred_slot_id if preferred_slot_id is not None else "-",
+                preferred_cookie or "-",
+            )
+            break   # slot sehat, keluar dari loop
+
         try:
             yield slot.scraper, slot.cookie_file.name, slot.slot_id
         except Exception as e:
@@ -275,9 +293,12 @@ class BrowserPool:
             raise
         else:
             await self._reset_slot_page(slot)
-            slot.mark_idle()
-            self._idle_event.set()
-            logger.debug("Slot#%d kembali idle", slot.slot_id)
+            # Jika _reset_slot_page menandai slot DEAD (crash post-task),
+            # jangan paksa ke IDLE lagi — respawn sudah dijadwalkan.
+            if slot.status != SlotStatus.DEAD:
+                slot.mark_idle()
+                self._idle_event.set()
+                logger.debug("Slot#%d kembali idle", slot.slot_id)
 
     async def _wait_for_idle_slot(
         self,
@@ -361,14 +382,29 @@ class BrowserPool:
     async def _reset_slot_page(self, slot: BrowserSlot) -> None:
         """
         Reset state scraper setelah task selesai.
-        Cukup reset flag internal; halaman baru akan di-navigate saat send_prompt berikutnya.
+
+        Jika halaman crash terdeteksi setelah task, tandai slot sebagai DEAD
+        dan jadwalkan respawn — slot tidak akan diberi task baru sampai browser-nya sehat.
         """
-        if slot.scraper:
-            try:
-                slot.scraper._conversation_started = False
-                slot.scraper._think_mode_applied = False
-            except Exception as e:
-                logger.warning("Slot#%d reset page error: %s", slot.slot_id, e)
+        if not slot.scraper:
+            return
+
+        try:
+            # Cek apakah halaman crash setelah task selesai
+            if await slot.scraper._is_page_crashed():
+                logger.warning(
+                    "Slot#%d: page crash terdeteksi setelah task selesai – scheduling respawn",
+                    slot.slot_id,
+                )
+                slot.mark_dead()
+                self._schedule_respawn(slot)
+                return
+
+            slot.scraper._conversation_started = False
+            slot.scraper._think_mode_applied = False
+
+        except Exception as e:
+            logger.warning("Slot#%d reset page error: %s", slot.slot_id, e)
 
     def get_cookie_path(self, cookie_name: str) -> Path:
         """

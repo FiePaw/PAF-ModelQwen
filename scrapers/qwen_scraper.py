@@ -185,6 +185,11 @@ class QwenScraper(BaseAIChatScraper):
             await self._page.wait_for_load_state("networkidle", timeout=100)
         except Exception as e:
             self.logger.warning("Timeout waiting for input ready: %s", e)
+
+        # Cek apakah halaman crash setelah navigate
+        if await self._is_page_crashed():
+            self.logger.warning("⚠️  Page crash terdeteksi setelah navigate ke Qwen – perlu restart")
+            raise RuntimeError("Page crashed after navigation to Qwen")
         
         self._conversation_started = False
         self._think_mode_applied = False
@@ -1457,7 +1462,8 @@ class QwenScraper(BaseAIChatScraper):
         await input_el.click()
         await input_el.type("~", delay=1)
         await input_el.fill(prompt, timeout=1_000)
-        #await asyncio.sleep(0.3)
+        await asyncio.sleep(0.3) #ini jeda harus ada soal nya kadang send button gak muncul alhasil pas send button gak muncul prompt gak kekirim.
+
 
         send_btn = await self._find_send_button_enabled()
         if send_btn:

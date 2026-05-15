@@ -93,6 +93,26 @@ QWEN_CONFIG = {
 
 # ─── Rate Limit / Account Rotation ───────────────────────────────────────────
 ROTATION_CONFIG = {
+    # Frasa rate limit yang alurnya: restart browser dulu → retry →
+    # jika masih terjadi → baru rotate ke akun lain.
+    # Biasanya indikasi quota/token Alibaba Cloud yang perlu sesi baru.
+    "rate_limit_restart_first_phrases": [
+        "allocated quota exceeded",
+        "increase your quota limit",
+        "token limit",
+        "quota exceeded",
+        "usage limit",
+        "daily limit",
+    ],
+    # Frasa rate limit yang langsung rotate akun tanpa restart browser.
+    "rate_limit_rotate_phrases": [
+        "rate limit",
+        "too many requests",
+        "please try again later",
+        "request limit",
+        "you've reached",
+    ],
+    # Gabungan keduanya — dipakai oleh is_rate_limited() untuk deteksi umum.
     "rate_limit_phrases": [
         "rate limit",
         "too many requests",
@@ -102,6 +122,9 @@ ROTATION_CONFIG = {
         "you've reached",
         "daily limit",
         "request limit",
+        "allocated quota exceeded",
+        "increase your quota limit",
+        "token limit",
     ],
     "session_expired_phrases": [
         "session expired",
@@ -110,9 +133,22 @@ ROTATION_CONFIG = {
         "unauthorized",
         "login required",
     ],
+    # Frasa/indikator yang menandakan halaman crash / error fatal
+    # → akan trigger browser restart (bukan sekadar rotate account)
+    "page_crash_phrases": [
+        "oops! something unexpected happened",
+        "something unexpected happened",
+        "failure code:",
+        "try refreshing",
+        "oops! there was an issue connecting",
+    ],
     "max_retries_per_account": 2,
     "retry_delay": 5,
     "rotation_delay": 3,
+    # Maks berapa kali restart browser (per akun) sebelum fallback rotate
+    "max_browser_restarts": 3,
+    # Jeda sebelum restart browser (detik)
+    "browser_restart_delay": 5,
 }
 
 # ─── Output Settings ─────────────────────────────────────────────────────────

@@ -204,6 +204,87 @@ class BaseAIChatScraper(ABC):
             await self._browser.close()
         if self._playwright:
             await self._playwright.stop()
+    # ── Page crash detection & browser restart ────────────────────────────────
+
+    async def _is_page_crashed(self) -> bool:
+        """
+        Deteksi apakah halaman Qwen mengalami crash / error fatal.
+
+        Indikator:
+          1. Halaman menampilkan frasa crash dari ROTATION_CONFIG["page_crash_phrases"].
+          2. Page object tidak responsif.
+        """
+        try:
+            if not self._page:
+                return True
+
+            try:
+                body_text = await self._page.inner_text("body", timeout=5_000)
+                body_lower = body_text.lower()
+                for phrase in ROTATION_CONFIG.get("page_crash_phrases", []):
+                    if phrase.lower() in body_lower:
+                        self.logger.warning(
+                            "Page crash detected: found phrase '%s'", phrase
+                        )
+                        return True
+            except Exception:
+                self.logger.warning("Could not read page body – possible crash")
+                return True
+
+            return False
+
+        except Exception as e:
+            self.logger.warning("Error during crash detection: %s", e)
+            return True
+
+    async def restart_browser(self, cookie_file: Path | None = None) -> bool:
+        """
+        Restart browser sepenuhnya (close + relaunch) dengan cookie yang sama.
+
+        Dipakai saat halaman crash / error fatal yang tidak bisa di-recover
+        hanya dengan navigate ulang.
+
+        Returns True jika restart berhasil.
+        """
+        import time as _time
+        target_cookie = cookie_file or self._current_cookie_file or self.cookies_path
+        self.logger.warning(
+            "🔄 Restarting browser (account: %s) …",
+            target_cookie.name if target_cookie else "default",
+        )
+
+        _time.sleep(ROTATION_CONFIG.get("browser_restart_delay", 5))
+
+        try:
+            try:
+                if self._context:
+                    await self._context.close()
+            except Exception:
+                pass
+            try:
+                if self._browser:
+                    await self._browser.close()
+            except Exception:
+                pass
+            try:
+                if self._playwright:
+                    await self._playwright.stop()
+            except Exception:
+                pass
+
+            self._context = None
+            self._browser = None
+            self._page = None
+            self._playwright = None
+
+            await self.launch_browser(cookie_file=target_cookie)
+            self.logger.info("✅ Browser restart selesai")
+            return True
+
+        except Exception as e:
+            self.logger.error("❌ Browser restart gagal: %s", e, exc_info=True)
+            return False
+
 
     # ── Cookie management ─────────────────────────────────────────────────────
 
@@ -468,6 +549,12 @@ class BaseAIChatScraper(ABC):
 
         max_total_attempts = max(len(self._cookie_files), 1) * ROTATION_CONFIG["max_retries_per_account"]
         attempt = 0
+        # browser_restart_count dilacak per-akun: reset setiap kali rotate ke akun baru.
+        browser_restart_count = 0
+        max_browser_restarts = ROTATION_CONFIG.get("max_browser_restarts", 3)
+
+        _rl_restart_phrases = ROTATION_CONFIG.get("rate_limit_restart_first_phrases", [])
+        _rl_rotate_phrases  = ROTATION_CONFIG.get("rate_limit_rotate_phrases", [])
 
         while attempt < max_total_attempts:
             attempt += 1
@@ -480,24 +567,94 @@ class BaseAIChatScraper(ABC):
             )
 
             try:
+                # ── Cek page crash sebelum mengirim prompt ────────────────────
+                if await self._is_page_crashed():
+                    self.logger.warning(
+                        "⚠️  Page crash terdeteksi sebelum attempt %d – restarting browser …",
+                        attempt,
+                    )
+                    await self.take_debug_screenshot(f"crash_before_attempt{attempt}")
+                    if browser_restart_count < max_browser_restarts:
+                        browser_restart_count += 1
+                        restarted = await self.restart_browser()
+                        if restarted:
+                            self.logger.info(
+                                "Browser restart #%d berhasil – melanjutkan attempt",
+                                browser_restart_count,
+                            )
+                            attempt -= 1
+                            continue
+                    self.logger.error("Tidak bisa restart browser – menghentikan scrape")
+                    break
+
                 # Gabungkan kwargs dari subclass (misal think_mode) + attachments
                 extra = self._extra_send_kwargs()
                 if attachments:
                     extra["attachments"] = attachments
                 response_text = await self.send_prompt(prompt, mode, **extra)
 
-                if contains_any(response_text, ROTATION_CONFIG["rate_limit_phrases"]):
-                    self.logger.warning("Rate limit detected – rotating account")
-                    await self.take_debug_screenshot("rate_limit")
+                # ── Rate limit: restart-first (quota/token Alibaba) ───────────
+                # Alur: restart browser → retry → jika masih gagal → rotate akun
+                if contains_any(response_text, _rl_restart_phrases):
+                    self.logger.warning(
+                        "⚠️  Rate limit (quota/token) terdeteksi pada akun '%s' "
+                        "(browser_restart=%d/%d) – mencoba restart browser dulu …",
+                        account_name, browser_restart_count, max_browser_restarts,
+                    )
+                    await self.take_debug_screenshot(f"rate_limit_quota_attempt{attempt}")
+
+                    if browser_restart_count < max_browser_restarts:
+                        browser_restart_count += 1
+                        restarted = await self.restart_browser()
+                        if restarted:
+                            self.logger.info(
+                                "Browser restart #%d selesai – retry dengan akun yang sama",
+                                browser_restart_count,
+                            )
+                            attempt -= 1   # retry attempt yang sama setelah restart
+                            continue
+
+                    # Restart sudah habis / gagal → fallback rotate ke akun lain
+                    self.logger.warning(
+                        "Browser restart habis (%d/%d) – fallback rotate ke akun lain",
+                        browser_restart_count, max_browser_restarts,
+                    )
+                    await self.take_debug_screenshot(f"rate_limit_quota_rotate_attempt{attempt}")
                     if not await self._rotate_account():
                         break
+                    # Reset restart counter untuk akun baru
+                    browser_restart_count = 0
                     continue
+
+                # ── Rate limit: langsung rotate akun ─────────────────────────
+                if contains_any(response_text, _rl_rotate_phrases):
+                    self.logger.warning(
+                        "Rate limit terdeteksi (rotate-direct) – rotating account"
+                    )
+                    await self.take_debug_screenshot("rate_limit_rotate")
+                    if not await self._rotate_account():
+                        break
+                    browser_restart_count = 0
+                    continue
+
+                # ── Cek page crash di response teks ───────────────────────────
+                if contains_any(response_text, ROTATION_CONFIG.get("page_crash_phrases", [])):
+                    self.logger.warning("Page crash phrase detected in response – restarting browser")
+                    await self.take_debug_screenshot(f"crash_in_response_attempt{attempt}")
+                    if browser_restart_count < max_browser_restarts:
+                        browser_restart_count += 1
+                        restarted = await self.restart_browser()
+                        if restarted:
+                            attempt -= 1
+                            continue
+                    break
 
                 if contains_any(response_text, ROTATION_CONFIG["session_expired_phrases"]):
                     self.logger.warning("Session expired – rotating account")
                     await self.take_debug_screenshot("session_expired")
                     if not await self._rotate_account():
                         break
+                    browser_restart_count = 0
                     continue
 
                 blocks = self.extract_code_blocks(response_text)
@@ -521,14 +678,38 @@ class BaseAIChatScraper(ABC):
             except TimeoutError as exc:
                 self.logger.error("Timeout on attempt %d: %s", attempt, exc)
                 await self.take_debug_screenshot(f"timeout_attempt{attempt}")
-                retry_sleep(ROTATION_CONFIG["retry_delay"])
+
+                # Cek apakah timeout disebabkan oleh crash halaman
+                if await self._is_page_crashed():
+                    self.logger.warning("Timeout caused by page crash – restarting browser")
+                    if browser_restart_count < max_browser_restarts:
+                        browser_restart_count += 1
+                        restarted = await self.restart_browser()
+                        if restarted:
+                            attempt -= 1
+                            continue
+                else:
+                    retry_sleep(ROTATION_CONFIG["retry_delay"])
 
             except Exception as exc:
                 self.logger.error("Error on attempt %d: %s", attempt, exc, exc_info=True)
                 await self.take_debug_screenshot(f"error_attempt{attempt}")
-                if await self.is_rate_limited() or await self.is_session_expired():
+
+                # Cek crash terlebih dahulu sebelum rotate
+                if await self._is_page_crashed():
+                    self.logger.warning("Exception caused by page crash – restarting browser")
+                    if browser_restart_count < max_browser_restarts:
+                        browser_restart_count += 1
+                        restarted = await self.restart_browser()
+                        if restarted:
+                            attempt -= 1
+                            continue
+                elif await self.is_rate_limited() or await self.is_session_expired():
+                    # is_rate_limited() mendeteksi semua frasa (restart-first maupun rotate).
+                    # Di sini sudah di luar try response → langsung rotate sebagai last resort.
                     if not await self._rotate_account():
                         break
+                    browser_restart_count = 0
                 else:
                     retry_sleep(ROTATION_CONFIG["retry_delay"])
 

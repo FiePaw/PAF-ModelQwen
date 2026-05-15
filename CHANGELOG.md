@@ -5,6 +5,154 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Unreleased] – 2026-05-16 — Browser Restart & Rate Limit Recovery
+
+### `config.py` — Tambah: Kategori rate limit & konfigurasi browser restart
+
+#### Perubahan
+
+Rate limit phrases dipecah menjadi dua kategori dengan alur penanganan berbeda:
+
+| Key | Isi | Alur |
+|---|---|---|
+| `rate_limit_restart_first_phrases` | `allocated quota exceeded`, `token limit`, `quota exceeded`, `usage limit`, `daily limit`, `increase your quota limit` | Restart browser → retry → jika masih gagal → rotate akun |
+| `rate_limit_rotate_phrases` | `rate limit`, `too many requests`, `please try again later`, `request limit`, `you've reached` | Langsung rotate akun |
+| `rate_limit_phrases` | Gabungan keduanya | Dipakai `is_rate_limited()` untuk deteksi umum |
+
+Tambah key konfigurasi baru:
+
+```python
+"max_browser_restarts": 3,      # maks restart per akun sebelum fallback rotate
+"browser_restart_delay": 5,     # jeda sebelum restart browser (detik)
+```
+
+Tambah `page_crash_phrases` untuk deteksi halaman crash fatal:
+
+```python
+"page_crash_phrases": [
+    "oops! something unexpected happened",
+    "something unexpected happened",
+    "failure code:",
+    "try refreshing",
+    "oops! there was an issue connecting",
+]
+```
+
+---
+
+### `scrapers/base_scraper.py` — Tambah: `_is_page_crashed()`, `restart_browser()`, alur rate limit bertahap
+
+#### Masalah
+
+Dua jenis error dari gambar debug yang diterima:
+
+1. **`Allocated quota exceeded`** (rate limit Alibaba Cloud / token limit) — sebelumnya langsung rotate akun, padahal sering kali cukup diselesaikan dengan restart browser + sesi baru pada akun yang sama.
+2. **`Oops! Something unexpected happened`** (halaman Qwen crash) — tidak ada penanganan khusus, browser dibiarkan dalam kondisi crash dan request berikutnya pasti gagal.
+
+#### Perubahan
+
+**Method baru `_is_page_crashed()`**
+
+Deteksi crash halaman dengan scan teks body terhadap `page_crash_phrases`. Jika `inner_text()` sendiri gagal (halaman tidak responsif), dianggap crash.
+
+```python
+async def _is_page_crashed(self) -> bool: ...
+```
+
+**Method baru `restart_browser()`**
+
+Tutup semua resource Playwright (context, browser, playwright instance) lalu relaunch dengan cookie/profile akun yang sama. Counter `browser_restart_count` dilacak per-akun dan direset ke 0 setiap kali rotate ke akun baru.
+
+```python
+async def restart_browser(self, cookie_file: Path | None = None) -> bool: ...
+```
+
+**Alur baru `scrape()` untuk rate limit quota/token**
+
+```
+Response mengandung "allocated quota exceeded" / "token limit" / dll
+  │
+  ├─ browser_restart_count < max_browser_restarts (default 3)?
+  │     → restart_browser() → retry attempt yang sama (attempt -= 1)
+  │       browser_restart_count += 1
+  │
+  └─ browser_restart_count habis / restart gagal
+        → fallback _rotate_account() ke akun berikutnya
+          browser_restart_count = 0  ← reset untuk akun baru
+```
+
+**Alur baru `scrape()` untuk page crash**
+
+```
+_is_page_crashed() == True  (sebelum kirim prompt ATAU setelah dapat response)
+  │
+  ├─ browser_restart_count < max_browser_restarts?
+  │     → restart_browser() → retry
+  │
+  └─ restart habis → break (all attempts exhausted)
+```
+
+Selain itu, `browser_restart_count` juga direset ke `0` setiap kali:
+- Rotate ke akun baru (karena counter berlaku per-akun)
+- Session expired → rotate
+
+---
+
+### `scrapers/qwen_scraper.py` — Fix: Raise exception jika page crash setelah navigate
+
+#### Perubahan
+
+`_goto_new_chat()` sekarang memanggil `_is_page_crashed()` setelah navigate berhasil. Jika crash terdeteksi, raise `RuntimeError` sehingga `scrape()` menangkapnya di blok `except Exception` dan memicu `restart_browser()`.
+
+```python
+# Sebelum: navigate selesai → langsung lanjut, tidak cek apakah halaman sehat
+await self._page.goto(self.BASE_URL, ...)
+
+# Sesudah: cek crash dulu
+if await self._is_page_crashed():
+    raise RuntimeError("Page crashed after navigation to Qwen")
+```
+
+---
+
+### `browser_pool.py` — Fix: Deteksi crash pada slot sebelum dan sesudah task
+
+#### Masalah
+
+Slot pool di mode worker VPS bisa dalam kondisi crash (halaman error) tanpa terdeteksi, sehingga task berikutnya yang mengambil slot tersebut pasti gagal.
+
+#### Perubahan
+
+**`acquire()` — cek crash sebelum yield slot ke task**
+
+```python
+# Sebelum: slot idle langsung diserahkan ke task
+yield slot.scraper, slot.cookie_file.name, slot.slot_id
+
+# Sesudah: cek crash dulu, kalau crash → mark DEAD + respawn + cari slot lain
+if slot.scraper and await slot.scraper._is_page_crashed():
+    slot.mark_dead()
+    self._schedule_respawn(slot)
+    continue   # kembali cari slot idle yang sehat
+```
+
+**`_reset_slot_page()` — cek crash setelah task selesai**
+
+```python
+# Sebelum: langsung reset flag → slot kembali IDLE
+slot.scraper._conversation_started = False
+
+# Sesudah: cek crash dulu
+if await slot.scraper._is_page_crashed():
+    slot.mark_dead()
+    self._schedule_respawn(slot)
+    return   # tidak kembalikan ke IDLE
+```
+
+Jika `_reset_slot_page()` menandai slot DEAD, `acquire()` tidak akan memaksa status kembali ke IDLE — respawn sudah dijadwalkan otomatis.
+
+---
+
 ## [Unreleased] – 2026-05-15 — Optimasi & Model Selector
 
 ### `public.py` — Fix: Skip `goto()` pada CONTINUE jika browser sudah di halaman yang benar
