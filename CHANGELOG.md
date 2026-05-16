@@ -5,6 +5,149 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Unreleased] – 2026-05-16 — Console Command: addaccount
+
+### `browser_pool.py` — Tambah: `add_account(cookie_filename)`
+
+Method baru yang mendaftarkan akun baru ke pool secara runtime tanpa perlu restart worker.
+
+**Alur:**
+1. Normalisasi nama file — ekstensi `.json` ditambahkan otomatis jika tidak disertakan
+2. Validasi file cookie ada di `cookies_dir`
+3. Validasi akun belum terdaftar di pool (cek berdasarkan path)
+4. Buat `BrowserSlot` baru dengan `slot_id = max(existing) + 1`
+5. Jalankan `_init_slot()` → browser langsung warm & IDLE
+
+```python
+async def add_account(self, cookie_filename: str) -> dict:
+    # returns {"ok": bool, "slot_id": int | None, "message": str}
+```
+
+Contoh return sukses:
+```json
+{"ok": true, "slot_id": 4, "message": "Akun 'account5' berhasil ditambahkan sebagai Slot#4 dan siap digunakan"}
+```
+
+---
+
+### `public.py` — Tambah: Perintah console `addaccount`
+
+Tambah handler `addaccount <namaFileCookies>` di `_run_console_command()` dan update `CONSOLE_HELP`.
+
+**Penggunaan:**
+```
+addaccount account5
+addaccount account5.json   ← keduanya ekuivalen
+```
+
+Output di console:
+```
+  Mendaftarkan akun dari file 'account5.json' ...
+  [OK] (Slot#4) Akun 'account5' berhasil ditambahkan sebagai Slot#4 dan siap digunakan
+```
+
+Error jika file tidak ditemukan atau sudah terdaftar:
+```
+  [GAGAL] File cookie tidak ditemukan: cookies/account5.json
+  [GAGAL] (Slot#2) Akun 'account5' sudah terdaftar di Slot#2 (status: idle)
+```
+
+---
+
+## [Unreleased] – 2026-05-16 — Admin Commands: listaccounts, busyaccounts, showheadless
+
+### `browser_pool.py` — Tambah: Account management methods
+
+#### Perubahan
+
+Tambah atribut baru di `__init__`:
+
+```python
+self._no_headless_slot_ids: set[int] = set()
+```
+
+Set ini melacak `slot_id` mana saja yang sedang berjalan dalam mode `--no-headless`. Dipakai oleh `restart_slot_no_headless()` dan `stop_all_no_headless()` untuk membedakan slot normal vs visible.
+
+Tambah 4 method baru:
+
+**`list_accounts() → list[dict]`**
+
+Kembalikan semua akun beserta status dan flag `no_headless`:
+
+```python
+[
+  {"account": "account1", "status": "idle",  "slot_id": 0, "no_headless": False},
+  {"account": "account2", "status": "busy",  "slot_id": 1, "no_headless": True},
+]
+```
+
+**`busy_accounts() → list[dict]`**
+
+Filter dari `list_accounts()` — hanya akun dengan `status == "busy"`.
+
+**`restart_slot_no_headless(account_name: str) → dict`**
+
+Restart satu slot dengan browser visible (`headless=False`):
+- Cari slot berdasarkan `cookie_file.stem == account_name`
+- Jika slot **BUSY** → tolak, kembalikan `{"ok": False, ...}`
+- Tutup browser lama → spawn ulang dengan `headless=False`
+- Tandai `slot_id` di `_no_headless_slot_ids`
+
+**`stop_all_no_headless() → dict`**
+
+Restart semua slot di `_no_headless_slot_ids` kembali ke `headless` normal (sesuai `self.headless`):
+- Slot BUSY di-skip dan dilaporkan di key `"skipped"`
+- Slot yang berhasil direstart dilaporkan di key `"restarted"`
+- `_no_headless_slot_ids` dibersihkan untuk slot yang berhasil
+
+---
+
+### `public.py` — Tambah: Handler command WebSocket dari VPS
+
+#### Cara kerja
+
+Perintah dikirim dari VPS sebagai pesan WebSocket bertipe `"command"`:
+
+```json
+{
+  "type": "command",
+  "command_id": "<uuid>",
+  "command": "listaccounts",
+  "args": {}
+}
+```
+
+Worker membalas dengan tipe `"command_result"`:
+
+```json
+{
+  "type": "command_result",
+  "command_id": "<uuid>",
+  "data": { "ok": true, "accounts": [...] }
+}
+```
+
+#### Perintah yang didukung
+
+| Perintah | Args | Keterangan |
+|---|---|---|
+| `listaccounts` | — | Tampilkan semua akun + status + flag no_headless |
+| `busyaccounts` | — | Tampilkan hanya akun yang sedang BUSY |
+| `showheadless` | `{"account": "account1"}` | Restart akun tertentu dalam mode no-headless (jika tidak BUSY) |
+| `showheadlessstop` | — | Restart semua slot no-headless kembali ke mode normal |
+
+#### Tambahan method `_handle_command(ws, command_id, command, args)`
+
+Method async baru di `LocalWorker` yang:
+1. Parse `command` ke salah satu dari 4 perintah di atas
+2. Delegasikan ke method pool yang sesuai
+3. Kirim `command_result` kembali ke VPS
+4. Handle exception — error dikirim balik ke VPS dengan `"ok": false`
+
+Perintah berjalan via `asyncio.create_task()` (non-blocking), tidak mengganggu alur penerimaan task biasa.
+
+---
+
 ## [Unreleased] – 2026-05-16 — Browser Restart & Rate Limit Recovery
 
 ### `config.py` — Tambah: Kategori rate limit & konfigurasi browser restart

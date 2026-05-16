@@ -98,6 +98,9 @@ class BrowserPool:
         self.think_mode  = think_mode
 
         self._slots: list[BrowserSlot] = []
+        # Kumpulan slot_id yang sedang berjalan dalam mode no-headless.
+        # Dipakai oleh restart_slot_no_headless() dan stop_all_no_headless().
+        self._no_headless_slot_ids: set[int] = set()
         self._lock  = asyncio.Lock()          # untuk modifikasi _slots
         self._idle_event = asyncio.Event()    # di-set setiap kali ada slot → IDLE
         self._started = False
@@ -430,6 +433,257 @@ class BrowserPool:
             "busy"    : counts[SlotStatus.BUSY],
             "starting": counts[SlotStatus.STARTING],
             "dead"    : counts[SlotStatus.DEAD],
+        }
+
+    # ── Account command helpers ───────────────────────────────────────────────
+
+    async def add_account(self, cookie_filename: str) -> dict:
+        """
+        Daftarkan akun baru ke pool secara runtime tanpa restart worker.
+
+        Alur:
+          1. Resolve path: cookies_dir / cookie_filename
+             (boleh dengan atau tanpa ekstensi .json)
+          2. Validasi file ada dan belum terdaftar di pool.
+          3. Buat BrowserSlot baru dengan slot_id berikutnya.
+          4. Jalankan _init_slot → browser langsung warm & IDLE.
+
+        Returns dict {"ok": bool, "message": str, "slot_id": int | None}.
+        """
+        # Normalisasi nama file: pastikan berekstensi .json
+        name = cookie_filename.strip()
+        if not name.endswith(".json"):
+            name += ".json"
+
+        cookie_path = self.cookies_dir / name
+
+        # Validasi: file harus ada
+        if not cookie_path.exists():
+            return {
+                "ok"     : False,
+                "slot_id": None,
+                "message": f"File cookie tidak ditemukan: {cookie_path}",
+            }
+
+        # Validasi: belum terdaftar di pool
+        for slot in self._slots:
+            if slot.cookie_file.resolve() == cookie_path.resolve():
+                return {
+                    "ok"     : False,
+                    "slot_id": slot.slot_id,
+                    "message": (
+                        f"Akun '{cookie_path.stem}' sudah terdaftar "
+                        f"di Slot#{slot.slot_id} (status: {slot.status.name.lower()})"
+                    ),
+                }
+
+        # Buat slot baru
+        new_slot_id = max((s.slot_id for s in self._slots), default=-1) + 1
+        slot = BrowserSlot(slot_id=new_slot_id, cookie_file=cookie_path)
+
+        async with self._lock:
+            self._slots.append(slot)
+
+        logger.info(
+            "addaccount: menambahkan Slot#%d untuk akun '%s' …",
+            new_slot_id, cookie_path.stem,
+        )
+
+        await self._init_slot(slot)
+
+        if slot.status == SlotStatus.IDLE:
+            return {
+                "ok"     : True,
+                "slot_id": new_slot_id,
+                "message": (
+                    f"Akun '{cookie_path.stem}' berhasil ditambahkan "
+                    f"sebagai Slot#{new_slot_id} dan siap digunakan"
+                ),
+            }
+        else:
+            return {
+                "ok"     : False,
+                "slot_id": new_slot_id,
+                "message": (
+                    f"Slot#{new_slot_id} untuk akun '{cookie_path.stem}' "
+                    f"gagal inisialisasi (status: {slot.status.name.lower()})"
+                ),
+            }
+
+    def list_accounts(self) -> list[dict]:
+        """
+        Kembalikan daftar semua akun beserta status slot-nya.
+
+        Return contoh:
+            [
+                {"account": "account1", "status": "idle",  "slot_id": 0, "no_headless": False},
+                {"account": "account2", "status": "busy",  "slot_id": 1, "no_headless": True},
+            ]
+        """
+        return [
+            {
+                "account"    : slot.cookie_file.stem,
+                "status"     : slot.status.name.lower(),
+                "slot_id"    : slot.slot_id,
+                "no_headless": slot.slot_id in self._no_headless_slot_ids,
+            }
+            for slot in self._slots
+        ]
+
+    def busy_accounts(self) -> list[dict]:
+        """Kembalikan hanya akun yang sedang BUSY."""
+        return [a for a in self.list_accounts() if a["status"] == "busy"]
+
+    async def restart_slot_no_headless(self, account_name: str) -> dict:
+        """
+        Restart slot milik *account_name* dengan mode --no-headless (visible window).
+
+        Alur:
+          1. Cari slot dengan cookie_file.stem == account_name.
+          2. Jika slot sedang BUSY → tolak (kembalikan error).
+          3. Tutup browser lama, init ulang dengan headless=False.
+          4. Tandai slot_id di _no_headless_slot_ids.
+
+        Returns dict {"ok": bool, "message": str}.
+        """
+        target: BrowserSlot | None = None
+        for slot in self._slots:
+            if slot.cookie_file.stem == account_name:
+                target = slot
+                break
+
+        if target is None:
+            return {"ok": False, "message": f"Akun '{account_name}' tidak ditemukan"}
+
+        if target.status == SlotStatus.BUSY:
+            return {
+                "ok": False,
+                "message": f"Akun '{account_name}' sedang BUSY — tidak bisa direstart",
+            }
+
+        logger.info(
+            "showheadless: restart Slot#%d (%s) → no-headless …",
+            target.slot_id, account_name,
+        )
+
+        # Tutup browser lama
+        if target.scraper:
+            try:
+                await target.scraper.close_browser()
+            except Exception:
+                pass
+            target.scraper = None
+        target.mark_dead()
+
+        # Simpan override headless untuk slot ini sebelum _init_slot
+        self._no_headless_slot_ids.add(target.slot_id)
+
+        # Spawn scraper baru dengan headless=False (override sementara)
+        target.status = SlotStatus.STARTING
+        try:
+            scraper = QwenScraper(
+                headless=False,
+                cookies_path=target.cookie_file,
+                cookies_dir=self.cookies_dir,
+                think_mode=self.think_mode,
+            )
+            scraper._discover_accounts()
+            try:
+                idx = scraper._cookie_files.index(target.cookie_file)
+                scraper._cookie_index = idx
+            except ValueError:
+                scraper.cookies_path = target.cookie_file
+
+            await scraper.launch_browser(cookie_file=target.cookie_file)
+            target.scraper = scraper
+            target.mark_idle()
+            self._idle_event.set()
+            logger.info(
+                "showheadless: Slot#%d (%s) ✅ berjalan no-headless",
+                target.slot_id, account_name,
+            )
+            return {
+                "ok": True,
+                "message": f"Akun '{account_name}' (Slot#{target.slot_id}) berhasil direstart dalam mode no-headless",
+            }
+        except Exception as e:
+            target.mark_dead()
+            self._no_headless_slot_ids.discard(target.slot_id)
+            logger.error(
+                "showheadless: Slot#%d (%s) ❌ gagal restart: %s",
+                target.slot_id, account_name, e, exc_info=True,
+            )
+            return {
+                "ok": False,
+                "message": f"Gagal restart akun '{account_name}': {e}",
+            }
+
+    async def stop_all_no_headless(self) -> dict:
+        """
+        Restart semua slot yang sedang berjalan dalam mode no-headless,
+        kembalikan ke mode headless normal (sesuai self.headless).
+
+        Slot yang BUSY di-skip dan dilaporkan.
+
+        Returns dict {"ok": bool, "restarted": list, "skipped": list, "message": str}.
+        """
+        restarted: list[str] = []
+        skipped: list[str]   = []
+
+        targets = [
+            slot for slot in self._slots
+            if slot.slot_id in self._no_headless_slot_ids
+        ]
+
+        if not targets:
+            return {
+                "ok": True,
+                "restarted": [],
+                "skipped"  : [],
+                "message"  : "Tidak ada slot yang berjalan dalam mode no-headless",
+            }
+
+        for slot in targets:
+            account_name = slot.cookie_file.stem
+            if slot.status == SlotStatus.BUSY:
+                skipped.append(account_name)
+                logger.warning(
+                    "showheadlessstop: Slot#%d (%s) BUSY – skip",
+                    slot.slot_id, account_name,
+                )
+                continue
+
+            logger.info(
+                "showheadlessstop: restart Slot#%d (%s) → headless=%s …",
+                slot.slot_id, account_name, self.headless,
+            )
+
+            # Hapus dari set no-headless dulu sebelum restart
+            self._no_headless_slot_ids.discard(slot.slot_id)
+
+            if slot.scraper:
+                try:
+                    await slot.scraper.close_browser()
+                except Exception:
+                    pass
+                slot.scraper = None
+            slot.mark_dead()
+
+            # Respawn normal (pakai self.headless)
+            await self._init_slot(slot)
+            restarted.append(account_name)
+
+        parts = []
+        if restarted:
+            parts.append(f"Restarted: {', '.join(restarted)}")
+        if skipped:
+            parts.append(f"Skipped (busy): {', '.join(skipped)}")
+
+        return {
+            "ok"       : True,
+            "restarted": restarted,
+            "skipped"  : skipped,
+            "message"  : " | ".join(parts) if parts else "Selesai",
         }
 
     def __repr__(self) -> str:

@@ -483,6 +483,97 @@ class LocalWorker:
         except Exception as e:
             logger.error("Worker#%s Gagal kirim result ke VPS: %s", self._label, e)
 
+    async def _handle_command(self, ws, command_id: str, command: str, args: dict) -> None:
+        """
+        Proses perintah admin yang dikirim VPS.
+
+        Perintah yang didukung:
+          listaccounts       → daftar semua akun + status
+          busyaccounts       → daftar akun yang sedang BUSY
+          showheadless       → restart satu akun dalam mode no-headless
+                               args: {"account": "<namaAccount>"}
+          showheadlessstop   → restart semua slot no-headless kembali ke mode normal
+        """
+        pool = self.processor.pool
+        cmd  = command.strip().lower()
+        result: dict
+
+        try:
+            if cmd == "listaccounts":
+                accounts = pool.list_accounts()
+                result = {
+                    "ok"      : True,
+                    "command" : command,
+                    "accounts": accounts,
+                    "total"   : len(accounts),
+                }
+                logger.info(
+                    "Command [listaccounts]: %d akun – %s",
+                    len(accounts),
+                    [a["account"] + "(" + a["status"] + ")" for a in accounts],
+                )
+
+            elif cmd == "busyaccounts":
+                busy = pool.busy_accounts()
+                result = {
+                    "ok"      : True,
+                    "command" : command,
+                    "accounts": busy,
+                    "total"   : len(busy),
+                }
+                logger.info(
+                    "Command [busyaccounts]: %d akun busy – %s",
+                    len(busy),
+                    [a["account"] for a in busy],
+                )
+
+            elif cmd == "showheadless":
+                account_name = args.get("account", "").strip()
+                if not account_name:
+                    result = {
+                        "ok"     : False,
+                        "command": command,
+                        "message": "Harap sertakan nama akun. Contoh: showheadless account1",
+                    }
+                else:
+                    logger.info("Command [showheadless]: target akun = '%s'", account_name)
+                    result = await pool.restart_slot_no_headless(account_name)
+                    result["command"] = command
+
+            elif cmd == "showheadlessstop":
+                logger.info("Command [showheadlessstop]: menghentikan semua slot no-headless …")
+                result = await pool.stop_all_no_headless()
+                result["command"] = command
+
+            else:
+                result = {
+                    "ok"     : False,
+                    "command": command,
+                    "message": (
+                        f"Perintah tidak dikenal: '{command}'. "
+                        "Perintah yang tersedia: listaccounts | busyaccounts | "
+                        "showheadless <namaAccount> | showheadlessstop"
+                    ),
+                }
+                logger.warning("Command tidak dikenal: '%s'", command)
+
+        except Exception as e:
+            logger.error("Error saat menjalankan command '%s': %s", command, e, exc_info=True)
+            result = {
+                "ok"     : False,
+                "command": command,
+                "message": f"Internal error: {e}",
+            }
+
+        try:
+            await ws.send(json.dumps({
+                "type"      : "command_result",
+                "command_id": command_id,
+                "data"      : result,
+            }))
+        except Exception as e:
+            logger.error("Gagal kirim command_result ke VPS: %s", e)
+
     async def _keepalive(self, ws) -> None:
         """Kirim ping ke VPS setiap 30 detik supaya koneksi tidak putus."""
         while True:
@@ -554,6 +645,19 @@ class LocalWorker:
                     elif msg_type == "pong":
                         logger.debug("Worker#%s Pong dari VPS", self._label)
 
+                    elif msg_type == "command":
+                        command_id = msg.get("command_id", "")
+                        command    = msg.get("command", "")
+                        cmd_args   = msg.get("args", {})
+                        logger.info(
+                            "Worker#%s ← Command [%s]: '%s' args=%s",
+                            self._label, command_id[:8] if command_id else "-",
+                            command, cmd_args,
+                        )
+                        asyncio.create_task(
+                            self._handle_command(ws, command_id, command, cmd_args)
+                        )
+
                     else:
                         logger.debug(
                             "Worker#%s Pesan tidak dikenal: %s",
@@ -581,6 +685,127 @@ class LocalWorker:
 
     def stop(self) -> None:
         self._running = False
+
+
+# ─── Console Command Loop ──────────────────────────────────────────────────────
+
+CONSOLE_HELP = """
+╔══════════════════════════════════════════════════════════╗
+║              Perintah Console Worker                     ║
+╠══════════════════════════════════════════════════════════╣
+║  listaccounts             Tampilkan semua akun + status  ║
+║  busyaccounts             Tampilkan akun yang BUSY       ║
+║  addaccount <file>        Daftarkan akun baru dari file  ║
+║                           cookie (tanpa/dengan .json)    ║
+║  showheadless <account>   Restart akun dalam mode        ║
+║                           no-headless (browser visible)  ║
+║  showheadlessstop         Kembalikan semua no-headless   ║
+║                           ke mode headless normal        ║
+║  help                     Tampilkan bantuan ini          ║
+╚══════════════════════════════════════════════════════════╝
+"""
+
+
+async def _run_console_command(pool: "BrowserPool", line: str) -> None:
+    """
+    Parse dan eksekusi satu baris perintah console langsung ke BrowserPool.
+    Output dicetak ke stdout agar mudah dibaca di console.
+    """
+    parts = line.strip().split()
+    if not parts:
+        return
+
+    cmd = parts[0].lower()
+
+    # ── listaccounts ──────────────────────────────────────────────────────────
+    if cmd == "listaccounts":
+        accounts = pool.list_accounts()
+        print()
+        print(f"  {'ACCOUNT':<20} {'STATUS':<10} {'SLOT':>4}  {'NO-HEADLESS'}")
+        print("  " + "-" * 50)
+        for a in accounts:
+            nh = "yes" if a["no_headless"] else ""
+            print(f"  {a['account']:<20} {a['status']:<10} {a['slot_id']:>4}  {nh}")
+        print(f"\n  Total: {len(accounts)} akun\n")
+
+    # ── busyaccounts ──────────────────────────────────────────────────────────
+    elif cmd == "busyaccounts":
+        busy = pool.busy_accounts()
+        print()
+        if not busy:
+            print("  Tidak ada akun yang sedang BUSY.\n")
+        else:
+            print(f"  {'ACCOUNT':<20} {'STATUS':<10} {'SLOT':>4}")
+            print("  " + "-" * 36)
+            for a in busy:
+                print(f"  {a['account']:<20} {a['status']:<10} {a['slot_id']:>4}")
+            print(f"\n  Total busy: {len(busy)} akun\n")
+
+    # ── addaccount <file> ────────────────────────────────────────────────────
+    elif cmd == "addaccount":
+        if len(parts) < 2:
+            print("\n  Harap sertakan nama file cookie. Contoh: addaccount account3.json\n")
+            return
+        cookie_filename = parts[1]
+        print(f"\n  Mendaftarkan akun dari file '{cookie_filename}' ...")
+        result = await pool.add_account(cookie_filename)
+        ok = "OK" if result["ok"] else "GAGAL"
+        slot_info = f" (Slot#{result['slot_id']})" if result["slot_id"] is not None else ""
+        print(f"  [{ok}]{slot_info} {result['message']}\n")
+
+    # ── showheadless <account> ────────────────────────────────────────────────
+    elif cmd == "showheadless":
+        if len(parts) < 2:
+            print("\n  Harap sertakan nama akun. Contoh: showheadless account1\n")
+            return
+        account_name = parts[1]
+        print(f"\n  Merestart '{account_name}' dalam mode no-headless ...")
+        result = await pool.restart_slot_no_headless(account_name)
+        ok = "OK" if result["ok"] else "GAGAL"
+        print(f"  [{ok}] {result['message']}\n")
+
+    # ── showheadlessstop ──────────────────────────────────────────────────────
+    elif cmd == "showheadlessstop":
+        print("\n  Menghentikan semua slot no-headless ...")
+        result = await pool.stop_all_no_headless()
+        ok = "OK" if result["ok"] else "GAGAL"
+        print(f"  [{ok}] {result['message']}")
+        if result.get("restarted"):
+            print(f"  Restarted : {', '.join(result['restarted'])}")
+        if result.get("skipped"):
+            print(f"  Skipped   : {', '.join(result['skipped'])} (sedang busy)")
+        print()
+
+    # ── help ──────────────────────────────────────────────────────────────────
+    elif cmd in ("help", "?"):
+        print(CONSOLE_HELP)
+
+    else:
+        print(f"\n  Perintah tidak dikenal: '{line.strip()}'. Ketik 'help' untuk bantuan.\n")
+
+
+async def _console_loop(pool: "BrowserPool", worker: "LocalWorker") -> None:
+    """
+    Baca perintah dari stdin secara async (tidak memblokir event loop).
+    Berjalan paralel dengan worker.run() via asyncio.gather().
+    """
+    loop = asyncio.get_event_loop()
+    print(CONSOLE_HELP)
+    while worker._running:
+        try:
+            # input() blocking — jalankan di thread pool agar tidak blokir event loop
+            line: str = await loop.run_in_executor(None, sys.stdin.readline)
+        except (EOFError, KeyboardInterrupt):
+            break
+
+        line = line.strip()
+        if not line:
+            continue
+
+        try:
+            await _run_console_command(pool, line)
+        except Exception as e:
+            print(f"\n  Error saat menjalankan perintah: {e}\n")
 
 
 # ─── CLI ───────────────────────────────────────────────────────────────────────
@@ -662,9 +887,12 @@ def main() -> None:
             reconnect_delay=args.reconnect_delay,
         )
 
-        # 3. Jalankan worker; tutup pool saat selesai
+        # 3. Jalankan worker + console loop paralel; tutup pool saat selesai
         try:
-            await worker.run()
+            await asyncio.gather(
+                worker.run(),
+                _console_loop(pool, worker),
+            )
         finally:
             logger.info("Menutup BrowserPool...")
             await pool.stop()
