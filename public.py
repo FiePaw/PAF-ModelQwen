@@ -39,7 +39,7 @@ from websockets.exceptions import ConnectionClosed
 sys.path.insert(0, str(Path(__file__).parent))
 
 from browser_pool import BrowserPool
-from config import COOKIES_DIR, PERSISTENT_CONTEXT_CONFIG
+from config import COOKIES_DIR, DATA_SESSION_DIR, PERSISTENT_CONTEXT_CONFIG
 from scrapers.utils import setup_logger
 
 logger = setup_logger("local_worker")
@@ -62,16 +62,132 @@ class Session:
 
 
 class SessionStore:
-    def __init__(self, ttl: int = 3600) -> None:
+    """
+    In-memory session store dengan persistensi ke disk (dataSession/*.json).
+
+    Setiap session disimpan sebagai file JSON tersendiri:
+        dataSession/<session_id>.json
+
+    Saat startup, semua file JSON di folder tersebut di-load kembali ke memory
+    sehingga session yang belum expired tetap bisa dilanjutkan walau worker
+    sempat dimatikan (Ctrl+C / crash / restart).
+
+    File JSON ditulis ulang setiap kali session di-update (create / touch),
+    dan dihapus dari disk saat session expired.
+    """
+
+    def __init__(self, ttl: int = 3600, store_dir: Path = DATA_SESSION_DIR) -> None:
         self._sessions: dict[str, Session] = {}
         self._lock = asyncio.Lock()
         self.ttl = ttl
+        self.store_dir = store_dir
+        self.store_dir.mkdir(parents=True, exist_ok=True)
+
+    # ── Disk helpers ──────────────────────────────────────────────────────────
+
+    def _session_path(self, session_id: str) -> Path:
+        return self.store_dir / f"{session_id}.json"
+
+    def _to_dict(self, s: Session) -> dict:
+        return {
+            "session_id":       s.session_id,
+            "cookie_file":      str(s.cookie_file),
+            "conversation_url": s.conversation_url,
+            "created_at":       s.created_at,
+            "last_used":        s.last_used,
+            "turn_count":       s.turn_count,
+        }
+
+    def _from_dict(self, d: dict) -> Session:
+        return Session(
+            session_id=d["session_id"],
+            cookie_file=Path(d["cookie_file"]),
+            conversation_url=d.get("conversation_url"),
+            created_at=d.get("created_at", time.time()),
+            last_used=d.get("last_used", time.time()),
+            turn_count=d.get("turn_count", 0),
+        )
+
+    def _save_to_disk(self, s: Session) -> None:
+        """Tulis session ke disk (sync, dipanggil di dalam async lock)."""
+        try:
+            path = self._session_path(s.session_id)
+            path.write_text(
+                json.dumps(self._to_dict(s), indent=2, ensure_ascii=False),
+                encoding="utf-8",
+            )
+        except Exception as e:
+            logger.warning("SessionStore: gagal simpan session %s ke disk: %s", s.session_id[:8], e)
+
+    def _delete_from_disk(self, session_id: str) -> None:
+        """Hapus file session dari disk."""
+        try:
+            path = self._session_path(session_id)
+            if path.exists():
+                path.unlink()
+        except Exception as e:
+            logger.warning("SessionStore: gagal hapus file session %s: %s", session_id[:8], e)
+
+    # ── Startup load ──────────────────────────────────────────────────────────
+
+    def load_from_disk(self) -> int:
+        """
+        Load semua session dari disk ke memory saat startup.
+        Session yang sudah expired langsung dihapus dari disk.
+        Return: jumlah session yang berhasil di-restore.
+        """
+        now = time.time()
+        restored = 0
+        expired_files = []
+
+        for path in self.store_dir.glob("*.json"):
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+                s = self._from_dict(data)
+
+                if now - s.last_used > self.ttl:
+                    # Session sudah expired — hapus file
+                    expired_files.append(path)
+                    continue
+
+                self._sessions[s.session_id] = s
+                restored += 1
+                logger.debug(
+                    "SessionStore: restore session %s (cookie=%s, url=%s)",
+                    s.session_id[:8],
+                    s.cookie_file.name,
+                    s.conversation_url or "-",
+                )
+            except Exception as e:
+                logger.warning("SessionStore: gagal baca file session %s: %s", path.name, e)
+
+        for path in expired_files:
+            try:
+                path.unlink()
+            except Exception:
+                pass
+
+        if restored:
+            logger.info(
+                "SessionStore: %d session di-restore dari disk (%d expired dihapus)",
+                restored, len(expired_files),
+            )
+        else:
+            logger.info(
+                "SessionStore: tidak ada session aktif di disk (%d expired dihapus)",
+                len(expired_files),
+            )
+
+        return restored
+
+    # ── Public API ────────────────────────────────────────────────────────────
 
     async def create(self, cookie_file: Path, session_id: str | None = None) -> Session:
         async with self._lock:
             sid = session_id or uuid.uuid4().hex
             session = Session(session_id=sid, cookie_file=cookie_file)
             self._sessions[sid] = session
+            self._save_to_disk(session)
             return session
 
     async def get(self, session_id: str) -> Session | None:
@@ -81,6 +197,7 @@ class SessionStore:
                 return None
             if time.time() - s.last_used > self.ttl:
                 del self._sessions[session_id]
+                self._delete_from_disk(session_id)
                 return None
             return s
 
@@ -91,24 +208,21 @@ class SessionStore:
                 return existing
         return await self.create(cookie_file, session_id=session_id)
 
-    async def cleanup_expired(self) -> int:
-        """Hapus semua session expired. Return jumlah yang dihapus."""
+    async def update(self, s: Session) -> None:
+        """Simpan ulang session ke disk setelah dimodifikasi (misal: touch, update URL)."""
         async with self._lock:
-            now = time.time()
-            expired = [sid for sid, s in self._sessions.items()
-                       if now - s.last_used > self.ttl]
-            for sid in expired:
-                del self._sessions[sid]
-            return len(expired)
+            self._sessions[s.session_id] = s
+            self._save_to_disk(s)
 
     async def cleanup_expired(self) -> int:
-        """Hapus semua session expired. Return jumlah yang dihapus."""
+        """Hapus semua session expired dari memory dan disk. Return jumlah yang dihapus."""
         async with self._lock:
             now = time.time()
             expired = [sid for sid, s in self._sessions.items()
                        if now - s.last_used > self.ttl]
             for sid in expired:
                 del self._sessions[sid]
+                self._delete_from_disk(sid)
             return len(expired)
 
 
@@ -211,7 +325,9 @@ class TaskProcessor:
 
     def __init__(self, pool: BrowserPool, session_ttl: int = 3600) -> None:
         self.pool = pool
-        self.sessions = SessionStore(ttl=session_ttl)
+        self.sessions = SessionStore(ttl=session_ttl, store_dir=DATA_SESSION_DIR)
+        # Load session yang tersimpan dari run sebelumnya
+        self.sessions.load_from_disk()
         # Per-session lock untuk task CONTINUE agar tidak tumpang tindih
         self._session_locks: dict[str, asyncio.Lock] = {}
         self._session_locks_meta: dict[str, float] = {}
@@ -412,6 +528,8 @@ class TaskProcessor:
             if current_url and "chat.qwen.ai" in current_url:
                 session.conversation_url = current_url
             session.touch()
+            # Simpan perubahan (URL + last_used + turn_count) ke disk
+            await self.sessions.update(session)
 
             logger.info(
                 "Worker#%s ✅ [%s] %d chars | session=%s | cookie=%s | url=%s",

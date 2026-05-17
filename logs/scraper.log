@@ -13975,3 +13975,239 @@ Balas HANYA dengan JSON valid berikut (tanpa komentar, tanpa markdown backtick):
 2026-05-18 02:21:50 [WARNING] browser_pool: Slot#7 close error: BrowserContext.close: Connection closed while reading from the driver
 2026-05-18 02:21:50 [WARNING] browser_pool: Slot#8 close error: BrowserContext.close: Connection closed while reading from the driver
 2026-05-18 02:21:50 [INFO] local_worker: Worker dihentikan.
+2026-05-18 02:21:58 [INFO] local_worker: ==========================================================
+2026-05-18 02:21:58 [INFO] local_worker:   Local Worker – AIChatScraper (BrowserPool)
+2026-05-18 02:21:58 [INFO] local_worker:   VPS         : ws://108.137.15.61:9000/ws/worker
+2026-05-18 02:21:58 [INFO] local_worker:   Pool size   : 11 browser
+2026-05-18 02:21:58 [INFO] local_worker:   Headless    : True
+2026-05-18 02:21:58 [INFO] local_worker:   Cookies dir : C:\Users\RYR\Desktop\PAFQwen\cookies
+2026-05-18 02:21:58 [INFO] local_worker:   Think mode  : dari config
+2026-05-18 02:21:58 [INFO] local_worker:   Token       : ✅ Aktif
+2026-05-18 02:21:58 [INFO] local_worker: ==========================================================
+2026-05-18 02:21:58 [INFO] local_worker: Warming up 11 browser slot(s)...
+2026-05-18 02:21:58 [INFO] browser_pool: BrowserPool: memulai 11 slot (cookie file tersedia: 11)
+2026-05-18 02:21:58 [INFO] QwenScraper: Discovered 11 account cookie file(s): ['account1.json', 'account10.json', 'account11.json', 'account2.json', 'account3.json', 'account4.json', 'account5.json', 'account6.json', 'account7.json', 'account8.json', 'account9.json']
+2026-05-18 02:21:58 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-05-18 02:21:58 [INFO] QwenScraper: Discovered 11 account cookie file(s): ['account1.json', 'account10.json', 'account11.json', 'account2.json', 'account3.json', 'account4.json', 'account5.json', 'account6.json', 'account7.json', 'account8.json', 'account9.json']
+2026-05-18 02:21:58 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-05-18 02:21:58 [INFO] QwenScraper: Discovered 11 account cookie file(s): ['account1.json', 'account10.json', 'account11.json', 'account2.json', 'account3.json', 'account4.json', 'account5.json', 'account6.json', 'account7.json', 'account8.json', 'account9.json']
+2026-05-18 02:21:58 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-05-18 02:21:58 [INFO] QwenScraper: Discovered 11 account cookie file(s): ['account1.json', 'account10.json', 'account11.json', 'account2.json', 'account3.json', 'account4.json', 'account5.json', 'account6.json', 'account7.json', 'account8.json', 'account9.json']
+2026-05-18 02:21:58 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-05-18 02:21:58 [INFO] QwenScraper: Discovered 11 account cookie file(s): ['account1.json', 'account10.json', 'account11.json', 'account2.json', 'account3.json', 'account4.json', 'account5.json', 'account6.json', 'account7.json', 'account8.json', 'account9.json']
+2026-05-18 02:21:58 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-05-18 02:21:58 [INFO] QwenScraper: Discovered 11 account cookie file(s): ['account1.json', 'account10.json', 'account11.json', 'account2.json', 'account3.json', 'account4.json', 'account5.json', 'account6.json', 'account7.json', 'account8.json', 'account9.json']
+2026-05-18 02:21:58 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-05-18 02:21:58 [INFO] QwenScraper: Discovered 11 account cookie file(s): ['account1.json', 'account10.json', 'account11.json', 'account2.json', 'account3.json', 'account4.json', 'account5.json', 'account6.json', 'account7.json', 'account8.json', 'account9.json']
+2026-05-18 02:21:58 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-05-18 02:21:58 [INFO] QwenScraper: Discovered 11 account cookie file(s): ['account1.json', 'account10.json', 'account11.json', 'account2.json', 'account3.json', 'account4.json', 'account5.json', 'account6.json', 'account7.json', 'account8.json', 'account9.json']
+2026-05-18 02:21:58 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-05-18 02:21:58 [INFO] QwenScraper: Discovered 11 account cookie file(s): ['account1.json', 'account10.json', 'account11.json', 'account2.json', 'account3.json', 'account4.json', 'account5.json', 'account6.json', 'account7.json', 'account8.json', 'account9.json']
+2026-05-18 02:21:58 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-05-18 02:21:58 [INFO] QwenScraper: Discovered 11 account cookie file(s): ['account1.json', 'account10.json', 'account11.json', 'account2.json', 'account3.json', 'account4.json', 'account5.json', 'account6.json', 'account7.json', 'account8.json', 'account9.json']
+2026-05-18 02:21:58 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-05-18 02:21:58 [INFO] QwenScraper: Discovered 11 account cookie file(s): ['account1.json', 'account10.json', 'account11.json', 'account2.json', 'account3.json', 'account4.json', 'account5.json', 'account6.json', 'account7.json', 'account8.json', 'account9.json']
+2026-05-18 02:21:58 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-05-18 02:22:04 [INFO] QwenScraper: Reusing existing profile 'account8'
+2026-05-18 02:22:04 [INFO] browser_pool: Slot#9 ✅ siap (cookie: account8.json)
+2026-05-18 02:22:04 [INFO] QwenScraper: Reusing existing profile 'account2'
+2026-05-18 02:22:04 [INFO] browser_pool: Slot#3 ✅ siap (cookie: account2.json)
+2026-05-18 02:22:04 [INFO] QwenScraper: Reusing existing profile 'account5'
+2026-05-18 02:22:04 [INFO] browser_pool: Slot#6 ✅ siap (cookie: account5.json)
+2026-05-18 02:22:04 [INFO] QwenScraper: Reusing existing profile 'account6'
+2026-05-18 02:22:04 [INFO] browser_pool: Slot#7 ✅ siap (cookie: account6.json)
+2026-05-18 02:22:05 [INFO] QwenScraper: Reusing existing profile 'account7'
+2026-05-18 02:22:05 [INFO] browser_pool: Slot#8 ✅ siap (cookie: account7.json)
+2026-05-18 02:22:05 [INFO] QwenScraper: Reusing existing profile 'account10'
+2026-05-18 02:22:05 [INFO] browser_pool: Slot#1 ✅ siap (cookie: account10.json)
+2026-05-18 02:22:05 [INFO] QwenScraper: Reusing existing profile 'account1'
+2026-05-18 02:22:05 [INFO] browser_pool: Slot#0 ✅ siap (cookie: account1.json)
+2026-05-18 02:22:05 [INFO] QwenScraper: Reusing existing profile 'account4'
+2026-05-18 02:22:05 [INFO] browser_pool: Slot#5 ✅ siap (cookie: account4.json)
+2026-05-18 02:22:05 [INFO] QwenScraper: Reusing existing profile 'account11'
+2026-05-18 02:22:05 [INFO] browser_pool: Slot#2 ✅ siap (cookie: account11.json)
+2026-05-18 02:22:05 [INFO] QwenScraper: Reusing existing profile 'account3'
+2026-05-18 02:22:05 [INFO] browser_pool: Slot#4 ✅ siap (cookie: account3.json)
+2026-05-18 02:22:05 [INFO] QwenScraper: Reusing existing profile 'account9'
+2026-05-18 02:22:05 [INFO] browser_pool: Slot#10 ✅ siap (cookie: account9.json)
+2026-05-18 02:22:05 [INFO] browser_pool: BrowserPool: 11/11 slot berhasil IDLE
+2026-05-18 02:22:05 [INFO] local_worker: Pool ready → <BrowserPool total=11 idle=11 busy=0 dead=0>
+2026-05-18 02:22:05 [INFO] local_worker: Worker#0 🔌 Konek ke VPS: ws://108.137.15.61:9000/ws/worker
+2026-05-18 02:22:05 [INFO] local_worker: Worker#0 ✅ Terhubung ke VPS! (max_concurrent=11)
+2026-05-18 02:23:05 [INFO] local_worker: Pool status: total=11 idle=11 busy=0 dead=0 starting=0
+2026-05-18 02:23:06 [INFO] browser_pool: showheadless: restart Slot#9 (account8) → no-headless …
+2026-05-18 02:23:06 [INFO] QwenScraper: Closing browser
+2026-05-18 02:23:06 [INFO] QwenScraper: Discovered 11 account cookie file(s): ['account1.json', 'account10.json', 'account11.json', 'account2.json', 'account3.json', 'account4.json', 'account5.json', 'account6.json', 'account7.json', 'account8.json', 'account9.json']
+2026-05-18 02:23:06 [INFO] QwenScraper: Launching browser (headless=False, persistent=True)
+2026-05-18 02:23:07 [INFO] QwenScraper: Reusing existing profile 'account8'
+2026-05-18 02:23:07 [INFO] browser_pool: showheadless: Slot#9 (account8) ✅ berjalan no-headless
+2026-05-18 02:23:10 [INFO] local_worker: Worker#0 → Request [71f48398] session=new
+2026-05-18 02:23:10 [INFO] local_worker: Worker#0 ▶ Request [71f48398]
+2026-05-18 02:23:10 [INFO] local_worker: Worker#0 NEW [71f48398] cookie hint dari model: account8.json
+2026-05-18 02:23:10 [INFO] QwenScraper: Attempt 1/22 using account 'account8'
+2026-05-18 02:23:10 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-05-18 02:23:13 [WARNING] QwenScraper: Timeout waiting for input ready: Timeout 100ms exceeded.
+2026-05-18 02:23:13 [INFO] QwenScraper: Submitting prompt (378 chars) [think_mode=fast, pre_count=0, attachments=0]
+2026-05-18 02:23:26 [INFO] QwenScraper: Response ready (1756 chars)
+2026-05-18 02:23:26 [INFO] QwenScraper: Scrape successful – 1756 char(s), 0 code block(s)
+2026-05-18 02:23:26 [INFO] local_worker: Worker#0 ✅ [71f48398] 1756 chars | session=4a5fbff1 | cookie=account8.json | url=https://chat.qwen.ai/c/526d589b-ea09-4e10-9a29-547ddd1ec002
+2026-05-18 02:23:35 [INFO] local_worker: Worker#0 → Request [a4a3dcc8] session=4a5fbff1
+2026-05-18 02:23:35 [INFO] local_worker: Worker#0 ▶ Request [a4a3dcc8]
+2026-05-18 02:23:35 [INFO] local_worker: Worker#0 CONTINUE [a4a3dcc8] session=4a5fbff1 cookie=account8.json conv_url=https://chat.qwen.ai/c/526d589b-ea09-4e10-9a29-547ddd1ec002
+2026-05-18 02:23:35 [INFO] local_worker: Worker#0 Skip goto() — browser sudah di halaman: https://chat.qwen.ai/c/526d589b-ea09-4e10-9a29-547ddd1ec002
+2026-05-18 02:23:35 [INFO] QwenScraper: Attempt 1/22 using account 'account8'
+2026-05-18 02:23:35 [INFO] QwenScraper: Submitting prompt (26 chars) [think_mode=fast, pre_count=1, attachments=0]
+2026-05-18 02:23:42 [INFO] QwenScraper: Response ready (654 chars)
+2026-05-18 02:23:42 [INFO] QwenScraper: Scrape successful – 654 char(s), 0 code block(s)
+2026-05-18 02:23:42 [INFO] local_worker: Worker#0 ✅ [a4a3dcc8] 654 chars | session=4a5fbff1 | cookie=account8.json | url=https://chat.qwen.ai/c/526d589b-ea09-4e10-9a29-547ddd1ec002
+2026-05-18 02:23:54 [INFO] local_worker: Worker#0 → Request [01f39673] session=4a5fbff1
+2026-05-18 02:23:54 [INFO] local_worker: Worker#0 ▶ Request [01f39673]
+2026-05-18 02:23:54 [INFO] local_worker: Worker#0 CONTINUE [01f39673] session=4a5fbff1 cookie=account8.json conv_url=https://chat.qwen.ai/c/526d589b-ea09-4e10-9a29-547ddd1ec002
+2026-05-18 02:23:54 [INFO] local_worker: Worker#0 Skip goto() — browser sudah di halaman: https://chat.qwen.ai/c/526d589b-ea09-4e10-9a29-547ddd1ec002
+2026-05-18 02:23:54 [INFO] QwenScraper: Attempt 1/22 using account 'account8'
+2026-05-18 02:23:54 [INFO] QwenScraper: Submitting prompt (937 chars) [think_mode=fast, pre_count=2, attachments=0]
+2026-05-18 02:24:05 [INFO] local_worker: Pool status: total=11 idle=10 busy=1 dead=0 starting=0
+2026-05-18 02:24:06 [INFO] QwenScraper: Response ready (1975 chars)
+2026-05-18 02:24:06 [INFO] QwenScraper: Scrape successful – 1975 char(s), 0 code block(s)
+2026-05-18 02:24:06 [INFO] local_worker: Worker#0 ✅ [01f39673] 1975 chars | session=4a5fbff1 | cookie=account8.json | url=https://chat.qwen.ai/c/526d589b-ea09-4e10-9a29-547ddd1ec002
+2026-05-18 02:25:05 [INFO] local_worker: Pool status: total=11 idle=11 busy=0 dead=0 starting=0
+2026-05-18 02:25:13 [INFO] local_worker: Worker#0 → Request [14e084ff] session=4a5fbff1
+2026-05-18 02:25:13 [INFO] local_worker: Worker#0 ▶ Request [14e084ff]
+2026-05-18 02:25:13 [INFO] local_worker: Worker#0 CONTINUE [14e084ff] session=4a5fbff1 cookie=account8.json conv_url=https://chat.qwen.ai/c/526d589b-ea09-4e10-9a29-547ddd1ec002
+2026-05-18 02:25:13 [INFO] local_worker: Worker#0 Skip goto() — browser sudah di halaman: https://chat.qwen.ai/c/526d589b-ea09-4e10-9a29-547ddd1ec002
+2026-05-18 02:25:13 [INFO] QwenScraper: Attempt 1/22 using account 'account8'
+2026-05-18 02:25:13 [INFO] QwenScraper: Submitting prompt (7460 chars) [think_mode=fast, pre_count=3, attachments=0]
+2026-05-18 02:25:29 [INFO] QwenScraper: Response ready (2403 chars)
+2026-05-18 02:25:29 [INFO] QwenScraper: Scrape successful – 2403 char(s), 0 code block(s)
+2026-05-18 02:25:29 [INFO] local_worker: Worker#0 ✅ [14e084ff] 2403 chars | session=4a5fbff1 | cookie=account8.json | url=https://chat.qwen.ai/c/526d589b-ea09-4e10-9a29-547ddd1ec002
+2026-05-18 02:26:05 [INFO] local_worker: Pool status: total=11 idle=11 busy=0 dead=0 starting=0
+2026-05-18 02:27:05 [INFO] local_worker: Pool status: total=11 idle=11 busy=0 dead=0 starting=0
+2026-05-18 02:28:05 [INFO] local_worker: Pool status: total=11 idle=11 busy=0 dead=0 starting=0
+2026-05-18 02:29:05 [INFO] local_worker: Pool status: total=11 idle=11 busy=0 dead=0 starting=0
+2026-05-18 02:30:05 [INFO] local_worker: Pool status: total=11 idle=11 busy=0 dead=0 starting=0
+2026-05-18 02:31:05 [INFO] local_worker: Pool status: total=11 idle=11 busy=0 dead=0 starting=0
+2026-05-18 02:32:05 [INFO] local_worker: Pool status: total=11 idle=11 busy=0 dead=0 starting=0
+2026-05-18 02:32:40 [INFO] local_worker: Menutup BrowserPool...
+2026-05-18 02:32:40 [INFO] browser_pool: BrowserPool: menutup semua slot...
+2026-05-18 02:32:40 [INFO] QwenScraper: Closing browser
+2026-05-18 02:32:40 [INFO] QwenScraper: Closing browser
+2026-05-18 02:32:40 [INFO] QwenScraper: Closing browser
+2026-05-18 02:32:40 [INFO] QwenScraper: Closing browser
+2026-05-18 02:32:40 [INFO] QwenScraper: Closing browser
+2026-05-18 02:32:40 [INFO] QwenScraper: Closing browser
+2026-05-18 02:32:40 [INFO] QwenScraper: Closing browser
+2026-05-18 02:32:40 [INFO] QwenScraper: Closing browser
+2026-05-18 02:32:40 [INFO] QwenScraper: Closing browser
+2026-05-18 02:32:40 [INFO] QwenScraper: Closing browser
+2026-05-18 02:32:40 [INFO] QwenScraper: Closing browser
+2026-05-18 02:32:40 [WARNING] browser_pool: Slot#5 close error: BrowserContext.close: Target page, context or browser has been closed
+2026-05-18 02:32:40 [WARNING] browser_pool: Slot#6 close error: BrowserContext.close: Target page, context or browser has been closed
+2026-05-18 02:32:40 [WARNING] browser_pool: Slot#0 close error: BrowserContext.close: Target page, context or browser has been closed
+2026-05-18 02:32:40 [WARNING] browser_pool: Slot#10 close error: BrowserContext.close: Target page, context or browser has been closed
+2026-05-18 02:32:40 [WARNING] browser_pool: Slot#2 close error: BrowserContext.close: Target page, context or browser has been closed
+2026-05-18 02:32:40 [INFO] local_worker: Worker dihentikan.
+2026-05-18 02:32:48 [INFO] local_worker: ==========================================================
+2026-05-18 02:32:48 [INFO] local_worker:   Local Worker – AIChatScraper (BrowserPool)
+2026-05-18 02:32:48 [INFO] local_worker:   VPS         : ws://108.137.15.61:9000/ws/worker
+2026-05-18 02:32:48 [INFO] local_worker:   Pool size   : 11 browser
+2026-05-18 02:32:48 [INFO] local_worker:   Headless    : True
+2026-05-18 02:32:48 [INFO] local_worker:   Cookies dir : C:\Users\RYR\Desktop\PAFQwen\cookies
+2026-05-18 02:32:48 [INFO] local_worker:   Think mode  : dari config
+2026-05-18 02:32:48 [INFO] local_worker:   Token       : ✅ Aktif
+2026-05-18 02:32:48 [INFO] local_worker: ==========================================================
+2026-05-18 02:32:48 [INFO] local_worker: Warming up 11 browser slot(s)...
+2026-05-18 02:32:48 [INFO] browser_pool: BrowserPool: memulai 11 slot (cookie file tersedia: 11)
+2026-05-18 02:32:48 [INFO] QwenScraper: Discovered 11 account cookie file(s): ['account1.json', 'account10.json', 'account11.json', 'account2.json', 'account3.json', 'account4.json', 'account5.json', 'account6.json', 'account7.json', 'account8.json', 'account9.json']
+2026-05-18 02:32:48 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-05-18 02:32:48 [INFO] QwenScraper: Discovered 11 account cookie file(s): ['account1.json', 'account10.json', 'account11.json', 'account2.json', 'account3.json', 'account4.json', 'account5.json', 'account6.json', 'account7.json', 'account8.json', 'account9.json']
+2026-05-18 02:32:48 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-05-18 02:32:48 [INFO] QwenScraper: Discovered 11 account cookie file(s): ['account1.json', 'account10.json', 'account11.json', 'account2.json', 'account3.json', 'account4.json', 'account5.json', 'account6.json', 'account7.json', 'account8.json', 'account9.json']
+2026-05-18 02:32:48 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-05-18 02:32:48 [INFO] QwenScraper: Discovered 11 account cookie file(s): ['account1.json', 'account10.json', 'account11.json', 'account2.json', 'account3.json', 'account4.json', 'account5.json', 'account6.json', 'account7.json', 'account8.json', 'account9.json']
+2026-05-18 02:32:48 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-05-18 02:32:48 [INFO] QwenScraper: Discovered 11 account cookie file(s): ['account1.json', 'account10.json', 'account11.json', 'account2.json', 'account3.json', 'account4.json', 'account5.json', 'account6.json', 'account7.json', 'account8.json', 'account9.json']
+2026-05-18 02:32:48 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-05-18 02:32:48 [INFO] QwenScraper: Discovered 11 account cookie file(s): ['account1.json', 'account10.json', 'account11.json', 'account2.json', 'account3.json', 'account4.json', 'account5.json', 'account6.json', 'account7.json', 'account8.json', 'account9.json']
+2026-05-18 02:32:48 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-05-18 02:32:48 [INFO] QwenScraper: Discovered 11 account cookie file(s): ['account1.json', 'account10.json', 'account11.json', 'account2.json', 'account3.json', 'account4.json', 'account5.json', 'account6.json', 'account7.json', 'account8.json', 'account9.json']
+2026-05-18 02:32:48 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-05-18 02:32:48 [INFO] QwenScraper: Discovered 11 account cookie file(s): ['account1.json', 'account10.json', 'account11.json', 'account2.json', 'account3.json', 'account4.json', 'account5.json', 'account6.json', 'account7.json', 'account8.json', 'account9.json']
+2026-05-18 02:32:48 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-05-18 02:32:48 [INFO] QwenScraper: Discovered 11 account cookie file(s): ['account1.json', 'account10.json', 'account11.json', 'account2.json', 'account3.json', 'account4.json', 'account5.json', 'account6.json', 'account7.json', 'account8.json', 'account9.json']
+2026-05-18 02:32:48 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-05-18 02:32:48 [INFO] QwenScraper: Discovered 11 account cookie file(s): ['account1.json', 'account10.json', 'account11.json', 'account2.json', 'account3.json', 'account4.json', 'account5.json', 'account6.json', 'account7.json', 'account8.json', 'account9.json']
+2026-05-18 02:32:48 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-05-18 02:32:48 [INFO] QwenScraper: Discovered 11 account cookie file(s): ['account1.json', 'account10.json', 'account11.json', 'account2.json', 'account3.json', 'account4.json', 'account5.json', 'account6.json', 'account7.json', 'account8.json', 'account9.json']
+2026-05-18 02:32:48 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-05-18 02:32:54 [INFO] QwenScraper: Reusing existing profile 'account11'
+2026-05-18 02:32:54 [INFO] browser_pool: Slot#2 ✅ siap (cookie: account11.json)
+2026-05-18 02:32:54 [INFO] QwenScraper: Reusing existing profile 'account3'
+2026-05-18 02:32:54 [INFO] browser_pool: Slot#4 ✅ siap (cookie: account3.json)
+2026-05-18 02:32:54 [INFO] QwenScraper: Reusing existing profile 'account4'
+2026-05-18 02:32:54 [INFO] browser_pool: Slot#5 ✅ siap (cookie: account4.json)
+2026-05-18 02:32:54 [INFO] QwenScraper: Reusing existing profile 'account6'
+2026-05-18 02:32:54 [INFO] browser_pool: Slot#7 ✅ siap (cookie: account6.json)
+2026-05-18 02:32:54 [INFO] QwenScraper: Reusing existing profile 'account1'
+2026-05-18 02:32:55 [INFO] browser_pool: Slot#0 ✅ siap (cookie: account1.json)
+2026-05-18 02:32:55 [INFO] QwenScraper: Reusing existing profile 'account2'
+2026-05-18 02:32:55 [INFO] browser_pool: Slot#3 ✅ siap (cookie: account2.json)
+2026-05-18 02:32:55 [INFO] QwenScraper: Reusing existing profile 'account8'
+2026-05-18 02:32:55 [INFO] browser_pool: Slot#9 ✅ siap (cookie: account8.json)
+2026-05-18 02:32:55 [INFO] QwenScraper: Reusing existing profile 'account10'
+2026-05-18 02:32:55 [INFO] browser_pool: Slot#1 ✅ siap (cookie: account10.json)
+2026-05-18 02:32:55 [INFO] QwenScraper: Reusing existing profile 'account7'
+2026-05-18 02:32:55 [INFO] browser_pool: Slot#8 ✅ siap (cookie: account7.json)
+2026-05-18 02:32:55 [INFO] QwenScraper: Reusing existing profile 'account9'
+2026-05-18 02:32:55 [INFO] browser_pool: Slot#10 ✅ siap (cookie: account9.json)
+2026-05-18 02:32:56 [INFO] QwenScraper: Reusing existing profile 'account5'
+2026-05-18 02:32:56 [INFO] browser_pool: Slot#6 ✅ siap (cookie: account5.json)
+2026-05-18 02:32:56 [INFO] browser_pool: BrowserPool: 11/11 slot berhasil IDLE
+2026-05-18 02:32:56 [INFO] local_worker: Pool ready → <BrowserPool total=11 idle=11 busy=0 dead=0>
+2026-05-18 02:32:56 [INFO] local_worker: SessionStore: tidak ada session aktif di disk (0 expired dihapus)
+2026-05-18 02:32:56 [INFO] local_worker: Worker#0 🔌 Konek ke VPS: ws://108.137.15.61:9000/ws/worker
+2026-05-18 02:32:56 [INFO] local_worker: Worker#0 ✅ Terhubung ke VPS! (max_concurrent=11)
+2026-05-18 02:33:40 [INFO] local_worker: Worker#0 → Request [1dfdb86c] session=new
+2026-05-18 02:33:40 [INFO] local_worker: Worker#0 ▶ Request [1dfdb86c]
+2026-05-18 02:33:40 [INFO] local_worker: Worker#0 NEW [1dfdb86c] cookie hint dari model: account2.json
+2026-05-18 02:33:40 [INFO] QwenScraper: Attempt 1/22 using account 'account2'
+2026-05-18 02:33:40 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-05-18 02:33:45 [WARNING] QwenScraper: Timeout waiting for input ready: Timeout 100ms exceeded.
+2026-05-18 02:33:45 [INFO] QwenScraper: Submitting prompt (2656 chars) [think_mode=fast, pre_count=0, attachments=0]
+2026-05-18 02:33:51 [INFO] QwenScraper: Response ready (27 chars)
+2026-05-18 02:33:51 [INFO] QwenScraper: Scrape successful – 27 char(s), 0 code block(s)
+2026-05-18 02:33:51 [INFO] local_worker: Worker#0 ✅ [1dfdb86c] 27 chars | session=c1da55cb | cookie=account2.json | url=https://chat.qwen.ai/c/72a0600a-11b3-467e-a946-19f4d878ff81
+2026-05-18 02:33:51 [INFO] local_worker: Worker#0 → Request [4d1cfd2a] session=new
+2026-05-18 02:33:51 [INFO] local_worker: Worker#0 ▶ Request [4d1cfd2a]
+2026-05-18 02:33:51 [INFO] local_worker: Worker#0 NEW [4d1cfd2a] cookie hint dari model: account1.json
+2026-05-18 02:33:51 [INFO] QwenScraper: Attempt 1/22 using account 'account1'
+2026-05-18 02:33:51 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-05-18 02:33:53 [WARNING] QwenScraper: Timeout waiting for input ready: Timeout 100ms exceeded.
+2026-05-18 02:33:54 [INFO] QwenScraper: Submitting prompt (469 chars) [think_mode=fast, pre_count=0, attachments=0]
+2026-05-18 02:33:56 [INFO] local_worker: Pool status: total=11 idle=10 busy=1 dead=0 starting=0
+2026-05-18 02:33:59 [INFO] QwenScraper: Response ready (32 chars)
+2026-05-18 02:33:59 [INFO] QwenScraper: Scrape successful – 32 char(s), 0 code block(s)
+2026-05-18 02:33:59 [INFO] local_worker: Worker#0 ✅ [4d1cfd2a] 32 chars | session=7facf8c8 | cookie=account1.json | url=https://chat.qwen.ai/c/874bdf19-194b-4ed9-9dc1-b31531422b50
+2026-05-18 02:33:59 [INFO] local_worker: Worker#0 → Request [3a4264aa] session=new
+2026-05-18 02:33:59 [INFO] local_worker: Worker#0 ▶ Request [3a4264aa]
+2026-05-18 02:33:59 [INFO] local_worker: Worker#0 NEW [3a4264aa]
+2026-05-18 02:33:59 [INFO] local_worker: Worker#0 → Request [0ecabc83] session=new
+2026-05-18 02:33:59 [INFO] local_worker: Worker#0 ▶ Request [0ecabc83]
+2026-05-18 02:33:59 [INFO] local_worker: Worker#0 NEW [0ecabc83]
+2026-05-18 02:33:59 [INFO] QwenScraper: Attempt 1/22 using account 'account11'
+2026-05-18 02:33:59 [INFO] QwenScraper: Attempt 1/22 using account 'account3'
+2026-05-18 02:33:59 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-05-18 02:33:59 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-05-18 02:34:02 [WARNING] QwenScraper: Timeout waiting for input ready: Timeout 100ms exceeded.
+2026-05-18 02:34:03 [INFO] QwenScraper: Submitting prompt (399 chars) [think_mode=fast, pre_count=0, attachments=0]
+2026-05-18 02:34:05 [WARNING] QwenScraper: Timeout waiting for input ready: Timeout 100ms exceeded.
+2026-05-18 02:34:05 [INFO] QwenScraper: Setting think mode → 'fast'
+2026-05-18 02:34:07 [INFO] QwenScraper: Think mode confirmed → 'fast' ✓
+2026-05-18 02:34:07 [INFO] QwenScraper: Submitting prompt (432 chars) [think_mode=fast, pre_count=0, attachments=0]
+2026-05-18 02:34:10 [INFO] QwenScraper: Response ready (188 chars)
+2026-05-18 02:34:10 [INFO] QwenScraper: Scrape successful – 188 char(s), 0 code block(s)
+2026-05-18 02:34:10 [INFO] local_worker: Worker#0 ✅ [0ecabc83] 188 chars | session=669fdddc | cookie=account3.json | url=https://chat.qwen.ai/c/10a74c1c-f1de-41be-bcef-ecfcc80f906f
+2026-05-18 02:34:12 [INFO] QwenScraper: Response ready (67 chars)
+2026-05-18 02:34:12 [INFO] QwenScraper: Scrape successful – 67 char(s), 0 code block(s)
+2026-05-18 02:34:12 [INFO] local_worker: Worker#0 ✅ [3a4264aa] 67 chars | session=f2de4534 | cookie=account11.json | url=https://chat.qwen.ai/c/c41690c3-5d29-4de7-b4f4-6487e6cd12d3
+2026-05-18 02:34:56 [INFO] local_worker: Pool status: total=11 idle=11 busy=0 dead=0 starting=0
+2026-05-18 02:35:56 [INFO] local_worker: Pool status: total=11 idle=11 busy=0 dead=0 starting=0

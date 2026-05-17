@@ -5,6 +5,122 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Unreleased] – 2026-05-18 — Feat: Session Persistence ke Disk (`dataSession/`)
+
+### Masalah Sebelumnya
+
+`SessionStore` di `public.py` sebelumnya hanya menyimpan data session di **RAM**.
+Saat `public.py` dimatikan (Ctrl+C, crash, atau restart), semua session yang masih
+aktif/belum expired langsung hilang. Akibatnya mode `CONTINUE` tidak bisa dilanjutkan
+setelah worker direstart karena `session_id → conversation_url` mapping sudah tidak ada.
+
+---
+
+### `config.py` — Tambah: `DATA_SESSION_DIR`
+
+Direktori baru `dataSession/` ditambahkan ke konfigurasi dan dibuat otomatis saat startup.
+
+```python
+# Sebelum
+for d in [COOKIES_DIR, OUTPUT_DIR, LOGS_DIR, CODE_OUTPUT_DIR, PROFILES_DIR]:
+    d.mkdir(parents=True, exist_ok=True)
+
+# Sesudah
+DATA_SESSION_DIR = BASE_DIR / "dataSession"
+for d in [COOKIES_DIR, OUTPUT_DIR, LOGS_DIR, CODE_OUTPUT_DIR, PROFILES_DIR, DATA_SESSION_DIR]:
+    d.mkdir(parents=True, exist_ok=True)
+```
+
+---
+
+### `public.py` — Refactor: `SessionStore` — Persistensi ke Disk
+
+`SessionStore` kini menyimpan setiap session sebagai file JSON tersendiri di `dataSession/`:
+
+```
+dataSession/
+├── a1b2c3d4e5f6....json   ← satu file per session
+├── f7e8d9c0b1a2....json
+└── ...
+```
+
+**Perubahan utama:**
+
+#### 1. Init dengan `store_dir`
+```python
+# Sebelum
+SessionStore(ttl=session_ttl)
+
+# Sesudah
+SessionStore(ttl=session_ttl, store_dir=DATA_SESSION_DIR)
+```
+
+#### 2. Method baru: `load_from_disk()`
+Dipanggil sekali saat `TaskProcessor.__init__()`. Membaca semua file JSON di
+`dataSession/`, me-restore session yang masih valid ke memory, dan menghapus file
+yang sudah expired dari disk.
+
+```python
+def load_from_disk(self) -> int:
+    # Restore session aktif → memory
+    # Hapus file session expired → disk
+    # Return: jumlah session yang berhasil di-restore
+```
+
+#### 3. Method baru: `_save_to_disk(session)` & `_delete_from_disk(session_id)`
+Setiap kali session dibuat atau diubah, file JSON-nya langsung ditulis ulang.
+Saat session expired, file-nya dihapus dari disk.
+
+#### 4. Method baru: `update(session)`
+Dipanggil setelah `session.touch()` di `TaskProcessor.process()` agar perubahan
+`last_used`, `turn_count`, dan `conversation_url` langsung tersimpan ke disk.
+
+```python
+session.touch()
+await self.sessions.update(session)  # ← baru: simpan ke disk
+```
+
+#### 5. `cleanup_expired()` juga hapus file dari disk
+```python
+# Sebelum: hanya hapus dari memory
+del self._sessions[sid]
+
+# Sesudah: hapus dari memory DAN disk
+del self._sessions[sid]
+self._delete_from_disk(sid)
+```
+
+**Duplikasi method `cleanup_expired`** yang ada di kode lama juga telah dihapus.
+
+---
+
+### Struktur File Session (JSON)
+
+```json
+{
+  "session_id": "a1b2c3d4e5f6...",
+  "cookie_file": "/path/to/cookies/account1.json",
+  "conversation_url": "https://chat.qwen.ai/c/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "created_at": 1747500000.0,
+  "last_used": 1747503600.0,
+  "turn_count": 5
+}
+```
+
+---
+
+### Dampak & Perilaku Baru
+
+| Skenario | Sebelum | Sesudah |
+|---|---|---|
+| Worker dimatikan lalu distart ulang | Session hilang, CONTINUE gagal | Session di-restore dari disk, CONTINUE tetap jalan |
+| Session expired saat worker mati | File tidak ada | File dihapus otomatis saat startup berikutnya |
+| Session expired saat worker jalan | Hapus dari memory | Hapus dari memory + hapus file dari disk |
+| Session baru dibuat | Hanya di memory | Tulis ke `dataSession/<id>.json` |
+| Session di-update (touch/URL) | Hanya di memory | File JSON di-overwrite |
+
+---
+
 ## [Unreleased] – 2026-05-18 — Fix: Send Button & Dynamic Fill Timeout
 
 ### `scrapers/qwen_scraper.py` — Fix: `_SEL_SEND_BTN` selector diperluas

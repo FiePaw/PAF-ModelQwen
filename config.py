@@ -11,10 +11,11 @@ COOKIES_DIR = BASE_DIR / "cookies"
 OUTPUT_DIR = BASE_DIR / "output"
 LOGS_DIR = BASE_DIR / "logs"
 CODE_OUTPUT_DIR = OUTPUT_DIR / "code"
-PROFILES_DIR = BASE_DIR / "profiles"          # persistent browser profile storage
+PROFILES_DIR     = BASE_DIR / "profiles"       # persistent browser profile storage
+DATA_SESSION_DIR = BASE_DIR / "dataSession"   # persistent session store (JSON per session)
 
 # ─── Ensure directories exist ────────────────────────────────────────────────
-for d in [COOKIES_DIR, OUTPUT_DIR, LOGS_DIR, CODE_OUTPUT_DIR, PROFILES_DIR]:
+for d in [COOKIES_DIR, OUTPUT_DIR, LOGS_DIR, CODE_OUTPUT_DIR, PROFILES_DIR, DATA_SESSION_DIR]:
     d.mkdir(parents=True, exist_ok=True)
 
 # ─── Browser Settings ────────────────────────────────────────────────────────
