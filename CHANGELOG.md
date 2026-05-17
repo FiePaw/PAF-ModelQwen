@@ -238,6 +238,77 @@ Error jika file tidak ditemukan atau sudah terdaftar:
 
 ---
 
+## [Unreleased] – 2026-05-18 — Feat: `showheadless` navigasi otomatis ke settings/general
+
+### `browser_pool.py` — Tambah: Navigasi ke `settings/general` setelah spawn browser no-headless
+
+#### Latar Belakang
+
+Sebelumnya, perintah `showheadless <account>` hanya membuka browser dalam mode visible
+tanpa navigasi ke halaman tertentu. Browser terbuka di halaman terakhir yang tersimpan di
+profile, sehingga user harus berpindah halaman secara manual untuk memeriksa kondisi akun.
+
+#### Perubahan
+
+Setelah `launch_browser()` berhasil dipanggil di dalam `restart_slot_no_headless()`,
+browser kini langsung dinavigasikan ke `https://chat.qwen.ai/settings/general` menggunakan
+`scraper._page.goto()`.
+
+```python
+# Sebelum
+await scraper.launch_browser(cookie_file=target.cookie_file)
+target.scraper = scraper
+target.mark_idle()
+
+# Sesudah
+await scraper.launch_browser(cookie_file=target.cookie_file)
+
+settings_url = "https://chat.qwen.ai/settings/general"
+try:
+    await scraper._page.goto(
+        settings_url,
+        wait_until="domcontentloaded",
+        timeout=30_000,
+    )
+    logger.info("showheadless: Slot#%d (%s) → navigasi ke %s berhasil", ...)
+except Exception as nav_err:
+    # Navigasi gagal tidak dianggap fatal — browser tetap terbuka
+    logger.warning("showheadless: Slot#%d (%s) ⚠️  gagal navigasi ke %s: %s", ...)
+
+target.scraper = scraper
+target.mark_idle()
+```
+
+#### Detail Desain
+
+| Aspek | Keputusan |
+|---|---|
+| Error navigasi | Non-fatal — log `WARNING`, slot tetap `IDLE` dan bisa menerima task |
+| Urutan eksekusi | Navigasi dilakukan **sebelum** `mark_idle()` — slot belum bisa menerima task selama proses navigasi |
+| Cookie | Otomatis terpakai dari profile persistent yang sudah di-seed saat `launch_browser()` |
+| Timeout navigasi | 30.000 ms (`domcontentloaded`) |
+
+#### Perubahan pada Pesan Response
+
+```python
+# Sebelum
+"message": f"Akun '{account_name}' (Slot#{target.slot_id}) berhasil direstart dalam mode no-headless"
+
+# Sesudah
+"message": (
+    f"Akun '{account_name}' (Slot#{target.slot_id}) berhasil direstart dalam mode no-headless"
+    f" — browser menuju {settings_url}"
+)
+```
+
+Output console:
+```
+  Merestart 'account1' dalam mode no-headless ...
+  [OK] Akun 'account1' (Slot#0) berhasil direstart dalam mode no-headless — browser menuju https://chat.qwen.ai/settings/general
+```
+
+---
+
 ## [Unreleased] – 2026-05-16 — Admin Commands: listaccounts, busyaccounts, showheadless
 
 ### `browser_pool.py` — Tambah: Account management methods
