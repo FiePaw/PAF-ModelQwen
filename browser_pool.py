@@ -595,6 +595,27 @@ class BrowserPool:
                 scraper.cookies_path = target.cookie_file
 
             await scraper.launch_browser(cookie_file=target.cookie_file)
+
+            # Navigasi ke halaman settings/general agar user bisa langsung
+            # memeriksa kondisi akun secara visual di browser yang terbuka.
+            settings_url = "https://chat.qwen.ai/settings/general"
+            try:
+                await scraper._page.goto(
+                    settings_url,
+                    wait_until="domcontentloaded",
+                    timeout=30_000,
+                )
+                logger.info(
+                    "showheadless: Slot#%d (%s) → navigasi ke %s berhasil",
+                    target.slot_id, account_name, settings_url,
+                )
+            except Exception as nav_err:
+                # Navigasi gagal tidak dianggap fatal — browser tetap terbuka
+                logger.warning(
+                    "showheadless: Slot#%d (%s) ⚠️  gagal navigasi ke %s: %s",
+                    target.slot_id, account_name, settings_url, nav_err,
+                )
+
             target.scraper = scraper
             target.mark_idle()
             self._idle_event.set()
@@ -604,7 +625,10 @@ class BrowserPool:
             )
             return {
                 "ok": True,
-                "message": f"Akun '{account_name}' (Slot#{target.slot_id}) berhasil direstart dalam mode no-headless",
+                "message": (
+                    f"Akun '{account_name}' (Slot#{target.slot_id}) berhasil direstart dalam mode no-headless"
+                    f" — browser menuju {settings_url}"
+                ),
             }
         except Exception as e:
             target.mark_dead()
