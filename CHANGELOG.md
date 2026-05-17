@@ -5,6 +5,74 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Unreleased] – 2026-05-18 — Fix: Send Button & Dynamic Fill Timeout
+
+### `scrapers/qwen_scraper.py` — Fix: `_SEL_SEND_BTN` selector diperluas
+
+Selector lama hanya mencocokkan `aria-label*='send'` dan `class*='send'`, yang tidak match dengan tombol kirim asli Qwen (icon panah biru tanpa aria-label yang sesuai). Selector kini diperluas mencakup lebih banyak pola umum:
+
+```python
+# Sebelum
+_SEL_SEND_BTN = "button[aria-label*='send' i], button[class*='send' i]"
+
+# Sesudah
+_SEL_SEND_BTN = (
+    "button[aria-label*='send' i], "
+    "button[class*='send' i], "
+    "button[data-testid*='send' i], "
+    "button[class*='ant-btn'][class*='primary']:not([disabled]), "
+    "button[class*='submit' i], "
+    "button[type='submit']"
+)
+```
+
+---
+
+### `scrapers/qwen_scraper.py` — Fix: Fallback `_click_send_button` bertingkat
+
+Fallback sebelumnya hanya mengandalkan `input_el.press("Enter")` yang tidak reliabel pada `contenteditable` div dan prompt panjang (Enter = newline, bukan submit). Diganti dengan 3 lapis fallback:
+
+1. **JS click** — bypass visibility/attachment check via `document.querySelector(...).click()`
+2. **`Control+Enter`** — keyboard shortcut yang lebih reliabel untuk submit di Qwen
+3. **`Enter`** biasa — last resort tetap dipertahankan
+
+```python
+# Urutan fallback baru:
+# 1. JS evaluate click → 2. Ctrl+Enter → 3. Enter (last resort)
+```
+
+---
+
+### `scrapers/qwen_scraper.py` — Tambah: `_fill_timeout(text, base_ms, cps)` — Dynamic Timeout
+
+Method statis baru untuk menghitung timeout `fill()` secara proporsional terhadap panjang prompt. Menghindari timeout prematur pada prompt panjang tanpa menambah penalty waktu untuk prompt pendek.
+
+**Rumus:**
+```
+timeout_ms = base_ms + (len(text) // cps) * 1000
+```
+
+| Panjang Prompt | Timeout |
+|---|---|
+| ≤ 1.000 chars | 1.000 ms (sama seperti sebelumnya) |
+| 5.000 chars | 6.000 ms |
+| 58.000 chars | 59.000 ms |
+
+Diterapkan di tiga titik pemanggilan `fill()`:
+- `send_prompt` (main)
+- `_submit_prompt` (web search)
+- `_submit_prompt_media` (image/video)
+
+```python
+# Sebelum (semua lokasi)
+await input_el.fill(prompt, timeout=1_000)
+
+# Sesudah
+await input_el.fill(prompt, timeout=self._fill_timeout(prompt))
+```
+
+---
+
 ## [Unreleased] – 2026-05-16 — Console Command: addaccount
 
 ### `browser_pool.py` — Tambah: `add_account(cookie_filename)`

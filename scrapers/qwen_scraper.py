@@ -138,7 +138,14 @@ class QwenScraper(BaseAIChatScraper):
     BASE_URL: str = QWEN_CONFIG["base_url"]
 
     _SEL_TEXTAREA = "textarea[placeholder], div[contenteditable='true']"
-    _SEL_SEND_BTN = "button[aria-label*='send' i], button[class*='send' i]"
+    _SEL_SEND_BTN = (
+        "button[aria-label*='send' i], "
+        "button[class*='send' i], "
+        "button[data-testid*='send' i], "
+        "button[class*='ant-btn'][class*='primary']:not([disabled]), "
+        "button[class*='submit' i], "
+        "button[type='submit']"
+    )
     _SEL_STOP_BTN = "button[aria-label*='stop' i], button[class*='stop' i]"
     _SEL_THINKING = ".thinking-indicator, .loading-dots, [class*='thinking']"
 
@@ -474,6 +481,22 @@ class QwenScraper(BaseAIChatScraper):
                 continue
         raise RuntimeError("Could not locate chat input field")
 
+    @staticmethod
+    def _fill_timeout(text: str, base_ms: int = 1_000, cps: int = 1_000) -> int:
+        """
+        Hitung timeout fill() secara dinamis berdasarkan panjang teks.
+
+        Rumus: base_ms + (jumlah_chars / cps) * 1000
+          - base_ms : waktu minimum dalam ms (default 1000ms)
+          - cps      : estimasi chars per second yang bisa di-fill Playwright (default 1000)
+
+        Contoh hasil:
+          -    500 chars →  1_000 ms  (tidak ada penalty)
+          -  5_000 chars →  6_000 ms
+          - 58_000 chars → 59_000 ms
+        """
+        return base_ms + (len(text) // cps) * 1_000
+
     async def _find_send_button(self):
         candidates = [
             self._SEL_SEND_BTN,
@@ -608,11 +631,47 @@ class QwenScraper(BaseAIChatScraper):
                     )
                     break
 
-        # Semua retry habis → fallback Enter key
+        # Semua retry habis → fallback bertingkat
         self.logger.warning(
-            "_click_send_button: semua %d attempt gagal – fallback ke Enter key",
+            "_click_send_button: semua %d attempt gagal – mencoba fallback JS click …",
             max_retries,
         )
+
+        # Fallback 1: klik via JavaScript (bypass visibility/attachment check)
+        try:
+            clicked_via_js = await self._page.evaluate("""
+                () => {
+                    const selectors = [
+                        "button[aria-label*='send' i]",
+                        "button[class*='send' i]",
+                        "button[data-testid*='send' i]",
+                        "button[class*='ant-btn'][class*='primary']:not([disabled])",
+                        "button[class*='submit' i]",
+                        "button[type='submit']"
+                    ];
+                    for (const sel of selectors) {
+                        const el = document.querySelector(sel);
+                        if (el && !el.disabled) { el.click(); return true; }
+                    }
+                    return false;
+                }
+            """)
+            if clicked_via_js:
+                self.logger.warning("_click_send_button: JS click fallback berhasil")
+                return False
+        except Exception as js_err:
+            self.logger.warning("_click_send_button: JS click fallback gagal: %s", js_err)
+
+        # Fallback 2: Ctrl+Enter (lebih reliable dari Enter biasa di contenteditable)
+        self.logger.warning("_click_send_button: fallback ke Ctrl+Enter …")
+        try:
+            await self._page.keyboard.press("Control+Enter")
+            return False
+        except Exception:
+            pass
+
+        # Fallback 3: Enter biasa (last resort)
+        self.logger.warning("_click_send_button: last resort fallback ke Enter key")
         await input_el.press("Enter")
         return False
 
@@ -1550,7 +1609,7 @@ class QwenScraper(BaseAIChatScraper):
 
         await input_el.click()
         await input_el.type("~", delay=1)
-        await input_el.fill(prompt, timeout=1_000)
+        await input_el.fill(prompt, timeout=self._fill_timeout(prompt))
         #await asyncio.sleep(0.3)
 
         await self._click_send_button(input_el)
@@ -1572,7 +1631,7 @@ class QwenScraper(BaseAIChatScraper):
 
         await input_el.click()
         await input_el.type("~", delay=1)
-        await input_el.fill(prompt, timeout=1_000)
+        await input_el.fill(prompt, timeout=self._fill_timeout(prompt))
         await asyncio.sleep(0.3)
 
         await self._click_send_button(input_el)
@@ -1629,7 +1688,7 @@ class QwenScraper(BaseAIChatScraper):
         await input_el.click()
         #await input_el.fill()
         await input_el.type("~", delay=1)  # focus and clear existing content
-        await input_el.fill(prompt, timeout=1_000)
+        await input_el.fill(prompt, timeout=self._fill_timeout(prompt))
         await asyncio.sleep(0.3)
 
         # Klik send button dengan retry+re-query untuk handle DOM detach
