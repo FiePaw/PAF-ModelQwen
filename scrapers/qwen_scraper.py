@@ -527,6 +527,95 @@ class QwenScraper(BaseAIChatScraper):
                 continue
         return None
 
+    async def _click_send_button(self, input_el, max_retries: int = 3) -> bool:
+        """
+        Klik send button dengan retry loop + re-query fresh setiap percobaan.
+
+        Mengatasi error "Element is not attached to the DOM" yang terjadi saat
+        SPA React me-re-render tombol di antara waktu query dan waktu click.
+
+        Alur per attempt:
+          1. Re-query send button fresh dari DOM (bukan pakai handle lama)
+          2. Verifikasi elemen masih attached dengan is_visible()
+          3. Coba click — jika sukses return True
+          4. Jika NotAttached / detached → tunggu sebentar, ulangi
+          5. Jika semua retry habis → fallback Enter key
+
+        Returns True jika send button berhasil diklik, False jika pakai Enter fallback.
+        """
+        candidates = [
+            self._SEL_SEND_BTN,
+            "button[data-testid='send-button']",
+            "button[aria-label='Send message']",
+            "button[aria-label='Send']",
+            "button[type='submit']",
+        ]
+
+        for attempt in range(1, max_retries + 1):
+            # Re-query fresh setiap attempt — jangan pakai handle dari attempt sebelumnya
+            send_btn = None
+            for sel in candidates:
+                try:
+                    el = await self._page.query_selector(sel)
+                    if not el:
+                        continue
+                    disabled      = await el.get_attribute("disabled")
+                    aria_disabled = await el.get_attribute("aria-disabled")
+                    if disabled is None and aria_disabled != "true":
+                        send_btn = el
+                        break
+                except Exception:
+                    continue
+
+            if not send_btn:
+                self.logger.debug(
+                    "_click_send_button: attempt %d – send button tidak ditemukan, tunggu …",
+                    attempt,
+                )
+                await asyncio.sleep(0.3 * attempt)
+                continue
+
+            try:
+                # Verifikasi masih attached sebelum click
+                if not await send_btn.is_visible():
+                    self.logger.debug(
+                        "_click_send_button: attempt %d – button tidak visible, re-query …",
+                        attempt,
+                    )
+                    await asyncio.sleep(0.3 * attempt)
+                    continue
+
+                await send_btn.click()
+                self.logger.debug(
+                    "_click_send_button: klik berhasil pada attempt %d", attempt
+                )
+                return True
+
+            except Exception as e:
+                err_msg = str(e).lower()
+                if "not attached" in err_msg or "detached" in err_msg or "element is not attached" in err_msg:
+                    self.logger.warning(
+                        "_click_send_button: attempt %d – button detached dari DOM, re-query … (%s)",
+                        attempt, type(e).__name__,
+                    )
+                    await asyncio.sleep(0.3 * attempt)
+                    continue
+                else:
+                    # Error lain (bukan detached) — log dan lanjut ke fallback
+                    self.logger.warning(
+                        "_click_send_button: attempt %d – error tidak terduga: %s",
+                        attempt, e,
+                    )
+                    break
+
+        # Semua retry habis → fallback Enter key
+        self.logger.warning(
+            "_click_send_button: semua %d attempt gagal – fallback ke Enter key",
+            max_retries,
+        )
+        await input_el.press("Enter")
+        return False
+
     # ── Response extraction ───────────────────────────────────────────────────
 
     async def _extract_last_response(self) -> str:
@@ -1462,16 +1551,10 @@ class QwenScraper(BaseAIChatScraper):
         await input_el.click()
         await input_el.type("~", delay=1)
         await input_el.fill(prompt, timeout=1_000)
-        await asyncio.sleep(0.3) #ini jeda harus ada soal nya kadang send button gak muncul alhasil pas send button gak muncul prompt gak kekirim.
+        #await asyncio.sleep(0.3)
 
-
-        send_btn = await self._find_send_button_enabled()
-        if send_btn:
-            await send_btn.click()
-            self.logger.debug("Send button clicked")
-        else:
-            await input_el.press("Enter")
-            self.logger.debug("Used Enter key to submit")
+        await self._click_send_button(input_el)
+        self.logger.debug("Send submitted (_submit_prompt_simple)")
 
         self._conversation_started = True
         return await self._wait_for_generation(pre_count)
@@ -1492,13 +1575,8 @@ class QwenScraper(BaseAIChatScraper):
         await input_el.fill(prompt, timeout=1_000)
         await asyncio.sleep(0.3)
 
-        send_btn = await self._find_send_button_enabled()
-        if send_btn:
-            await send_btn.click()
-            self.logger.debug("Send button clicked")
-        else:
-            await input_el.press("Enter")
-            self.logger.debug("Used Enter key to submit")
+        await self._click_send_button(input_el)
+        self.logger.debug("Send submitted (_submit_prompt_media)")
 
         self._conversation_started = True
         return await self._wait_for_generation_media(mode)
@@ -1554,15 +1632,9 @@ class QwenScraper(BaseAIChatScraper):
         await input_el.fill(prompt, timeout=1_000)
         await asyncio.sleep(0.3)
 
-        # Pastikan send button enabled sebelum di-click
-        send_btn = await self._find_send_button_enabled()
-        if send_btn:
-            await send_btn.click()
-            self.logger.debug("Send button clicked")
-        else:
-            # Fallback: Enter key
-            await input_el.press("Enter")
-            self.logger.debug("Used Enter key to submit (no enabled send button found)")
+        # Klik send button dengan retry+re-query untuk handle DOM detach
+        await self._click_send_button(input_el)
+        self.logger.debug("Send submitted (send_prompt main)")
 
         self._conversation_started = True
         return await self._wait_for_generation(pre_count)
