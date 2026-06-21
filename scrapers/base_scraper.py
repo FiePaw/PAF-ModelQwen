@@ -557,17 +557,90 @@ class BaseAIChatScraper(ABC):
 
     # ── Response validator (poin 3) ──────────────────────────────────────────
     @staticmethod
+    def _repair_unescaped_quotes(raw: str) -> "str | None":
+        """
+        Fallback repair untuk kasus paling umum: Qwen menulis quote literal (")
+        di dalam isi `content` tanpa di-escape, sehingga merusak parsing JSON.
+
+        Contoh kasus nyata:
+          {"status":"success","choices":[{"index":0,"message":{"role":"assistant",
+           "content":""Violence District" di Roblox merujuk pada..."}, ...}]}
+                                          ^^                      ^^
+          quote literal di awal & dalam isi content, bukan delimiter JSON.
+
+        Strategi: cari blok `"content":"..."` dengan regex non-greedy yang
+        berhenti tepat sebelum penanda akhir field yang valid (`","finish_reason"`
+        atau `"}` penutup objek message), lalu escape ulang SEMUA quote dan
+        backslash di dalam isi tsb sebelum di-reinsert ke string asli.
+
+        Returns string JSON yang sudah diperbaiki, atau None jika pola
+        `"content":"..."` tidak ditemukan sama sekali (repair tidak applicable).
+        """
+        # Cari posisi awal isi content: tepat setelah `"content":"`
+        marker = '"content":"'
+        start_idx = raw.find(marker)
+        if start_idx == -1:
+            return None
+        content_start = start_idx + len(marker)
+
+        # Cari penanda akhir field content yang valid (paling umum muncul
+        # setelahnya): `","finish_reason"` atau `"}` (penutup objek message)
+        # diikuti pola penutup choices. Coba beberapa kandidat, ambil yang
+        # posisinya paling akhir (asumsikan isi content adalah segmen
+        # terpanjang yang masuk akal antara dua penanda terluar).
+        end_markers = ['","finish_reason"', '"},"finish_reason"', '"}}']
+        end_idx = -1
+        used_marker = ""
+        for em in end_markers:
+            idx = raw.rfind(em)
+            if idx > content_start and (end_idx == -1 or idx > end_idx):
+                end_idx = idx
+                used_marker = em
+
+        if end_idx == -1:
+            return None
+
+        inner = raw[content_start:end_idx]
+        # Re-escape backslash dulu (agar tidak double-escape), lalu quote,
+        # lalu normalisasi newline/tab mentah yang mungkin ikut tercopy.
+        repaired_inner = (
+            inner.replace("\\", "\\\\")
+                 .replace('"', '\\"')
+                 .replace("\n", "\\n")
+                 .replace("\r", "\\r")
+                 .replace("\t", "\\t")
+        )
+
+        repaired = (
+            raw[:content_start] + repaired_inner + raw[end_idx:]
+        )
+        return repaired
+
+    @staticmethod
     def _validate_qwen_response(raw: str) -> "tuple[bool, dict | None, str]":
         """
         Validasi bahwa response Qwen adalah JSON dengan schema minimal:
           { "status": "success|error",
             "choices": [{ "index": 0, "message": {"role": "assistant", "content": "..."}, "finish_reason": "stop" }] }
         Returns: (is_valid, parsed_dict, error_reason)
+
+        Fallback: jika json.loads() gagal karena unescaped quote di dalam
+        `content` (kasus paling sering terjadi pada Qwen), dicoba sekali lagi
+        dengan _repair_unescaped_quotes() sebelum dinyatakan gagal total.
         """
         try:
             data = json.loads(raw)
         except json.JSONDecodeError as e:
-            return False, None, f"JSON parse error: {e}"
+            repaired = BaseAIChatScraper._repair_unescaped_quotes(raw)
+            if repaired is not None:
+                try:
+                    data = json.loads(repaired)
+                except json.JSONDecodeError as e2:
+                    return False, None, (
+                        f"JSON parse error: {e} | repair fallback juga gagal: {e2}"
+                    )
+            else:
+                return False, None, f"JSON parse error: {e}"
         if not isinstance(data, dict):
             return False, None, "Response bukan JSON object"
         if data.get("status") not in ("success", "error"):
@@ -720,6 +793,19 @@ class BaseAIChatScraper(ABC):
                 # ── Response validation + retry logic (poin 3) ──────────────────
                 is_valid, parsed, validation_err = self._validate_qwen_response(response_text)
 
+                if is_valid:
+                    # Tandai di log kalau response asli sebenarnya broken JSON dan
+                    # baru valid setelah _repair_unescaped_quotes() menyelamatkannya
+                    # (mis. Qwen lupa escape tanda kutip di dalam `content`).
+                    try:
+                        json.loads(response_text)
+                    except json.JSONDecodeError:
+                        self.logger.info(
+                            "Response diselamatkan oleh repair-fallback (unescaped quotes) "
+                            "pada attempt %d – tidak perlu retry/rotasi akun",
+                            attempt,
+                        )
+
                 if not is_valid:
                     self.logger.warning(
                         "Response tidak valid (attempt %d): %s | raw[:200]=%s",
@@ -765,8 +851,12 @@ class BaseAIChatScraper(ABC):
                     await asyncio.sleep(RETRY_DELAY_S)
                     try:
                         corrective_extra = self._extra_send_kwargs()
+                        # wrap_as_user_request=False: corrective_prompt adalah instruksi
+                        # koreksi format dari sistem, bukan request baru dari user —
+                        # jangan dibungkus [SYSTEM CONTEXT]/[USER REQUEST] lagi.
                         response_text = await self.send_prompt(
-                            corrective_prompt, mode="continue", **corrective_extra
+                            corrective_prompt, mode="continue",
+                            wrap_as_user_request=False, **corrective_extra,
                         )
                     except Exception as corr_exc:
                         self.logger.warning("Corrective send gagal: %s", corr_exc)
@@ -780,6 +870,13 @@ class BaseAIChatScraper(ABC):
                         )
                         attempt -= 1
                         continue
+                    try:
+                        json.loads(response_text)
+                    except json.JSONDecodeError:
+                        self.logger.info(
+                            "Corrective response diselamatkan oleh repair-fallback "
+                            "(unescaped quotes) pada attempt %d", attempt,
+                        )
 
                     is_valid = True
                     parsed = parsed2

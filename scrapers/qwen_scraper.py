@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import json
 import mimetypes
 import tempfile
 from pathlib import Path
@@ -166,6 +167,9 @@ class QwenScraper(BaseAIChatScraper):
         # Use provided think_mode or fall back to config default
         self._think_mode: ThinkMode = think_mode or QWEN_CONFIG["default_think_mode"]
         self._think_mode_applied = False   # reset when a new chat page is loaded
+        # max_tokens per-request, diisi dari luar (mis. newpublic_BETA.py) sebelum
+        # scrape()/send_prompt() dipanggil — ikut dikirim di payload [USER REQUEST].
+        self._max_tokens: int | None = None
 
     # ── Context manager override ──────────────────────────────────────────────
 
@@ -1642,15 +1646,54 @@ class QwenScraper(BaseAIChatScraper):
 
         # ── Core send_prompt ──────────────────────────────────────────────────────
 
+    # ── Prompt wrapper [SYSTEM CONTEXT] / [USER REQUEST] ────────────────────────
+    def _build_wrapped_prompt(self, prompt: str) -> str:
+        """
+        Bungkus prompt user mentah ke format yang dikirim ke Qwen:
+
+            [SYSTEM CONTEXT]
+            You are operating in API mode. Respond ONLY in JSON format as specified.
+
+            [USER REQUEST]
+            {"prompt": "...", "model": "...", "max_tokens": ...}
+
+        `model` diambil dari nama akun/cookie yang sedang aktif, `max_tokens`
+        dari self._max_tokens jika di-set (mis. oleh newpublic_BETA.py),
+        kalau tidak field tersebut dihilangkan dari payload.
+        """
+        account_name = (
+            self._current_cookie_file.stem if self._current_cookie_file else "qwen"
+        )
+        user_request: dict = {"prompt": prompt, "model": account_name}
+        if self._max_tokens is not None:
+            user_request["max_tokens"] = self._max_tokens
+
+        payload_json = json.dumps(user_request, ensure_ascii=False)
+
+        return (
+            "[SYSTEM CONTEXT]\n"
+            "You are operating in API mode. Respond ONLY in JSON format as specified.\n"
+            "\n"
+            "[USER REQUEST]\n"
+            f"{payload_json}"
+        )
+
     async def send_prompt(
         self,
         prompt: str,
         mode: str = "new",
         think_mode: ThinkMode | None = None,
         attachments: list[Attachment] | None = None,
+        wrap_as_user_request: bool = True,
     ) -> str:
         await self._ensure_page_ready(mode)
         self._last_prompt = prompt
+
+        # Bungkus prompt asli user dengan [SYSTEM CONTEXT]/[USER REQUEST].
+        # Corrective retry feedback (dari base_scraper._validate_qwen_response
+        # retry loop) dikirim dengan wrap_as_user_request=False karena pesan
+        # itu sendiri sudah berupa instruksi sistem, bukan request user baru.
+        outgoing_prompt = self._build_wrapped_prompt(prompt) if wrap_as_user_request else prompt
 
         effective_think = think_mode or self._think_mode
 
@@ -1681,14 +1724,15 @@ class QwenScraper(BaseAIChatScraper):
         pre_count = await self._count_response_elements()
 
         self.logger.info(
-            "Submitting prompt (%d chars) [think_mode=%s, pre_count=%d, attachments=%d]",
-            len(prompt), effective_think, pre_count, len(attachments) if attachments else 0,
+            "Submitting prompt (%d chars, wrapped=%d chars) [think_mode=%s, pre_count=%d, attachments=%d]",
+            len(prompt), len(outgoing_prompt), effective_think, pre_count,
+            len(attachments) if attachments else 0,
         )
 
         await input_el.click()
         #await input_el.fill()
         await input_el.type("~", delay=1)  # focus and clear existing content
-        await input_el.fill(prompt, timeout=self._fill_timeout(prompt))
+        await input_el.fill(outgoing_prompt, timeout=self._fill_timeout(outgoing_prompt))
         await asyncio.sleep(0.3)
 
         # Klik send button dengan retry+re-query untuk handle DOM detach

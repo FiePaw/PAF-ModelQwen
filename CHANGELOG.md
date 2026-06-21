@@ -5,7 +5,285 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [Unreleased] – 2026-05-18 — Feat: Session Persistence ke Disk (`dataSession/`)
+## [Unreleased] – 2026-06-22 — Feat: Prompt Wrapper `[SYSTEM CONTEXT]`/`[USER REQUEST]`, Repair-Fallback JSON, `max_tokens` Passthrough, Sinkronisasi `vps_server.py`
+
+> Lanjutan dari commit `73ee2b3` ("New Schema (ALPHA)") yang menambahkan request
+> forwarding (OpenAI ↔ internal mapping) di `newpublic_BETA.py` dan response
+> validation/retry/metadata-injection di `scrapers/base_scraper.py`. Entry ini
+> menambahkan bagian yang belum ada di commit tersebut: pembungkus prompt
+> `[SYSTEM CONTEXT]`/`[USER REQUEST]`, fallback perbaikan JSON yang rusak akibat
+> tanda kutip tak ter-escape, dukungan `max_tokens` per-request end-to-end, dan
+> sinkronisasi `vps_server.py` agar tidak menimpa `usage`/`x_metadata` asli dari
+> worker. Juga ditambahkan dua script test (`example/`).
+
+### Latar Belakang
+
+Custom Instruction Qwen sudah diset manual oleh pengguna untuk membuat Qwen
+merespons sebagai "LLM API endpoint" dalam format JSON ketat. Prompt yang
+dikirim ke Qwen perlu dibungkus dengan format `[SYSTEM CONTEXT]` /
+`[USER REQUEST]` + payload JSON, alih-alih dikirim polos. Selain itu, di
+penggunaan nyata ditemukan Qwen kadang menulis tanda kutip literal di dalam
+isi `content` tanpa di-escape, merusak parsing JSON dan men-trigger retry/
+rotasi akun yang sebenarnya tidak perlu:
+
+```
+WARN  QwenScraper  Response tidak valid (attempt 1): JSON parse error:
+Expecting ',' delimiter: line 1 column 85 (char 84) | raw[:200]=
+{"status":"success","choices":[{"index":0,"message":{"role":"assistant",
+"content":""Violence District" di Roblox merujuk pada game atau pengalaman
+yang bertema kekerasan, pertarungan, atau aksi brutal
+```
+
+---
+
+### `scrapers/qwen_scraper.py` — Tambah: Prompt Wrapper `[SYSTEM CONTEXT]` / `[USER REQUEST]`
+
+Prompt user kini dibungkus sebelum dikirim ke Qwen, alih-alih dikirim polos:
+
+```python
+# Sebelum (dikirim polos)
+await input_el.fill(prompt, timeout=self._fill_timeout(prompt))
+
+# Sesudah
+outgoing_prompt = self._build_wrapped_prompt(prompt) if wrap_as_user_request else prompt
+await input_el.fill(outgoing_prompt, timeout=self._fill_timeout(outgoing_prompt))
+```
+
+Method baru `_build_wrapped_prompt()` menghasilkan:
+
+```
+[SYSTEM CONTEXT]
+You are operating in API mode. Respond ONLY in JSON format as specified.
+
+[USER REQUEST]
+{"prompt": "Jelaskan konsep async/await di Python", "model": "qwen", "max_tokens": 500}
+```
+
+`model` diambil otomatis dari nama cookie/akun aktif (`self._current_cookie_file.stem`).
+`max_tokens` hanya disertakan di payload jika `self._max_tokens` di-set — kalau
+tidak, field tersebut dihilangkan seluruhnya dari JSON (bukan `null`).
+
+**`send_prompt()` — parameter baru `wrap_as_user_request: bool = True`**
+
+```python
+async def send_prompt(
+    self,
+    prompt: str,
+    mode: str = "new",
+    think_mode: ThinkMode | None = None,
+    attachments: list[Attachment] | None = None,
+    wrap_as_user_request: bool = True,   # ← baru
+) -> str:
+```
+
+Default `True` untuk prompt asli dari user. Di-set `False` khusus untuk
+corrective retry feedback (lihat bagian `base_scraper.py` di bawah), karena
+pesan koreksi format itu sendiri sudah berupa instruksi sistem, bukan
+"user request" baru — tidak boleh dibungkus `[SYSTEM CONTEXT]`/`[USER REQUEST]` lagi.
+
+**`__init__` — tambah `self._max_tokens: int | None = None`**
+
+Atribut instance baru, mengikuti pola `self._think_mode` yang sudah ada —
+bisa di-override per-request dari luar (`newpublic_BETA.py`) sebelum
+`scrape()`/`send_prompt()` dipanggil.
+
+---
+
+### `scrapers/base_scraper.py` — Tambah: Repair-Fallback untuk Unescaped Quotes di JSON
+
+**Masalah:** Qwen kadang menulis quote literal (`"`) di dalam isi `content`
+tanpa escape, contoh nyata dari log:
+
+```json
+{"status":"success","choices":[{"index":0,"message":{"role":"assistant",
+"content":""Violence District" di Roblox merujuk pada..."}, ...}]}
+```
+
+Sebelumnya, response seperti ini langsung dianggap invalid dan masuk jalur
+retry mahal (corrective feedback 2s delay, atau rotasi akun 5s delay) —
+padahal akunnya baik-baik saja, cuma format keluaran Qwen yang sedikit cacat.
+
+**Method baru: `_repair_unescaped_quotes(raw)`**
+
+Mencari blok `"content":"..."`, mengambil isi mentahnya sampai penanda akhir
+field yang valid (`","finish_reason"` dll), lalu meng-escape ulang seluruh
+quote/backslash/newline di dalamnya sebelum disisipkan kembali ke string JSON
+asli. Return `None` jika pola `"content":"..."` tidak ditemukan sama sekali
+(repair tidak applicable untuk kasus error tersebut).
+
+```python
+@staticmethod
+def _repair_unescaped_quotes(raw: str) -> "str | None":
+    marker = '"content":"'
+    start_idx = raw.find(marker)
+    if start_idx == -1:
+        return None
+    # ... cari end marker, escape ulang isi, sisipkan kembali ...
+```
+
+**`_validate_qwen_response()` — fallback otomatis ke repair**
+
+```python
+# Sebelum
+try:
+    data = json.loads(raw)
+except json.JSONDecodeError as e:
+    return False, None, f"JSON parse error: {e}"
+
+# Sesudah
+try:
+    data = json.loads(raw)
+except json.JSONDecodeError as e:
+    repaired = BaseAIChatScraper._repair_unescaped_quotes(raw)
+    if repaired is not None:
+        try:
+            data = json.loads(repaired)
+        except json.JSONDecodeError as e2:
+            return False, None, f"JSON parse error: {e} | repair fallback juga gagal: {e2}"
+    else:
+        return False, None, f"JSON parse error: {e}"
+```
+
+**Logging baru** — saat repair berhasil menyelamatkan response (baik di
+percobaan pertama maupun setelah corrective feedback), dicatat secara
+eksplisit di level `INFO` agar bisa dipantau seberapa sering kasus ini terjadi:
+
+```
+INFO  Response diselamatkan oleh repair-fallback (unescaped quotes)
+      pada attempt 1 – tidak perlu retry/rotasi akun
+```
+
+**`scrape()` — corrective feedback kini pakai `wrap_as_user_request=False`**
+
+```python
+# Sebelum
+response_text = await self.send_prompt(
+    corrective_prompt, mode="continue", **corrective_extra
+)
+
+# Sesudah
+response_text = await self.send_prompt(
+    corrective_prompt, mode="continue",
+    wrap_as_user_request=False, **corrective_extra,
+)
+```
+
+---
+
+### `newpublic_BETA.py` — Tambah: `max_tokens` Passthrough ke Worker
+
+```python
+# TaskProcessor.process() — ambil dari payload client
+think_mode      = payload.get("think_mode")
+max_tokens      = payload.get("max_tokens")   # ← baru
+
+# ... sebelum scraper.scrape() dipanggil:
+if think_mode:
+    scraper._think_mode = think_mode
+    scraper._think_mode_applied = False
+
+scraper._max_tokens = max_tokens   # ← baru, None jika client tidak mengirimnya
+
+result = await scraper.scrape(prompt, mode=mode, attachments=attachments or None)
+```
+
+`max_tokens` kini ikut terbawa di payload `[USER REQUEST]` yang dikirim ke
+Qwen (lihat `_build_wrapped_prompt()` di atas).
+
+> **Catatan:** `public.py` (root, masih dipakai `public.bat` untuk produksi)
+> **sengaja tidak ikut diubah** di entry ini — `newpublic_BETA.py` masih
+> berstatus alpha/testing terpisah.
+
+---
+
+### `PublicForward/ForVPS/vps_server.py` — Fix: Teruskan `usage`/`x_metadata` Asli dari Worker
+
+**Masalah ditemukan:** endpoint `POST /v1/chat/completions` di VPS sebelumnya
+**membangun ulang** field `usage` dari estimasi token lokal (`_token_estimate()`,
+`len(text) // 4`) dan field `x_meta` (perhatikan: beda nama dengan `x_metadata`)
+yang isinya minimal — mengabaikan begitu saja `usage` (tiktoken) dan
+`x_metadata` (account tracking lengkap: `retry_count`, `response_time_ms`,
+`account_status`, dst) yang sudah dihitung dan di-inject oleh worker
+(`base_scraper.py` → `newpublic_BETA.py`). Akibatnya field-field tersebut
+tidak pernah benar-benar sampai ke client walau sudah dihitung dengan benar
+di sisi worker.
+
+```python
+# Sebelum — selalu hitung ulang lokal, field bernama "x_meta"
+pt = _token_estimate(prompt)
+ct = _token_estimate(response_text)
+return JSONResponse(content={
+    ...
+    "usage": {"prompt_tokens": pt, "completion_tokens": ct, "total_tokens": pt + ct},
+    "x_meta": {
+        "session_id": session_id, "cookie_file": cookie_file,
+        "conversation_url": conversation_url, "think_mode": req.think_mode or "auto",
+    },
+}, headers=extra_headers)
+
+# Sesudah — prioritaskan data asli dari worker, fallback ke estimasi lokal
+# hanya jika worker belum mengirimnya (mis. masih public.py versi lama)
+worker_usage = result.get("usage")
+if worker_usage and all(k in worker_usage for k in ("prompt_tokens", "completion_tokens", "total_tokens")):
+    usage = worker_usage
+else:
+    pt, ct = _token_estimate(prompt), _token_estimate(response_text)
+    usage = {"prompt_tokens": pt, "completion_tokens": ct, "total_tokens": pt + ct}
+
+worker_x_metadata = result.get("x_metadata")
+x_metadata = worker_x_metadata or {
+    "session_id": session_id, "cookie_file": cookie_file,
+    "conversation_url": conversation_url, "think_mode": req.think_mode or "auto",
+}
+
+return JSONResponse(content={
+    ...
+    "usage": usage,
+    "x_metadata": x_metadata,   # ← nama field diperbaiki dari "x_meta"
+}, headers=extra_headers)
+```
+
+**`max_tokens` juga ditambahkan ke `task_payload`** yang dikirim VPS → worker
+lewat WebSocket (sebelumnya field ini sudah ada di `ChatCompletionRequest`
+Pydantic model tapi tidak pernah diteruskan):
+
+```python
+task_payload = {
+    "type": "task",
+    "request_id": request_id,
+    "payload": {
+        "messages": [...],
+        "model": req.model,
+        "stream": req.stream,
+        "think_mode": req.think_mode,
+        "max_tokens": req.max_tokens,   # ← baru
+        "session_id": incoming_sid,
+        ...
+    },
+}
+```
+
+> **Backward-compat:** jika worker yang terkoneksi masih `public.py` versi lama
+> (belum punya tiktoken/x_metadata injection), `vps_server.py` otomatis
+> fallback ke estimasi token lokal dan `x_metadata` minimal seperti perilaku
+> sebelumnya — tidak ada breaking change untuk worker lama.
+---
+
+### Dampak & Perilaku Baru
+
+| Skenario | Sebelum | Sesudah |
+|---|---|---|
+| Prompt dikirim ke Qwen | Polos, tanpa context tambahan | Dibungkus `[SYSTEM CONTEXT]`/`[USER REQUEST]` + payload JSON |
+| Corrective retry feedback | (belum ada wrapper sama sekali) | Dikirim tanpa wrapper (`wrap_as_user_request=False`) — tidak dibungkus ulang |
+| Qwen menulis quote tak ter-escape di `content` | Invalid → retry/rotasi akun (2–5s delay) | Diperbaiki otomatis di tempat, tanpa retry sama sekali |
+| `max_tokens` dari client | Tidak pernah sampai ke Qwen | Diteruskan client → VPS → worker → payload `[USER REQUEST]` |
+| `usage`/`x_metadata` dari worker (tiktoken, retry_count, dst) | Ditimpa estimasi lokal di `vps_server.py` | Diteruskan apa adanya ke client |
+| Nama field metadata di response VPS | `x_meta` | `x_metadata` (konsisten dengan worker & dokumen spek) |
+| Worker lama (`public.py` tanpa update ini) konek ke VPS baru | — | Tetap jalan normal via fallback estimasi lokal |
+
+---
+
+
 
 ### Masalah Sebelumnya
 

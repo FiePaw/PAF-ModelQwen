@@ -360,6 +360,7 @@ class TaskProcessor:
         """
         messages        = payload.get("messages", [])
         think_mode      = payload.get("think_mode")
+        max_tokens      = payload.get("max_tokens")
         incoming_sid    = payload.get("session_id")
         raw_attachments: list[dict] = payload.get("attachments") or []
         payload_preferred_cookie: str | None = payload.get("preferred_cookie")
@@ -496,6 +497,11 @@ class TaskProcessor:
                     if think_mode:
                         scraper._think_mode = think_mode
                         scraper._think_mode_applied = False
+
+                    # Teruskan max_tokens per-request (ikut di payload [USER REQUEST]
+                    # yang dibungkus QwenScraper._build_wrapped_prompt). None jika
+                    # client tidak mengirimnya → field dihilangkan dari payload.
+                    scraper._max_tokens = max_tokens
 
                     result = await scraper.scrape(prompt, mode=mode, attachments=attachments or None)
                     current_url: str = scraper._page.url

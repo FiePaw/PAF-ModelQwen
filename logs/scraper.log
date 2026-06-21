@@ -14499,3 +14499,292 @@ Pertarungan antar pemain (PvP - Playe
 2026-06-22 05:13:56 [WARNING] browser_pool: Slot#0 close error: BrowserContext.close: Connection closed while reading from the driver
 2026-06-22 05:13:56 [INFO] browser_pool: BrowserPool: semua slot ditutup
 2026-06-22 05:13:56 [INFO] local_worker: Worker dihentikan.
+2026-06-22 05:40:36 [INFO] local_worker: ==========================================================
+2026-06-22 05:40:36 [INFO] local_worker:   Local Worker – AIChatScraper (BrowserPool)
+2026-06-22 05:40:36 [INFO] local_worker:   VPS         : ws://16.79.2.204:9000/ws/worker
+2026-06-22 05:40:36 [INFO] local_worker:   Pool size   : 2 browser
+2026-06-22 05:40:36 [INFO] local_worker:   Headless    : True
+2026-06-22 05:40:36 [INFO] local_worker:   Cookies dir : C:\Users\RYR\Desktop\PAF-ModelQwen\cookies
+2026-06-22 05:40:36 [INFO] local_worker:   Think mode  : dari config
+2026-06-22 05:40:36 [INFO] local_worker:   Token       : ✅ Aktif
+2026-06-22 05:40:36 [INFO] local_worker: ==========================================================
+2026-06-22 05:40:36 [INFO] local_worker: Warming up 2 browser slot(s)...
+2026-06-22 05:40:36 [INFO] browser_pool: BrowserPool: memulai 2 slot (cookie file tersedia: 2)
+2026-06-22 05:40:36 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-06-22 05:40:36 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-06-22 05:40:36 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-06-22 05:40:36 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-06-22 05:40:46 [INFO] QwenScraper: Reusing existing profile 'account2'
+2026-06-22 05:40:46 [INFO] browser_pool: Slot#1 ✅ siap (cookie: account2.json)
+2026-06-22 05:40:46 [INFO] QwenScraper: Reusing existing profile 'account1'
+2026-06-22 05:40:46 [INFO] browser_pool: Slot#0 ✅ siap (cookie: account1.json)
+2026-06-22 05:40:46 [INFO] browser_pool: BrowserPool: 2/2 slot berhasil IDLE
+2026-06-22 05:40:46 [INFO] local_worker: Pool ready → <BrowserPool total=2 idle=2 busy=0 dead=0>
+2026-06-22 05:40:46 [INFO] local_worker: SessionStore: tidak ada session aktif di disk (1 expired dihapus)
+2026-06-22 05:40:46 [INFO] local_worker: Worker#0 🔌 Konek ke VPS: ws://16.79.2.204:9000/ws/worker
+2026-06-22 05:40:46 [INFO] local_worker: Worker#0 ✅ Terhubung ke VPS! (max_concurrent=2)
+2026-06-22 05:41:10 [INFO] browser_pool: showheadless: restart Slot#0 (account1) → no-headless …
+2026-06-22 05:41:10 [INFO] QwenScraper: Closing browser
+2026-06-22 05:41:10 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-06-22 05:41:10 [INFO] QwenScraper: Launching browser (headless=False, persistent=True)
+2026-06-22 05:41:13 [INFO] QwenScraper: Reusing existing profile 'account1'
+2026-06-22 05:41:15 [INFO] browser_pool: showheadless: Slot#0 (account1) → navigasi ke https://chat.qwen.ai/settings/general berhasil
+2026-06-22 05:41:15 [INFO] browser_pool: showheadless: Slot#0 (account1) ✅ berjalan no-headless
+2026-06-22 05:41:46 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 05:41:56 [INFO] local_worker: Worker#0 → Request [ac757ef0] session=new
+2026-06-22 05:41:56 [INFO] local_worker: Worker#0 ▶ Request [ac757ef0]
+2026-06-22 05:41:56 [INFO] local_worker: Worker#0 NEW [ac757ef0] cookie hint dari model: account1.json
+2026-06-22 05:41:56 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-06-22 05:41:57 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-06-22 05:41:58 [WARNING] QwenScraper: Timeout waiting for input ready: Timeout 100ms exceeded.
+2026-06-22 05:41:58 [INFO] QwenScraper: Submitting prompt (41 chars, wrapped=182 chars) [think_mode=fast, pre_count=0, attachments=0]
+2026-06-22 05:42:09 [INFO] QwenScraper: Response ready (1178 chars)
+2026-06-22 05:42:09 [WARNING] QwenScraper: Response tidak valid (attempt 1): JSON parse error: Expecting ',' delimiter: line 8 column 14 (char 97) | raw[:200]={
+"status": "success",
+"choices": [
+{
+"index": 0,
+"message": {
+"role": "assistant",
+"content": ""Violence District" di Roblox kemungkinan merujuk pada salah satu dari dua hal:\n\n1. Game/Experience te
+2026-06-22 05:42:09 [INFO] QwenScraper: Mengirim corrective feedback (retry 1/5) dalam session yang sama
+2026-06-22 05:42:11 [INFO] QwenScraper: Submitting prompt (214 chars, wrapped=214 chars) [think_mode=fast, pre_count=1, attachments=0]
+2026-06-22 05:42:19 [INFO] QwenScraper: Response ready (1039 chars)
+2026-06-22 05:42:19 [WARNING] QwenScraper: Corrective response juga tidak valid: JSON parse error: Expecting ',' delimiter: line 8 column 14 (char 97)
+2026-06-22 05:42:19 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-06-22 05:42:19 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-06-22 05:42:21 [WARNING] QwenScraper: Timeout waiting for input ready: Timeout 100ms exceeded.
+2026-06-22 05:42:21 [INFO] QwenScraper: Submitting prompt (41 chars, wrapped=182 chars) [think_mode=fast, pre_count=0, attachments=0]
+2026-06-22 05:42:32 [INFO] QwenScraper: Response ready (1308 chars)
+2026-06-22 05:42:32 [WARNING] QwenScraper: Response tidak valid (attempt 1): JSON parse error: Expecting ',' delimiter: line 8 column 14 (char 97) | raw[:200]={
+"status": "success",
+"choices": [
+{
+"index": 0,
+"message": {
+"role": "assistant",
+"content": ""Violence District" di Roblox kemungkinan merujuk pada salah satu dari berikut:\n\n1. Game/Experience te
+2026-06-22 05:42:32 [INFO] QwenScraper: Mengirim corrective feedback (retry 2/5) dalam session yang sama
+2026-06-22 05:42:34 [INFO] QwenScraper: Submitting prompt (214 chars, wrapped=214 chars) [think_mode=fast, pre_count=1, attachments=0]
+2026-06-22 05:42:43 [INFO] QwenScraper: Response ready (1169 chars)
+2026-06-22 05:42:43 [WARNING] QwenScraper: Corrective response juga tidak valid: JSON parse error: Expecting ',' delimiter: line 8 column 14 (char 97)
+2026-06-22 05:42:43 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-06-22 05:42:43 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-06-22 05:42:44 [WARNING] QwenScraper: Timeout waiting for input ready: Timeout 100ms exceeded.
+2026-06-22 05:42:45 [INFO] QwenScraper: Submitting prompt (41 chars, wrapped=182 chars) [think_mode=fast, pre_count=0, attachments=0]
+2026-06-22 05:42:46 [INFO] local_worker: Pool status: total=2 idle=1 busy=1 dead=0 starting=0
+2026-06-22 05:42:55 [INFO] QwenScraper: Response ready (1143 chars)
+2026-06-22 05:42:55 [WARNING] QwenScraper: Response tidak valid (attempt 1): JSON parse error: Expecting ',' delimiter: line 8 column 14 (char 97) | raw[:200]={
+"status": "success",
+"choices": [
+{
+"index": 0,
+"message": {
+"role": "assistant",
+"content": ""Violence District" di Roblox kemungkinan merujuk pada salah satu dari dua hal:\n\n1. Game/Experience te
+2026-06-22 05:42:55 [WARNING] QwenScraper: Max retry per-akun (2) tercapai di 'account1' – rotasi akun
+2026-06-22 05:42:55 [WARNING] QwenScraper: Rotating account: account1.json → account2.json
+2026-06-22 05:43:00 [INFO] QwenScraper: Reusing existing profile 'account2'
+2026-06-22 05:43:05 [INFO] QwenScraper: Attempt 2/4 using account 'account2'
+2026-06-22 05:43:05 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-06-22 05:43:09 [WARNING] QwenScraper: Timeout waiting for input ready: Timeout 100ms exceeded.
+2026-06-22 05:43:09 [INFO] QwenScraper: Setting think mode → 'fast'
+2026-06-22 05:43:11 [INFO] QwenScraper: Think mode confirmed → 'fast' ✓
+2026-06-22 05:43:11 [INFO] QwenScraper: Submitting prompt (41 chars, wrapped=182 chars) [think_mode=fast, pre_count=0, attachments=0]
+2026-06-22 05:43:21 [INFO] QwenScraper: Response ready (1228 chars)
+2026-06-22 05:43:21 [WARNING] QwenScraper: Response tidak valid (attempt 2): JSON parse error: Expecting ',' delimiter: line 8 column 14 (char 97) | raw[:200]={
+"status": "success",
+"choices": [
+{
+"index": 0,
+"message": {
+"role": "assistant",
+"content": ""Violence District" di Roblox merujuk pada sebuah game atau pengalaman dalam platform Roblox yang bertem
+2026-06-22 05:43:21 [INFO] QwenScraper: Mengirim corrective feedback (retry 4/5) dalam session yang sama
+2026-06-22 05:43:24 [INFO] QwenScraper: Submitting prompt (214 chars, wrapped=214 chars) [think_mode=fast, pre_count=1, attachments=0]
+2026-06-22 05:43:32 [INFO] QwenScraper: Response ready (1089 chars)
+2026-06-22 05:43:32 [WARNING] QwenScraper: Corrective response juga tidak valid: JSON parse error: Expecting ',' delimiter: line 8 column 14 (char 97)
+2026-06-22 05:43:32 [INFO] QwenScraper: Attempt 2/4 using account 'account2'
+2026-06-22 05:43:32 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-06-22 05:43:34 [WARNING] QwenScraper: Timeout waiting for input ready: Timeout 100ms exceeded.
+2026-06-22 05:43:34 [INFO] QwenScraper: Submitting prompt (41 chars, wrapped=182 chars) [think_mode=fast, pre_count=0, attachments=0]
+2026-06-22 05:43:45 [INFO] QwenScraper: Response ready (1377 chars)
+2026-06-22 05:43:45 [WARNING] QwenScraper: Response tidak valid (attempt 2): JSON parse error: Expecting ',' delimiter: line 8 column 14 (char 97) | raw[:200]={
+"status": "success",
+"choices": [
+{
+"index": 0,
+"message": {
+"role": "assistant",
+"content": ""Violence District" di Roblox merujuk pada game atau pengalaman (experience) yang bertema kekerasan, bia
+2026-06-22 05:43:45 [INFO] QwenScraper: Mengirim corrective feedback (retry 5/5) dalam session yang sama
+2026-06-22 05:43:46 [INFO] local_worker: Pool status: total=2 idle=1 busy=1 dead=0 starting=0
+2026-06-22 05:43:47 [INFO] QwenScraper: Submitting prompt (214 chars, wrapped=214 chars) [think_mode=fast, pre_count=1, attachments=0]
+2026-06-22 05:43:56 [INFO] QwenScraper: Response ready (1238 chars)
+2026-06-22 05:43:56 [WARNING] QwenScraper: Corrective response juga tidak valid: JSON parse error: Expecting ',' delimiter: line 8 column 14 (char 97)
+2026-06-22 05:43:56 [INFO] QwenScraper: Attempt 2/4 using account 'account2'
+2026-06-22 05:43:56 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-06-22 05:43:57 [WARNING] QwenScraper: Timeout waiting for input ready: Timeout 100ms exceeded.
+2026-06-22 05:43:58 [INFO] QwenScraper: Submitting prompt (41 chars, wrapped=182 chars) [think_mode=fast, pre_count=0, attachments=0]
+2026-06-22 05:44:10 [INFO] QwenScraper: Response ready (1500 chars)
+2026-06-22 05:44:10 [WARNING] QwenScraper: Response tidak valid (attempt 2): JSON parse error: Expecting ',' delimiter: line 8 column 14 (char 97) | raw[:200]={
+"status": "success",
+"choices": [
+{
+"index": 0,
+"message": {
+"role": "assistant",
+"content": ""Violence District" di Roblox merujuk pada game atau pengalaman (experience) yang bertema kekerasan, per
+2026-06-22 05:44:10 [ERROR] QwenScraper: Hard cap retry (5) tercapai – hentikan
+2026-06-22 05:44:10 [INFO] QwenScraper: 📸 Debug screenshot disimpan: debug\debug_20260622_054410_all_attempts_exhausted.png
+2026-06-22 05:44:46 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 05:45:46 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 05:45:56 [INFO] browser_pool: showheadless: restart Slot#0 (account1) → no-headless …
+2026-06-22 05:45:56 [INFO] QwenScraper: Closing browser
+2026-06-22 05:45:57 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-06-22 05:45:57 [INFO] QwenScraper: Launching browser (headless=False, persistent=True)
+2026-06-22 05:45:59 [INFO] QwenScraper: Reusing existing profile 'account1'
+2026-06-22 05:46:00 [INFO] browser_pool: showheadless: Slot#0 (account1) → navigasi ke https://chat.qwen.ai/settings/general berhasil
+2026-06-22 05:46:00 [INFO] browser_pool: showheadless: Slot#0 (account1) ✅ berjalan no-headless
+2026-06-22 05:46:20 [INFO] local_worker: Worker#0 → Request [83a9ba3e] session=new
+2026-06-22 05:46:20 [INFO] local_worker: Worker#0 ▶ Request [83a9ba3e]
+2026-06-22 05:46:20 [INFO] local_worker: Worker#0 NEW [83a9ba3e] cookie hint dari model: account1.json
+2026-06-22 05:46:20 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-06-22 05:46:20 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-06-22 05:46:21 [WARNING] QwenScraper: Timeout waiting for input ready: Timeout 100ms exceeded.
+2026-06-22 05:46:22 [INFO] QwenScraper: Submitting prompt (41 chars, wrapped=182 chars) [think_mode=fast, pre_count=0, attachments=0]
+2026-06-22 05:46:33 [INFO] QwenScraper: Response ready (1487 chars)
+2026-06-22 05:46:33 [WARNING] QwenScraper: Response tidak valid (attempt 1): JSON parse error: Expecting ',' delimiter: line 1 column 85 (char 84) | raw[:200]={"status":"success","choices":[{"index":0,"message":{"role":"assistant","content":""Violence District" di Roblox biasanya merujuk pada game atau pengalaman (experience) bertema aksi, pertarungan, atau
+2026-06-22 05:46:33 [INFO] QwenScraper: Mengirim corrective feedback (retry 1/5) dalam session yang sama
+2026-06-22 05:46:35 [INFO] QwenScraper: Submitting prompt (214 chars, wrapped=214 chars) [think_mode=fast, pre_count=1, attachments=0]
+2026-06-22 05:46:40 [INFO] QwenScraper: Response ready (54 chars)
+2026-06-22 05:46:40 [WARNING] QwenScraper: Corrective response juga tidak valid: JSON parse error: Unterminated string starting at: line 1 column 54 (char 53)
+2026-06-22 05:46:40 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-06-22 05:46:40 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-06-22 05:46:41 [WARNING] QwenScraper: Timeout waiting for input ready: Timeout 100ms exceeded.
+=========================== logs ===========================
+"load" event fired
+============================================================
+2026-06-22 05:46:41 [INFO] QwenScraper: Submitting prompt (41 chars, wrapped=182 chars) [think_mode=fast, pre_count=0, attachments=0]
+2026-06-22 05:46:46 [INFO] local_worker: Pool status: total=2 idle=1 busy=1 dead=0 starting=0
+2026-06-22 05:46:49 [INFO] QwenScraper: Response ready (791 chars)
+2026-06-22 05:46:49 [WARNING] QwenScraper: Response tidak valid (attempt 1): JSON parse error: Expecting ',' delimiter: line 1 column 85 (char 84) | raw[:200]={"status":"success","choices":[{"index":0,"message":{"role":"assistant","content":""Violence District" di Roblox kemungkinan merujuk pada salah satu dari dua hal:\n\n1. Game/Experience Tertentu: Ada b
+2026-06-22 05:46:49 [INFO] QwenScraper: Mengirim corrective feedback (retry 2/5) dalam session yang sama
+2026-06-22 05:46:51 [INFO] QwenScraper: Submitting prompt (214 chars, wrapped=214 chars) [think_mode=fast, pre_count=1, attachments=0]
+2026-06-22 05:46:58 [INFO] QwenScraper: Response ready (639 chars)
+2026-06-22 05:46:58 [WARNING] QwenScraper: Corrective response juga tidak valid: JSON parse error: Expecting ',' delimiter: line 1 column 85 (char 84)
+2026-06-22 05:46:58 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-06-22 05:46:58 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-06-22 05:47:00 [WARNING] QwenScraper: Timeout waiting for input ready: Timeout 100ms exceeded.
+2026-06-22 05:47:00 [INFO] QwenScraper: Submitting prompt (41 chars, wrapped=182 chars) [think_mode=fast, pre_count=0, attachments=0]
+2026-06-22 05:47:08 [INFO] QwenScraper: Response ready (868 chars)
+2026-06-22 05:47:08 [WARNING] QwenScraper: Response tidak valid (attempt 1): JSON parse error: Expecting ',' delimiter: line 1 column 85 (char 84) | raw[:200]={"status":"success","choices":[{"index":0,"message":{"role":"assistant","content":""Violence District" di Roblox merujuk pada game atau pengalaman yang bertema kekerasan, pertarungan, atau aksi brutal
+2026-06-22 05:47:08 [WARNING] QwenScraper: Max retry per-akun (2) tercapai di 'account1' – rotasi akun
+2026-06-22 05:47:08 [WARNING] QwenScraper: Rotating account: account1.json → account2.json
+2026-06-22 05:47:13 [INFO] QwenScraper: Reusing existing profile 'account2'
+2026-06-22 05:47:18 [INFO] QwenScraper: Attempt 2/4 using account 'account2'
+2026-06-22 05:47:18 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-06-22 05:47:20 [WARNING] QwenScraper: Timeout waiting for input ready: Timeout 100ms exceeded.
+2026-06-22 05:47:20 [INFO] QwenScraper: Submitting prompt (41 chars, wrapped=182 chars) [think_mode=fast, pre_count=0, attachments=0]
+2026-06-22 05:47:28 [INFO] QwenScraper: Response ready (820 chars)
+2026-06-22 05:47:28 [INFO] QwenScraper: Scrape successful – 583 char(s), 0 code block(s) | tokens p=11 c=149 | retries=3 | 68084ms
+2026-06-22 05:47:28 [INFO] local_worker: Worker#0 ✅ [83a9ba3e] 583 chars | session=8c3838c2 | cookie=account1.json | url=https://chat.qwen.ai/c/d4ec2a4e-fb79-4fe3-a6ce-209d03d1d3ef
+2026-06-22 05:47:46 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 05:48:46 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 05:49:46 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 05:50:46 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 05:50:51 [INFO] local_worker: Menutup BrowserPool...
+2026-06-22 05:50:51 [INFO] browser_pool: BrowserPool: menutup semua slot...
+2026-06-22 05:50:51 [INFO] QwenScraper: Closing browser
+2026-06-22 05:50:51 [INFO] QwenScraper: Closing browser
+2026-06-22 05:50:51 [WARNING] browser_pool: Slot#1 close error: BrowserContext.close: Connection closed while reading from the driver
+2026-06-22 05:50:51 [WARNING] browser_pool: Slot#0 close error: BrowserContext.close: Connection closed while reading from the driver
+2026-06-22 05:50:51 [INFO] browser_pool: BrowserPool: semua slot ditutup
+2026-06-22 05:50:51 [INFO] local_worker: Worker dihentikan.
+2026-06-22 05:51:15 [INFO] local_worker: ==========================================================
+2026-06-22 05:51:15 [INFO] local_worker:   Local Worker – AIChatScraper (BrowserPool)
+2026-06-22 05:51:15 [INFO] local_worker:   VPS         : ws://16.79.2.204:9000/ws/worker
+2026-06-22 05:51:15 [INFO] local_worker:   Pool size   : 2 browser
+2026-06-22 05:51:15 [INFO] local_worker:   Headless    : True
+2026-06-22 05:51:15 [INFO] local_worker:   Cookies dir : C:\Users\RYR\Desktop\PAF-ModelQwen\cookies
+2026-06-22 05:51:15 [INFO] local_worker:   Think mode  : dari config
+2026-06-22 05:51:15 [INFO] local_worker:   Token       : ✅ Aktif
+2026-06-22 05:51:15 [INFO] local_worker: ==========================================================
+2026-06-22 05:51:15 [INFO] local_worker: Warming up 2 browser slot(s)...
+2026-06-22 05:51:15 [INFO] browser_pool: BrowserPool: memulai 2 slot (cookie file tersedia: 2)
+2026-06-22 05:51:15 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-06-22 05:51:15 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-06-22 05:51:15 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-06-22 05:51:15 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-06-22 05:51:17 [INFO] QwenScraper: Reusing existing profile 'account2'
+2026-06-22 05:51:17 [INFO] browser_pool: Slot#1 ✅ siap (cookie: account2.json)
+2026-06-22 05:51:17 [INFO] QwenScraper: Reusing existing profile 'account1'
+2026-06-22 05:51:17 [INFO] browser_pool: Slot#0 ✅ siap (cookie: account1.json)
+2026-06-22 05:51:17 [INFO] browser_pool: BrowserPool: 2/2 slot berhasil IDLE
+2026-06-22 05:51:17 [INFO] local_worker: Pool ready → <BrowserPool total=2 idle=2 busy=0 dead=0>
+2026-06-22 05:51:17 [INFO] local_worker: SessionStore: 1 session di-restore dari disk (0 expired dihapus)
+2026-06-22 05:51:17 [INFO] local_worker: Worker#0 🔌 Konek ke VPS: ws://16.79.2.204:9000/ws/worker
+2026-06-22 05:51:17 [INFO] local_worker: Worker#0 ✅ Terhubung ke VPS! (max_concurrent=2)
+2026-06-22 05:51:23 [INFO] local_worker: Worker#0 → Request [fd0de904] session=new
+2026-06-22 05:51:23 [INFO] local_worker: Worker#0 ▶ Request [fd0de904]
+2026-06-22 05:51:23 [INFO] local_worker: Worker#0 NEW [fd0de904] cookie hint dari model: account1.json
+2026-06-22 05:51:23 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-06-22 05:51:23 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-06-22 05:51:28 [WARNING] QwenScraper: Timeout waiting for input ready: Timeout 100ms exceeded.
+2026-06-22 05:51:30 [INFO] QwenScraper: Submitting prompt (41 chars, wrapped=182 chars) [think_mode=fast, pre_count=0, attachments=0]
+2026-06-22 05:51:39 [INFO] QwenScraper: Response ready (953 chars)
+2026-06-22 05:51:39 [INFO] QwenScraper: Response diselamatkan oleh repair-fallback (unescaped quotes) pada attempt 1 – tidak perlu retry/rotasi akun
+2026-06-22 05:51:39 [INFO] QwenScraper: Scrape successful – 719 char(s), 0 code block(s) | tokens p=11 c=197 | retries=0 | 15288ms
+2026-06-22 05:51:39 [INFO] local_worker: Worker#0 ✅ [fd0de904] 719 chars | session=5a0e8b9f | cookie=account1.json | url=https://chat.qwen.ai/c/bce8882b-2a6f-4840-87b5-7ed52dfe51a0
+2026-06-22 05:51:45 [INFO] browser_pool: showheadless: restart Slot#0 (account1) → no-headless …
+2026-06-22 05:51:45 [INFO] QwenScraper: Closing browser
+2026-06-22 05:51:46 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-06-22 05:51:46 [INFO] QwenScraper: Launching browser (headless=False, persistent=True)
+2026-06-22 05:51:48 [INFO] QwenScraper: Reusing existing profile 'account1'
+2026-06-22 05:51:49 [INFO] browser_pool: showheadless: Slot#0 (account1) → navigasi ke https://chat.qwen.ai/settings/general berhasil
+2026-06-22 05:51:49 [INFO] browser_pool: showheadless: Slot#0 (account1) ✅ berjalan no-headless
+2026-06-22 05:52:11 [INFO] local_worker: Worker#0 → Request [2f19637c] session=new
+2026-06-22 05:52:11 [INFO] local_worker: Worker#0 ▶ Request [2f19637c]
+2026-06-22 05:52:11 [INFO] local_worker: Worker#0 NEW [2f19637c] cookie hint dari model: account1.json
+2026-06-22 05:52:11 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-06-22 05:52:11 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-06-22 05:52:13 [WARNING] QwenScraper: Timeout waiting for input ready: Timeout 100ms exceeded.
+2026-06-22 05:52:13 [INFO] QwenScraper: Submitting prompt (58 chars, wrapped=199 chars) [think_mode=fast, pre_count=0, attachments=0]
+2026-06-22 05:52:17 [INFO] local_worker: Pool status: total=2 idle=1 busy=1 dead=0 starting=0
+2026-06-22 05:52:25 [INFO] QwenScraper: Response ready (1776 chars)
+2026-06-22 05:52:25 [INFO] QwenScraper: Response diselamatkan oleh repair-fallback (unescaped quotes) pada attempt 1 – tidak perlu retry/rotasi akun
+2026-06-22 05:52:25 [INFO] QwenScraper: Scrape successful – 1542 char(s), 0 code block(s) | tokens p=15 c=435 | retries=0 | 13998ms
+2026-06-22 05:52:25 [INFO] local_worker: Worker#0 ✅ [2f19637c] 1542 chars | session=edbfbfb0 | cookie=account1.json | url=https://chat.qwen.ai/c/8d3f11d8-d711-47fc-b103-ed2defa265cd
+2026-06-22 05:53:17 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 05:54:17 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 05:55:17 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 05:56:17 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 05:57:13 [INFO] local_worker: Worker#0 → Request [16b57a27] session=new
+2026-06-22 05:57:13 [INFO] local_worker: Worker#0 ▶ Request [16b57a27]
+2026-06-22 05:57:13 [INFO] local_worker: Worker#0 NEW [16b57a27] cookie hint dari model: account2.json
+2026-06-22 05:57:13 [INFO] QwenScraper: Attempt 1/4 using account 'account2'
+2026-06-22 05:57:14 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-06-22 05:57:16 [WARNING] QwenScraper: Timeout waiting for input ready: Timeout 100ms exceeded.
+2026-06-22 05:57:17 [INFO] local_worker: Pool status: total=2 idle=1 busy=1 dead=0 starting=0
+2026-06-22 05:57:18 [INFO] QwenScraper: Submitting prompt (58 chars, wrapped=199 chars) [think_mode=fast, pre_count=0, attachments=0]
+2026-06-22 05:57:26 [INFO] QwenScraper: Response ready (1095 chars)
+2026-06-22 05:57:26 [INFO] QwenScraper: Scrape successful – 861 char(s), 0 code block(s) | tokens p=15 c=227 | retries=0 | 12856ms
+2026-06-22 05:57:26 [INFO] local_worker: Worker#0 ✅ [16b57a27] 861 chars | session=e5d88963 | cookie=account2.json | url=https://chat.qwen.ai/c/169d7c46-5cfb-4201-b534-36dc25465653
+2026-06-22 05:58:17 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 05:59:17 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 06:00:17 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 06:01:17 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 06:02:17 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 06:03:17 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 06:03:33 [WARNING] local_worker: ❌ Koneksi ke VPS terputus: received 1012 (service restart); then sent 1012 (service restart)
+2026-06-22 06:03:33 [INFO] local_worker: 🔄 Reconnect dalam 5 detik...
+2026-06-22 06:03:38 [INFO] local_worker: Worker#0 🔌 Konek ke VPS: ws://16.79.2.204:9000/ws/worker
+2026-06-22 06:03:38 [INFO] local_worker: Worker#0 ✅ Terhubung ke VPS! (max_concurrent=2)
+2026-06-22 06:03:45 [INFO] local_worker: Menutup BrowserPool...
+2026-06-22 06:03:45 [INFO] browser_pool: BrowserPool: menutup semua slot...
+2026-06-22 06:03:45 [INFO] QwenScraper: Closing browser
+2026-06-22 06:03:45 [INFO] QwenScraper: Closing browser
+2026-06-22 06:03:46 [WARNING] browser_pool: Slot#1 close error: BrowserContext.close: Connection closed while reading from the driver
+2026-06-22 06:03:46 [WARNING] browser_pool: Slot#0 close error: BrowserContext.close: Connection closed while reading from the driver
+2026-06-22 06:03:46 [INFO] browser_pool: BrowserPool: semua slot ditutup
+2026-06-22 06:03:46 [INFO] local_worker: Worker dihentikan.
