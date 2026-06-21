@@ -14211,3 +14211,291 @@ Balas HANYA dengan JSON valid berikut (tanpa komentar, tanpa markdown backtick):
 2026-05-18 02:34:12 [INFO] local_worker: Worker#0 ✅ [3a4264aa] 67 chars | session=f2de4534 | cookie=account11.json | url=https://chat.qwen.ai/c/c41690c3-5d29-4de7-b4f4-6487e6cd12d3
 2026-05-18 02:34:56 [INFO] local_worker: Pool status: total=11 idle=11 busy=0 dead=0 starting=0
 2026-05-18 02:35:56 [INFO] local_worker: Pool status: total=11 idle=11 busy=0 dead=0 starting=0
+2026-06-22 01:06:58 [INFO] local_worker: ==========================================================
+2026-06-22 01:06:58 [INFO] local_worker:   Local Worker – AIChatScraper (BrowserPool)
+2026-06-22 01:06:58 [INFO] local_worker:   VPS         : ws://16.79.2.204:9000/ws/worker
+2026-06-22 01:06:58 [INFO] local_worker:   Pool size   : 2 browser
+2026-06-22 01:06:58 [INFO] local_worker:   Headless    : True
+2026-06-22 01:06:58 [INFO] local_worker:   Cookies dir : C:\Users\RYR\Desktop\PAF-ModelQwen\cookies
+2026-06-22 01:06:58 [INFO] local_worker:   Think mode  : dari config
+2026-06-22 01:06:58 [INFO] local_worker:   Token       : ✅ Aktif
+2026-06-22 01:06:58 [INFO] local_worker: ==========================================================
+2026-06-22 01:06:58 [INFO] local_worker: Warming up 2 browser slot(s)...
+2026-06-22 01:06:58 [INFO] browser_pool: BrowserPool: memulai 2 slot (cookie file tersedia: 2)
+2026-06-22 01:06:58 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-06-22 01:06:58 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-06-22 01:06:58 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-06-22 01:06:58 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-06-22 01:07:00 [INFO] QwenScraper: First run for profile 'account2' – seeding cookies
+2026-06-22 01:07:00 [INFO] QwenScraper: First run for profile 'account1' – seeding cookies
+2026-06-22 01:07:05 [INFO] QwenScraper: Loaded 17 cookie(s) from account1.json
+2026-06-22 01:07:05 [INFO] QwenScraper: Cookie seeding complete for profile 'account1'
+2026-06-22 01:07:05 [INFO] QwenScraper: Loaded 17 cookie(s) from account2.json
+2026-06-22 01:07:05 [INFO] QwenScraper: Cookie seeding complete for profile 'account2'
+2026-06-22 01:07:06 [INFO] browser_pool: Slot#0 ✅ siap (cookie: account1.json)
+2026-06-22 01:07:06 [INFO] browser_pool: Slot#1 ✅ siap (cookie: account2.json)
+2026-06-22 01:07:06 [INFO] browser_pool: BrowserPool: 2/2 slot berhasil IDLE
+2026-06-22 01:07:06 [INFO] local_worker: Pool ready → <BrowserPool total=2 idle=2 busy=0 dead=0>
+2026-06-22 01:07:06 [INFO] local_worker: SessionStore: tidak ada session aktif di disk (4 expired dihapus)
+2026-06-22 01:07:06 [INFO] local_worker: Worker#0 🔌 Konek ke VPS: ws://16.79.2.204:9000/ws/worker
+2026-06-22 01:07:07 [INFO] local_worker: Worker#0 ✅ Terhubung ke VPS! (max_concurrent=2)
+2026-06-22 01:08:07 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 01:08:42 [WARNING] local_worker: ❌ Koneksi ke VPS terputus: received 1012 (service restart); then sent 1012 (service restart)
+2026-06-22 01:08:42 [INFO] local_worker: 🔄 Reconnect dalam 5 detik...
+2026-06-22 01:08:47 [INFO] local_worker: Worker#0 🔌 Konek ke VPS: ws://16.79.2.204:9000/ws/worker
+2026-06-22 01:08:49 [INFO] local_worker: Worker#0 ✅ Terhubung ke VPS! (max_concurrent=2)
+2026-06-22 03:25:08 [INFO] local_worker: ==========================================================
+2026-06-22 03:25:08 [INFO] local_worker:   Local Worker – AIChatScraper (BrowserPool)
+2026-06-22 03:25:08 [INFO] local_worker:   VPS         : ws://16.79.2.204:9000/ws/worker
+2026-06-22 03:25:08 [INFO] local_worker:   Pool size   : 2 browser
+2026-06-22 03:25:08 [INFO] local_worker:   Headless    : True
+2026-06-22 03:25:08 [INFO] local_worker:   Cookies dir : C:\Users\RYR\Desktop\PAF-ModelQwen\cookies
+2026-06-22 03:25:08 [INFO] local_worker:   Think mode  : dari config
+2026-06-22 03:25:08 [INFO] local_worker:   Token       : ✅ Aktif
+2026-06-22 03:25:08 [INFO] local_worker: ==========================================================
+2026-06-22 03:25:08 [INFO] local_worker: Warming up 2 browser slot(s)...
+2026-06-22 03:25:08 [INFO] browser_pool: BrowserPool: memulai 2 slot (cookie file tersedia: 2)
+2026-06-22 03:25:08 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-06-22 03:25:08 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-06-22 03:25:08 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-06-22 03:25:08 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-06-22 03:25:25 [INFO] QwenScraper: Reusing existing profile 'account1'
+2026-06-22 03:25:25 [INFO] browser_pool: Slot#0 ✅ siap (cookie: account1.json)
+2026-06-22 03:25:25 [INFO] QwenScraper: Reusing existing profile 'account2'
+2026-06-22 03:25:25 [INFO] browser_pool: Slot#1 ✅ siap (cookie: account2.json)
+2026-06-22 03:25:25 [INFO] browser_pool: BrowserPool: 2/2 slot berhasil IDLE
+2026-06-22 03:25:25 [INFO] local_worker: Pool ready → <BrowserPool total=2 idle=2 busy=0 dead=0>
+2026-06-22 03:25:25 [INFO] local_worker: SessionStore: tidak ada session aktif di disk (0 expired dihapus)
+2026-06-22 03:25:25 [INFO] local_worker: Worker#0 🔌 Konek ke VPS: ws://16.79.2.204:9000/ws/worker
+2026-06-22 03:25:25 [INFO] local_worker: Worker#0 ✅ Terhubung ke VPS! (max_concurrent=2)
+2026-06-22 03:26:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 03:27:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 03:28:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 03:29:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 03:30:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 03:31:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 03:32:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 03:33:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 03:34:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 03:35:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 03:36:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 03:37:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 03:38:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 03:39:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 03:40:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 03:41:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 03:42:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 03:43:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 03:44:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 03:45:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 03:46:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 03:47:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 03:48:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 03:49:00 [INFO] local_worker: Worker#0 → Request [47e9bca6] session=new
+2026-06-22 03:49:00 [INFO] local_worker: Worker#0 ▶ Request [47e9bca6]
+2026-06-22 03:49:00 [INFO] local_worker: Worker#0 NEW [47e9bca6] cookie hint dari model: account1.json
+2026-06-22 03:49:00 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-06-22 03:49:00 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-06-22 03:49:05 [WARNING] QwenScraper: Timeout waiting for input ready: Timeout 100ms exceeded.
+2026-06-22 03:49:06 [INFO] QwenScraper: Setting think mode → 'fast'
+2026-06-22 03:49:08 [INFO] QwenScraper: Think mode confirmed → 'fast' ✓
+2026-06-22 03:49:08 [INFO] QwenScraper: Submitting prompt (27 chars) [think_mode=fast, pre_count=0, attachments=0]
+2026-06-22 03:49:19 [INFO] QwenScraper: Response ready (1307 chars)
+2026-06-22 03:49:19 [WARNING] QwenScraper: Response tidak valid (attempt 1): JSON parse error: Expecting value: line 1 column 1 (char 0) | raw[:200]=Recursion adalah teknik pemrograman di mana sebuah fungsi memanggil dirinya sendiri untuk menyelesaikan masalah yang lebih kecil dari masalah utama.
+Konsep dasar recursion:
+Base case - kondisi berhent
+2026-06-22 03:49:19 [INFO] QwenScraper: Mengirim corrective feedback (retry 1/5) dalam session yang sama
+2026-06-22 03:49:21 [INFO] QwenScraper: Submitting prompt (214 chars) [think_mode=fast, pre_count=1, attachments=0]
+2026-06-22 03:49:25 [INFO] local_worker: Pool status: total=2 idle=1 busy=1 dead=0 starting=0
+2026-06-22 03:49:32 [INFO] QwenScraper: Response ready (1439 chars)
+2026-06-22 03:49:32 [INFO] QwenScraper: Corrective berhasil – response valid setelah feedback
+2026-06-22 03:49:32 [INFO] QwenScraper: Scrape successful – 1295 char(s), 0 code block(s) | tokens p=7 c=387 | retries=1 | 31955ms
+2026-06-22 03:49:32 [INFO] local_worker: Worker#0 ✅ [47e9bca6] 1295 chars | session=672d2108 | cookie=account1.json | url=https://chat.qwen.ai/c/29fcbe8f-3ac1-4f30-947f-27ed1f3396c9
+2026-06-22 03:50:24 [INFO] browser_pool: showheadless: restart Slot#0 (account1) → no-headless …
+2026-06-22 03:50:24 [INFO] QwenScraper: Closing browser
+2026-06-22 03:50:24 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-06-22 03:50:24 [INFO] QwenScraper: Launching browser (headless=False, persistent=True)
+2026-06-22 03:50:25 [INFO] local_worker: Pool status: total=2 idle=1 busy=0 dead=0 starting=1
+2026-06-22 03:50:28 [INFO] QwenScraper: Reusing existing profile 'account1'
+2026-06-22 03:50:31 [INFO] browser_pool: showheadless: Slot#0 (account1) → navigasi ke https://chat.qwen.ai/settings/general berhasil
+2026-06-22 03:50:31 [INFO] browser_pool: showheadless: Slot#0 (account1) ✅ berjalan no-headless
+2026-06-22 03:50:41 [INFO] local_worker: Worker#0 → Request [7e7eb54e] session=new
+2026-06-22 03:50:41 [INFO] local_worker: Worker#0 ▶ Request [7e7eb54e]
+2026-06-22 03:50:41 [INFO] local_worker: Worker#0 NEW [7e7eb54e] cookie hint dari model: account1.json
+2026-06-22 03:50:41 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-06-22 03:50:41 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-06-22 03:50:43 [WARNING] QwenScraper: Timeout waiting for input ready: Timeout 100ms exceeded.
+=========================== logs ===========================
+"load" event fired
+============================================================
+2026-06-22 03:50:44 [INFO] QwenScraper: Setting think mode → 'fast'
+2026-06-22 03:50:45 [INFO] QwenScraper: Think mode confirmed → 'fast' ✓
+2026-06-22 03:50:45 [INFO] QwenScraper: Submitting prompt (41 chars) [think_mode=fast, pre_count=0, attachments=0]
+2026-06-22 03:50:53 [INFO] QwenScraper: Response ready (995 chars)
+2026-06-22 03:50:53 [WARNING] QwenScraper: Response tidak valid (attempt 1): JSON parse error: Expecting value: line 1 column 1 (char 0) | raw[:200]=Violence District di Roblox adalah sebuah game atau pengalaman (experience) yang berfokus pada tema kekerasan, pertempuran, dan aksi. Game ini biasanya melibatkan pemain dalam berbagai skenario combat
+2026-06-22 03:50:53 [INFO] QwenScraper: Mengirim corrective feedback (retry 1/5) dalam session yang sama
+2026-06-22 03:50:55 [INFO] QwenScraper: Submitting prompt (214 chars) [think_mode=fast, pre_count=1, attachments=0]
+2026-06-22 03:51:03 [INFO] QwenScraper: Response ready (1133 chars)
+2026-06-22 03:51:03 [INFO] QwenScraper: Corrective berhasil – response valid setelah feedback
+2026-06-22 03:51:03 [INFO] QwenScraper: Scrape successful – 1011 char(s), 0 code block(s) | tokens p=11 c=271 | retries=1 | 22151ms
+2026-06-22 03:51:03 [INFO] local_worker: Worker#0 ✅ [7e7eb54e] 1011 chars | session=77a3e134 | cookie=account1.json | url=https://chat.qwen.ai/c/aedbc23c-16c3-4248-8a24-d4feda1ba2f6
+2026-06-22 03:51:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 03:52:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 03:53:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 03:54:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 03:55:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 03:56:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 03:57:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 03:58:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 03:58:42 [INFO] local_worker: Worker#0 → Request [f9470e65] session=new
+2026-06-22 03:58:42 [INFO] local_worker: Worker#0 ▶ Request [f9470e65]
+2026-06-22 03:58:42 [INFO] local_worker: Worker#0 NEW [f9470e65] cookie hint dari model: account1.json
+2026-06-22 03:58:42 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-06-22 03:58:42 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-06-22 03:58:43 [WARNING] QwenScraper: Timeout waiting for input ready: Timeout 100ms exceeded.
+2026-06-22 03:58:44 [INFO] QwenScraper: Submitting prompt (41 chars) [think_mode=fast, pre_count=0, attachments=0]
+2026-06-22 03:58:51 [INFO] QwenScraper: Response ready (925 chars)
+2026-06-22 03:58:51 [WARNING] QwenScraper: Response tidak valid (attempt 1): JSON parse error: Expecting value: line 1 column 1 (char 0) | raw[:200]=Violence District di Roblox adalah sebuah game atau pengalaman virtual yang berfokus pada tema kekerasan, pertempuran, dan aksi. Biasanya, game seperti ini memungkinkan pemain untuk terlibat dalam ber
+2026-06-22 03:58:51 [INFO] QwenScraper: Mengirim corrective feedback (retry 1/5) dalam session yang sama
+2026-06-22 03:58:53 [INFO] QwenScraper: Submitting prompt (214 chars) [think_mode=fast, pre_count=1, attachments=0]
+2026-06-22 03:59:01 [INFO] QwenScraper: Response ready (1060 chars)
+2026-06-22 03:59:01 [INFO] QwenScraper: Corrective berhasil – response valid setelah feedback
+2026-06-22 03:59:01 [INFO] QwenScraper: Scrape successful – 940 char(s), 0 code block(s) | tokens p=11 c=251 | retries=1 | 19657ms
+2026-06-22 03:59:01 [INFO] local_worker: Worker#0 ✅ [f9470e65] 940 chars | session=c0a0112a | cookie=account1.json | url=https://chat.qwen.ai/c/5bf21fff-5efe-46eb-8050-78bf162052e5
+2026-06-22 03:59:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:00:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:01:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:02:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:03:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:04:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:05:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:06:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:07:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:08:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:09:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:10:25 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:11:26 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:12:26 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:13:26 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:14:26 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:15:26 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:16:26 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:17:26 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:18:26 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:19:26 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:20:26 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:21:26 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:22:26 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:23:26 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:24:03 [INFO] local_worker: Menutup BrowserPool...
+2026-06-22 04:24:03 [INFO] browser_pool: BrowserPool: menutup semua slot...
+2026-06-22 04:24:03 [INFO] QwenScraper: Closing browser
+2026-06-22 04:24:03 [INFO] QwenScraper: Closing browser
+2026-06-22 04:24:03 [WARNING] browser_pool: Slot#1 close error: BrowserContext.close: Connection closed while reading from the driver
+2026-06-22 04:24:03 [WARNING] browser_pool: Slot#0 close error: BrowserContext.close: Connection closed while reading from the driver
+2026-06-22 04:24:03 [INFO] browser_pool: BrowserPool: semua slot ditutup
+2026-06-22 04:24:03 [INFO] local_worker: Worker dihentikan.
+2026-06-22 04:24:32 [INFO] local_worker: ==========================================================
+2026-06-22 04:24:32 [INFO] local_worker:   Local Worker – AIChatScraper (BrowserPool)
+2026-06-22 04:24:32 [INFO] local_worker:   VPS         : ws://16.79.2.204:9000/ws/worker
+2026-06-22 04:24:32 [INFO] local_worker:   Pool size   : 2 browser
+2026-06-22 04:24:32 [INFO] local_worker:   Headless    : True
+2026-06-22 04:24:32 [INFO] local_worker:   Cookies dir : C:\Users\RYR\Desktop\PAF-ModelQwen\cookies
+2026-06-22 04:24:32 [INFO] local_worker:   Think mode  : dari config
+2026-06-22 04:24:32 [INFO] local_worker:   Token       : ✅ Aktif
+2026-06-22 04:24:32 [INFO] local_worker: ==========================================================
+2026-06-22 04:24:32 [INFO] local_worker: Warming up 2 browser slot(s)...
+2026-06-22 04:24:32 [INFO] browser_pool: BrowserPool: memulai 2 slot (cookie file tersedia: 2)
+2026-06-22 04:24:32 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-06-22 04:24:32 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-06-22 04:24:32 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-06-22 04:24:32 [INFO] QwenScraper: Launching browser (headless=True, persistent=True)
+2026-06-22 04:24:34 [INFO] QwenScraper: Reusing existing profile 'account1'
+2026-06-22 04:24:34 [INFO] browser_pool: Slot#0 ✅ siap (cookie: account1.json)
+2026-06-22 04:24:34 [INFO] QwenScraper: Reusing existing profile 'account2'
+2026-06-22 04:24:34 [INFO] browser_pool: Slot#1 ✅ siap (cookie: account2.json)
+2026-06-22 04:24:34 [INFO] browser_pool: BrowserPool: 2/2 slot berhasil IDLE
+2026-06-22 04:24:34 [INFO] local_worker: Pool ready → <BrowserPool total=2 idle=2 busy=0 dead=0>
+2026-06-22 04:24:34 [INFO] local_worker: SessionStore: 3 session di-restore dari disk (0 expired dihapus)
+2026-06-22 04:24:34 [INFO] local_worker: Worker#0 🔌 Konek ke VPS: ws://16.79.2.204:9000/ws/worker
+2026-06-22 04:24:34 [INFO] local_worker: Worker#0 ✅ Terhubung ke VPS! (max_concurrent=2)
+2026-06-22 04:24:53 [INFO] browser_pool: showheadless: restart Slot#0 (account1) → no-headless …
+2026-06-22 04:24:53 [INFO] QwenScraper: Closing browser
+2026-06-22 04:24:53 [INFO] QwenScraper: Discovered 2 account cookie file(s): ['account1.json', 'account2.json']
+2026-06-22 04:24:53 [INFO] QwenScraper: Launching browser (headless=False, persistent=True)
+2026-06-22 04:24:55 [INFO] QwenScraper: Reusing existing profile 'account1'
+2026-06-22 04:24:57 [INFO] browser_pool: showheadless: Slot#0 (account1) → navigasi ke https://chat.qwen.ai/settings/general berhasil
+2026-06-22 04:24:57 [INFO] browser_pool: showheadless: Slot#0 (account1) ✅ berjalan no-headless
+2026-06-22 04:25:00 [INFO] local_worker: Worker#0 → Request [7d01aa6b] session=new
+2026-06-22 04:25:00 [INFO] local_worker: Worker#0 ▶ Request [7d01aa6b]
+2026-06-22 04:25:00 [INFO] local_worker: Worker#0 NEW [7d01aa6b] cookie hint dari model: account1.json
+2026-06-22 04:25:00 [INFO] QwenScraper: Attempt 1/4 using account 'account1'
+2026-06-22 04:25:00 [INFO] QwenScraper: Navigating to Qwen AI: https://chat.qwen.ai
+2026-06-22 04:25:01 [WARNING] QwenScraper: Timeout waiting for input ready: Timeout 100ms exceeded.
+2026-06-22 04:25:02 [INFO] QwenScraper: Submitting prompt (41 chars) [think_mode=fast, pre_count=0, attachments=0]
+2026-06-22 04:25:09 [INFO] QwenScraper: Response ready (903 chars)
+2026-06-22 04:25:09 [WARNING] QwenScraper: Response tidak valid (attempt 1): JSON parse error: Expecting value: line 1 column 1 (char 0) | raw[:200]=Violence District di Roblox adalah sebuah game atau pengalaman (experience) yang bertema aksi dan pertempuran. Game ini biasanya melibatkan elemen-elemen seperti:
+Pertarungan antar pemain (PvP - Playe
+2026-06-22 04:25:10 [INFO] QwenScraper: Mengirim corrective feedback (retry 1/5) dalam session yang sama
+2026-06-22 04:25:12 [INFO] QwenScraper: Submitting prompt (214 chars) [think_mode=fast, pre_count=1, attachments=0]
+2026-06-22 04:25:20 [INFO] QwenScraper: Response ready (1041 chars)
+2026-06-22 04:25:20 [INFO] QwenScraper: Corrective berhasil – response valid setelah feedback
+2026-06-22 04:25:20 [INFO] QwenScraper: Scrape successful – 919 char(s), 0 code block(s) | tokens p=11 c=239 | retries=1 | 20023ms
+2026-06-22 04:25:20 [INFO] local_worker: Worker#0 ✅ [7d01aa6b] 919 chars | session=2070139a | cookie=account1.json | url=https://chat.qwen.ai/c/9b2984ab-037a-4dca-af9c-e1cdd8a98e35
+2026-06-22 04:25:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:26:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:27:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:28:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:29:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:30:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:31:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:32:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:33:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:34:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:35:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:36:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:37:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:38:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:39:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:40:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:41:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:42:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:43:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:44:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:45:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:46:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:47:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:48:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:49:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:50:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:51:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:52:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:53:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:54:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:55:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:56:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:57:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:58:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 04:59:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 05:00:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 05:01:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 05:02:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 05:03:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 05:04:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 05:05:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 05:06:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 05:07:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 05:08:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 05:09:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 05:10:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 05:11:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 05:12:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 05:13:34 [INFO] local_worker: Pool status: total=2 idle=2 busy=0 dead=0 starting=0
+2026-06-22 05:13:56 [INFO] local_worker: Menutup BrowserPool...
+2026-06-22 05:13:56 [INFO] browser_pool: BrowserPool: menutup semua slot...
+2026-06-22 05:13:56 [INFO] QwenScraper: Closing browser
+2026-06-22 05:13:56 [INFO] QwenScraper: Closing browser
+2026-06-22 05:13:56 [WARNING] browser_pool: Slot#1 close error: BrowserContext.close: Target page, context or browser has been closed
+2026-06-22 05:13:56 [WARNING] browser_pool: Slot#0 close error: BrowserContext.close: Connection closed while reading from the driver
+2026-06-22 05:13:56 [INFO] browser_pool: BrowserPool: semua slot ditutup
+2026-06-22 05:13:56 [INFO] local_worker: Worker dihentikan.

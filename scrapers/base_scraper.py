@@ -14,10 +14,27 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time as _time
 from abc import ABC, abstractmethod
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+try:
+    import tiktoken as _tiktoken
+    _TK_ENC = _tiktoken.get_encoding("cl100k_base")
+except Exception:
+    _TK_ENC = None
+
+
+def _count_tokens(text: str) -> int:
+    """Hitung token via tiktoken cl100k_base. Fallback ke estimasi jika tidak tersedia."""
+    if _TK_ENC is not None:
+        try:
+            return len(_TK_ENC.encode(text))
+        except Exception:
+            pass
+    return max(1, len(text) // 4)
 
 from playwright.async_api import (
     Browser,
@@ -538,6 +555,35 @@ class BaseAIChatScraper(ABC):
 
     # ── High-level scrape with auto-rotation ─────────────────────────────────
 
+    # ── Response validator (poin 3) ──────────────────────────────────────────
+    @staticmethod
+    def _validate_qwen_response(raw: str) -> "tuple[bool, dict | None, str]":
+        """
+        Validasi bahwa response Qwen adalah JSON dengan schema minimal:
+          { "status": "success|error",
+            "choices": [{ "index": 0, "message": {"role": "assistant", "content": "..."}, "finish_reason": "stop" }] }
+        Returns: (is_valid, parsed_dict, error_reason)
+        """
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError as e:
+            return False, None, f"JSON parse error: {e}"
+        if not isinstance(data, dict):
+            return False, None, "Response bukan JSON object"
+        if data.get("status") not in ("success", "error"):
+            return False, None, f"Field 'status' tidak valid: {data.get('status')!r}"
+        choices = data.get("choices")
+        if not isinstance(choices, list) or len(choices) == 0:
+            return False, None, "Field 'choices' kosong atau tidak ada"
+        first = choices[0]
+        msg = first.get("message", {})
+        if msg.get("role") != "assistant":
+            return False, None, f"choices[0].message.role bukan 'assistant': {msg.get('role')!r}"
+        content_str = msg.get("content", "")
+        if not isinstance(content_str, str) or not content_str.strip():
+            return False, None, "choices[0].message.content kosong"
+        return True, data, ""
+
     async def scrape(self, prompt: str, mode: str = "new", attachments: list | None = None) -> dict:
         # _discover_accounts() is already called in __aenter__ before browser launch.
         # In persistent mode, launch_browser() already handled cookie seeding.
@@ -556,6 +602,18 @@ class BaseAIChatScraper(ABC):
         _rl_restart_phrases = ROTATION_CONFIG.get("rate_limit_restart_first_phrases", [])
         _rl_rotate_phrases  = ROTATION_CONFIG.get("rate_limit_rotate_phrases", [])
 
+        # ── Retry / rotation tracking (poin 3) ───────────────────────────────
+        HARD_CAP_RETRIES  = 5     # total retry lintas semua akun
+        MAX_RETRY_PER_ACC = 2     # max retry per akun sebelum rotasi
+        RETRY_DELAY_S     = 2.0   # jeda antar retry (detik)
+        ROTATE_DELAY_S    = 5.0   # jeda saat rotasi akun (detik)
+
+        total_retries        = 0
+        retries_on_this_acc  = 0
+        previous_account_err: str | None = None
+        scrape_start_time    = _time.monotonic()
+        # ─────────────────────────────────────────────────────────────────────
+
         while attempt < max_total_attempts:
             attempt += 1
             account_name = (
@@ -567,7 +625,7 @@ class BaseAIChatScraper(ABC):
             )
 
             try:
-                # ── Cek page crash sebelum mengirim prompt ────────────────────
+                # ── Cek page crash sebelum mengirim prompt ────────────────────────
                 if await self._is_page_crashed():
                     self.logger.warning(
                         "⚠️  Page crash terdeteksi sebelum attempt %d – restarting browser …",
@@ -593,8 +651,7 @@ class BaseAIChatScraper(ABC):
                     extra["attachments"] = attachments
                 response_text = await self.send_prompt(prompt, mode, **extra)
 
-                # ── Rate limit: restart-first (quota/token Alibaba) ───────────
-                # Alur: restart browser → retry → jika masih gagal → rotate akun
+                # ── Rate limit: restart-first (quota/token Alibaba) ──────────────
                 if contains_any(response_text, _rl_restart_phrases):
                     self.logger.warning(
                         "⚠️  Rate limit (quota/token) terdeteksi pada akun '%s' "
@@ -602,7 +659,6 @@ class BaseAIChatScraper(ABC):
                         account_name, browser_restart_count, max_browser_restarts,
                     )
                     await self.take_debug_screenshot(f"rate_limit_quota_attempt{attempt}")
-
                     if browser_restart_count < max_browser_restarts:
                         browser_restart_count += 1
                         restarted = await self.restart_browser()
@@ -611,33 +667,34 @@ class BaseAIChatScraper(ABC):
                                 "Browser restart #%d selesai – retry dengan akun yang sama",
                                 browser_restart_count,
                             )
-                            attempt -= 1   # retry attempt yang sama setelah restart
+                            attempt -= 1
                             continue
-
-                    # Restart sudah habis / gagal → fallback rotate ke akun lain
                     self.logger.warning(
                         "Browser restart habis (%d/%d) – fallback rotate ke akun lain",
                         browser_restart_count, max_browser_restarts,
                     )
                     await self.take_debug_screenshot(f"rate_limit_quota_rotate_attempt{attempt}")
+                    previous_account_err = f"rate_limited on {account_name}"
                     if not await self._rotate_account():
                         break
-                    # Reset restart counter untuk akun baru
                     browser_restart_count = 0
+                    retries_on_this_acc = 0
+                    await asyncio.sleep(ROTATE_DELAY_S)
                     continue
 
-                # ── Rate limit: langsung rotate akun ─────────────────────────
+                # ── Rate limit: langsung rotate akun ────────────────────────────
                 if contains_any(response_text, _rl_rotate_phrases):
-                    self.logger.warning(
-                        "Rate limit terdeteksi (rotate-direct) – rotating account"
-                    )
+                    self.logger.warning("Rate limit terdeteksi (rotate-direct) – rotating account")
                     await self.take_debug_screenshot("rate_limit_rotate")
+                    previous_account_err = f"rate_limited (rotate-direct) on {account_name}"
                     if not await self._rotate_account():
                         break
                     browser_restart_count = 0
+                    retries_on_this_acc = 0
+                    await asyncio.sleep(ROTATE_DELAY_S)
                     continue
 
-                # ── Cek page crash di response teks ───────────────────────────
+                # ── Cek page crash di response teks ─────────────────────────────
                 if contains_any(response_text, ROTATION_CONFIG.get("page_crash_phrases", [])):
                     self.logger.warning("Page crash phrase detected in response – restarting browser")
                     await self.take_debug_screenshot(f"crash_in_response_attempt{attempt}")
@@ -652,34 +709,152 @@ class BaseAIChatScraper(ABC):
                 if contains_any(response_text, ROTATION_CONFIG["session_expired_phrases"]):
                     self.logger.warning("Session expired – rotating account")
                     await self.take_debug_screenshot("session_expired")
+                    previous_account_err = f"session_expired on {account_name}"
                     if not await self._rotate_account():
                         break
                     browser_restart_count = 0
+                    retries_on_this_acc = 0
+                    await asyncio.sleep(ROTATE_DELAY_S)
                     continue
 
-                blocks = self.extract_code_blocks(response_text)
+                # ── Response validation + retry logic (poin 3) ──────────────────
+                is_valid, parsed, validation_err = self._validate_qwen_response(response_text)
+
+                if not is_valid:
+                    self.logger.warning(
+                        "Response tidak valid (attempt %d): %s | raw[:200]=%s",
+                        attempt, validation_err, response_text[:200],
+                    )
+
+                    if total_retries >= HARD_CAP_RETRIES:
+                        self.logger.error("Hard cap retry (%d) tercapai – hentikan", HARD_CAP_RETRIES)
+                        break
+
+                    total_retries += 1
+                    retries_on_this_acc += 1
+
+                    if retries_on_this_acc > MAX_RETRY_PER_ACC:
+                        # Sudah 2 retry di akun ini → rotasi ke akun lain
+                        self.logger.warning(
+                            "Max retry per-akun (%d) tercapai di '%s' – rotasi akun",
+                            MAX_RETRY_PER_ACC, account_name,
+                        )
+                        previous_account_err = (
+                            f"invalid_response ({validation_err}) on {account_name}"
+                        )
+                        if not await self._rotate_account():
+                            break
+                        browser_restart_count = 0
+                        retries_on_this_acc = 0
+                        await asyncio.sleep(ROTATE_DELAY_S)
+                        mode = "new"
+                        continue
+
+                    # Kirim corrective feedback dalam session yang SAMA
+                    corrective_prompt = (
+                        "Tolong ulangi response kamu dalam format JSON berikut, "
+                        "tanpa teks lain di luar JSON:\n"
+                        '{"status":"success","choices":[{"index":0,'
+                        '"message":{"role":"assistant","content":"<isi jawaban kamu>"},'
+                        '"finish_reason":"stop"}]}'
+                    )
+                    self.logger.info(
+                        "Mengirim corrective feedback (retry %d/%d) dalam session yang sama",
+                        total_retries, HARD_CAP_RETRIES,
+                    )
+                    await asyncio.sleep(RETRY_DELAY_S)
+                    try:
+                        corrective_extra = self._extra_send_kwargs()
+                        response_text = await self.send_prompt(
+                            corrective_prompt, mode="continue", **corrective_extra
+                        )
+                    except Exception as corr_exc:
+                        self.logger.warning("Corrective send gagal: %s", corr_exc)
+                        attempt -= 1
+                        continue
+
+                    is_valid2, parsed2, validation_err2 = self._validate_qwen_response(response_text)
+                    if not is_valid2:
+                        self.logger.warning(
+                            "Corrective response juga tidak valid: %s", validation_err2
+                        )
+                        attempt -= 1
+                        continue
+
+                    is_valid = True
+                    parsed = parsed2
+                    self.logger.info("Corrective berhasil – response valid setelah feedback")
+                # ─────────────────────────────────────────────────────────────────
+
+                # ── Extract content dari parsed JSON (poin 6) ────────────────────
+                content_str = parsed["choices"][0]["message"]["content"]
+
+                # ── tiktoken usage (poin 5) ──────────────────────────────────────
+                prompt_tokens     = _count_tokens(prompt)
+                completion_tokens = _count_tokens(content_str)
+                total_tokens      = prompt_tokens + completion_tokens
+
+                # ── Metadata inject (poin 4) ─────────────────────────────────────
+                response_time_ms = int((_time.monotonic() - scrape_start_time) * 1000)
+                cookie_file_path = (
+                    str(self._current_cookie_file) if self._current_cookie_file else ""
+                )
+                try:
+                    cookie_files_list = list(getattr(self, "_cookie_files", []))
+                    acc_index = next(
+                        (i for i, cf in enumerate(cookie_files_list)
+                         if cf.stem == account_name),
+                        0,
+                    )
+                except Exception:
+                    acc_index = 0
+
+                effective_think = getattr(self, "_think_mode", None)
+
+                x_metadata: dict = {
+                    "model":            account_name,
+                    "account_file":     cookie_file_path,
+                    "account_index":    acc_index,
+                    "timestamp":        int(_time.time()),
+                    "account_status":   "ok",
+                    "retry_count":      total_retries,
+                    "response_time_ms": response_time_ms,
+                    "think_mode":       effective_think,
+                }
+                if previous_account_err:
+                    x_metadata["previous_account_error"] = previous_account_err
+                # ─────────────────────────────────────────────────────────────────
+
+                blocks = self.extract_code_blocks(content_str)
                 result = {
-                    "prompt": prompt,
-                    "response": response_text,
-                    "file_type": self.detect_file_type(response_text),
-                    "code_blocks": blocks,
+                    "prompt":           prompt,
+                    "response":         content_str,
+                    "file_type":        self.detect_file_type(content_str),
+                    "code_blocks":      blocks,
                     "code_block_count": len(blocks),
-                    "account_used": account_name,
-                    "timestamp": datetime.now().isoformat(),
-                    "success": True,
-                    "error": None,
+                    "account_used":     account_name,
+                    "timestamp":        datetime.now().isoformat(),
+                    "success":          True,
+                    "error":            None,
+                    "usage": {
+                        "prompt_tokens":     prompt_tokens,
+                        "completion_tokens": completion_tokens,
+                        "total_tokens":      total_tokens,
+                    },
+                    "x_metadata": x_metadata,
                 }
                 self.logger.info(
-                    "Scrape successful – %d char(s), %d code block(s)",
-                    len(response_text), len(blocks),
+                    "Scrape successful – %d char(s), %d code block(s) | "
+                    "tokens p=%d c=%d | retries=%d | %dms",
+                    len(content_str), len(blocks),
+                    prompt_tokens, completion_tokens,
+                    total_retries, response_time_ms,
                 )
                 return result
 
             except TimeoutError as exc:
                 self.logger.error("Timeout on attempt %d: %s", attempt, exc)
                 await self.take_debug_screenshot(f"timeout_attempt{attempt}")
-
-                # Cek apakah timeout disebabkan oleh crash halaman
                 if await self._is_page_crashed():
                     self.logger.warning("Timeout caused by page crash – restarting browser")
                     if browser_restart_count < max_browser_restarts:
@@ -694,8 +869,6 @@ class BaseAIChatScraper(ABC):
             except Exception as exc:
                 self.logger.error("Error on attempt %d: %s", attempt, exc, exc_info=True)
                 await self.take_debug_screenshot(f"error_attempt{attempt}")
-
-                # Cek crash terlebih dahulu sebelum rotate
                 if await self._is_page_crashed():
                     self.logger.warning("Exception caused by page crash – restarting browser")
                     if browser_restart_count < max_browser_restarts:
@@ -705,11 +878,11 @@ class BaseAIChatScraper(ABC):
                             attempt -= 1
                             continue
                 elif await self.is_rate_limited() or await self.is_session_expired():
-                    # is_rate_limited() mendeteksi semua frasa (restart-first maupun rotate).
-                    # Di sini sudah di luar try response → langsung rotate sebagai last resort.
                     if not await self._rotate_account():
                         break
                     browser_restart_count = 0
+                    retries_on_this_acc = 0
+                    previous_account_err = f"exception on {account_name}: {exc}"
                 else:
                     retry_sleep(ROTATION_CONFIG["retry_delay"])
 
@@ -717,15 +890,17 @@ class BaseAIChatScraper(ABC):
         await self.take_debug_screenshot("all_attempts_exhausted")
 
         return {
-            "prompt": prompt,
-            "response": None,
-            "file_type": None,
-            "code_blocks": [],
+            "prompt":           prompt,
+            "response":         None,
+            "file_type":        None,
+            "code_blocks":      [],
             "code_block_count": 0,
-            "account_used": None,
-            "timestamp": datetime.now().isoformat(),
-            "success": False,
-            "error": "All attempts exhausted",
+            "account_used":     None,
+            "timestamp":        datetime.now().isoformat(),
+            "success":          False,
+            "error":            "All attempts exhausted",
+            "usage":            {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+            "x_metadata":       {},
         }
 
     # ── Context manager ───────────────────────────────────────────────────────

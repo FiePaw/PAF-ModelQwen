@@ -1,7 +1,20 @@
 [
     {
+        "domain": "chat.qwen.ai",
+        "expirationDate": 1810045515.848289,
+        "hostOnly": true,
+        "httpOnly": false,
+        "name": "qwen-thinking_mode",
+        "path": "/",
+        "sameSite": null,
+        "secure": false,
+        "session": false,
+        "storeId": null,
+        "value": "Thinking"
+    },
+    {
         "domain": ".qwen.ai",
-        "expirationDate": 1777367823,
+        "expirationDate": 1782299069,
         "hostOnly": false,
         "httpOnly": false,
         "name": "xlly_s",
@@ -14,7 +27,7 @@
     },
     {
         "domain": "chat.qwen.ai",
-        "expirationDate": 1792660626.431709,
+        "expirationDate": 1792666306.69891,
         "hostOnly": true,
         "httpOnly": false,
         "name": "_bl_uid",
@@ -23,11 +36,11 @@
         "secure": false,
         "session": false,
         "storeId": null,
-        "value": "vRm4CoUmeL54Xbl2Lb1aznIyRR0t"
+        "value": "b5ma4oC4eUO7n8z0k2wgxdR6Fh6t"
     },
     {
         "domain": ".qwen.ai",
-        "expirationDate": 1811668647.044996,
+        "expirationDate": 1811674314.822715,
         "hostOnly": false,
         "httpOnly": false,
         "name": "cnaui",
@@ -40,7 +53,7 @@
     },
     {
         "domain": ".qwen.ai",
-        "expirationDate": 1792660646,
+        "expirationDate": 1797625753,
         "hostOnly": false,
         "httpOnly": false,
         "name": "isg",
@@ -49,11 +62,11 @@
         "secure": true,
         "session": false,
         "storeId": null,
-        "value": "BCgojEOB1SeYDfmjFMep7aWm-RY6UYxbVo1U1uJZaaOWPcinimJ064j_Mc3NDUQz"
+        "value": "BEBAOI97Pjs_UcHr9gE5TtIQEc4SySSTl8dnnLrRDNvuNeBfYtn0IxYFSYX1hdxr"
     },
     {
         "domain": ".qwen.ai",
-        "expirationDate": 1777110495,
+        "expirationDate": 1782075620,
         "hostOnly": false,
         "httpOnly": false,
         "name": "ssxmod_itna2",
@@ -62,7 +75,7 @@
         "secure": false,
         "session": false,
         "storeId": null,
-        "value": "1-YqGx2D9i0QDtNBKi7KitDRDw6Dp1pYbDIxBP01CD_xQyP08D6QDBRRjruPExWXxrqeDAxi=3QibYxbDG_nDeqYhG5GaYRA3nxDBqK2f0QQA3e_CoeUicKKl_Yjq6afBa7cntiBpCS2ezqXfjBQ2eWAPBT0hlRGPdjXLCTKxHYr7Uu03SbKY4qvfF7RxFi=BYfxXF0T7fY=hGGLbpo=e9qc0iDQjmpaLea9K/n2PDmAO=AnPe_d_DTQBAb93/nTE=Bgmq6djuc2mLwbOCe9KqqQGTqKNTNjMCILUE=nSCeuiXlORFINcyVbeWfHPtq7Gyap_Cje=GeQYh63UYjM6GZjK2YQHcYGQY6=K1r_pi4itRpW01nqYlwGWxwiD_ib7bDxD"
+        "value": "1-eqfhGIgGkSq4kDRxiK7jTIDIxW9K0dGMSDeq7t3GcD8xiKDH9G5D0h4C7E9PDIp=dt0TbNiqxxD3iDjhg4HU8UE5GamAAfTAUD0yIfjK71qhUFOaLSI=vqqI6k2a5kz/LccmNA8=IM1oXU7r_yYMGx1hG07_j9ekj0_f0BeL5/zoL=impq3mPvFM2q4wR9Y1tHtAvUK7qQOb6QSbr0bqUT5GEby=t4SO27LbceKWx/4fi1oBNLFlDX0mNkmDewD2Sj=fGC925GBE5PLrMRMrD"
     },
     {
         "domain": ".qwen.ai",
@@ -74,11 +87,11 @@
         "secure": true,
         "session": true,
         "storeId": null,
-        "value": "ed1cb742"
+        "value": "ef08aab2"
     },
     {
         "domain": "chat.qwen.ai",
-        "expirationDate": 1808644646.256475,
+        "expirationDate": 1813609750.611967,
         "hostOnly": true,
         "httpOnly": false,
         "name": "qwen-theme",
@@ -91,7 +104,7 @@
     },
     {
         "domain": "chat.qwen.ai",
-        "expirationDate": 1777110421.839041,
+        "expirationDate": 1782075546.962189,
         "hostOnly": true,
         "httpOnly": true,
         "name": "acw_tc",
@@ -100,7 +113,7 @@
         "secure": false,
         "session": false,
         "storeId": null,
-        "value": "0a06abd617771086217092891e0576f90fda46706f21a1c56d847295b2623f"
+        "value": "0a06abda17820737496656161e6e76c4b37751ffdca72735715ee351c14934"
     },
     {
         "domain": ".qwen.ai",
@@ -112,11 +125,11 @@
         "secure": true,
         "session": true,
         "storeId": null,
-        "value": "989fe850b6fe969981860f64_1777108646_5"
+        "value": "3d68eb54d2eb0f6904a427b8_1782073755_1"
     },
     {
         "domain": ".qwen.ai",
-        "expirationDate": 1811668649.712738,
+        "expirationDate": 1816633811.76205,
         "hostOnly": false,
         "httpOnly": false,
         "name": "aui",
@@ -129,7 +142,7 @@
     },
     {
         "domain": ".qwen.ai",
-        "expirationDate": 1811668647.044787,
+        "expirationDate": 1816633752.306818,
         "hostOnly": false,
         "httpOnly": false,
         "name": "cna",
@@ -138,11 +151,11 @@
         "secure": true,
         "session": false,
         "storeId": null,
-        "value": "jnRzImtl3AoCAX2hzoNlmD81"
+        "value": "w4pzIq2uuxUCAX2hzoNhjUcz"
     },
     {
         "domain": "chat.qwen.ai",
-        "expirationDate": 1808644647.131328,
+        "expirationDate": 1813609752.707783,
         "hostOnly": true,
         "httpOnly": false,
         "name": "qwen-locale",
@@ -155,7 +168,7 @@
     },
     {
         "domain": ".qwen.ai",
-        "expirationDate": 1777110495,
+        "expirationDate": 1782075620,
         "hostOnly": false,
         "httpOnly": false,
         "name": "ssxmod_itna",
@@ -164,11 +177,11 @@
         "secure": false,
         "session": false,
         "storeId": null,
-        "value": "1-YqGx2D9i0QDtNBKi7KitDRDw6Dp1pYbDIxBP01CD_xQyP08D6QDBRRjruPExWXxrqeDAxi=3QibYh1DBuDrbCDBKQDax73b0eF754YeY/nGuxifGnbxvDo0zxrIieMWAigFCFOZXKUVrHq4hDTU6eWDCPDEoc4qmeoDeeDtx0rD0eDPxDYDG4DooPDn2xDjxDdkK3Ep9oDbxi3k4DbDinIa4GCbDDCDGI_OjRIeaGveDDzejlxAhGjcf7UCmhAdWLxKjoD964DsrmyejoXs5txEFMcOqdTa40kXq0OpRhfbp2QzUfE0b_wQ2rm7oqAxmYtK7xBA43OxqgGFA4tiYdA4mGht_DiG_d75zCodxDiZNd4RmmDbDXgaXMpNb70xiIVWYvlNYQDP7mKCI1mIzDh/GG37m0C03WhhCu_=ibQDd9nxeiCtnpoYez0Nzr6Gei3D"
+        "value": "1-eqfhGIgGkSq4kDRxiK7jTIDIxW9K0dGMSDeq7t3GcD8xiKDH9G5D0h4C7E9PDIp=dt0TbNiquxGX4GSD0=FDf40WG710HtD9jA5h4qFS8hmxgmBkOX8ZF_U1OookyzbSxLLVFZxSuxg4YDCPDEgnKxFqYDeeDtx0rD0eDPxDYDG4DogeDncxDjxDdaUEvszoDbxi3a4DbDiWpN4GCNDDCDGKhFCbpCnqIZDDzZWCNTQDD42SLetk5F0gKXt0Da4G1vD0HeA=09U1yZQSLTH6foZYDXEtDvZO5mSmP0GOEGf3YYIe_G7md3_DdOq9i4ZOq8gDGBdbi4kAK57qbY5YmDPx=FnsSd58eDixADOewmD6D_cgtBoNSx4PpI9Y0=jeZ6DHAPXAp8iICiGCjqsDeznqHiGD90ebT4ebD=riRX83x4WQY3iu0Tu7moR_LSNxD"
     },
     {
         "domain": ".qwen.ai",
-        "expirationDate": 1792660646,
+        "expirationDate": 1797625753,
         "hostOnly": false,
         "httpOnly": false,
         "name": "tfstk",
@@ -177,11 +190,11 @@
         "secure": true,
         "session": false,
         "storeId": null,
-        "value": "gz9iga2umC5s_xaEErWs9-1KpZlL1O6fZEeAktQqTw7BBEh1kBX24UfAgfO9-l9Hr-et5ft4ntBqy4H-ehs1htuJJPbJANsXYZod_xlwsDXqy4HL9k5sWt-OempPLH7CmRSaQEWFLgQU7S8V76zFqg6VuE8V8JSRV-PVgGyELwsV3Z8V3DxFRiXVuEWqxHl2t-7k3p9Ez5eih1YD5pjGsa-nd-yDi8CGzhQ334JhjZ_ybw243aPoO0KHXV2WvO9vrgLtLRYk03OVtK4ErZ9HYdR2AP0cIHL6EOJoSRIdLN1yg6mZQHXGS_vcTuFCII86n1Ogc0tFQeO5P1lIRMv9esb5tyuwvHbNZIYtR-79ZH8hwpULeTRW-KfPUgoQT7J1N-sEDpPbG1SCxaHoxYaTM6TIeDm3Nf1NAG3-xDVXl1SCAPmnx7uc_MsGx"
+        "value": "gC-Kibc5TfcH-gnsMk0MrvU6QGHMvVvUxBJbq_f3PCd9NBMUqL_3NudOsvJhA3La2KJyxvSoLMJF4gGmimxJLpSP21MHPfvsFTSRdbaMIE9F4gGgulFIvpRddpSVVgMOfT6RFg_CV5MOLtI7AaZQ551NFgs5Ow61CTWbRy_WNdMOU115VgO5fABP1_s5Vb9sw1wCZuLZiSAm_4l04u-OpwCY-1E82YXdJs9C6jGXX0QdGp1TVXh-My5R_nGiWdRkRBXwwmhOcER92Zs-vSWp5KI1tiiQfMxedE_WcbzWdMfdfHTYFu9Ov6_9vCPK6steCnS1SmMvChRHLhpuF06Mi19eAgnj3MICOGBwqfrCwFTWxwSzObCyXdtByguwmnhjYSfAEyMtBzzPROR6fbcpDMy8DOCmp0UzzNkNBsDtBzzPROWOivhLzz7ZQ"
     },
     {
         "domain": ".qwen.ai",
-        "expirationDate": 1779700646.770339,
+        "expirationDate": 1784665750.97966,
         "hostOnly": false,
         "httpOnly": true,
         "name": "token",
@@ -190,7 +203,7 @@
         "secure": false,
         "session": false,
         "storeId": null,
-        "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjhhYmMwZTMwLTZhNDktNDEwZS04ZmUwLTU5ODQzNTUxZGRkZSIsImxhc3RfcGFzc3dvcmRfY2hhbmdlIjoxNzc3MTA4NjQ1LCJleHAiOjE3Nzk3MDA2NDZ9.7cxIUd1dYY3GmrETnz0COrjqoJDLLKjXqqjutb0IYcA"
+        "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjhhYmMwZTMwLTZhNDktNDEwZS04ZmUwLTU5ODQzNTUxZGRkZSIsImxhc3RfcGFzc3dvcmRfY2hhbmdlIjoxNzc3MTA4NjQ1LCJleHAiOjE3ODQ2NjU3NTN9.4PCWjU5-KZ2pjZfdhMm46r2Cw02SYROAet_j_QOGCYU"
     },
     {
         "domain": "chat.qwen.ai",
@@ -202,6 +215,6 @@
         "secure": false,
         "session": true,
         "storeId": null,
-        "value": "ap-southeast-1"
+        "value": "ap-southeast-5"
     }
 ]
