@@ -878,6 +878,34 @@ class LocalWorker:
         except Exception as e:
             logger.error("Gagal kirim command_result ke VPS: %s", e)
 
+    async def _send_accounts_when_ready(self, ws) -> None:
+        """
+        Tunggu sampai pool punya minimal 1 slot aktif, lalu kirim update_accounts ke VPS.
+        Ini menangani kasus di mana register dikirim sebelum pool selesai warm-up,
+        sehingga accounts[] kosong pada pesan register awal.
+        """
+        for _ in range(120):  # tunggu max 120 detik
+            accounts = self.processor.pool.list_accounts()
+            if accounts:
+                try:
+                    await ws.send(json.dumps({
+                        "type": "update_accounts",
+                        "accounts": accounts,
+                    }))
+                    logger.info(
+                        "Worker#%s 📋 Pool siap — dilaporkan %d akun ke VPS: %s",
+                        self._label, len(accounts),
+                        [a["account"] + "(" + a["status"] + ")" for a in accounts],
+                    )
+                except Exception as e:
+                    logger.warning("Worker#%s gagal kirim update_accounts: %s", self._label, e)
+                return
+            await asyncio.sleep(1)
+        logger.warning(
+            "Worker#%s ⚠️ Pool masih kosong setelah 120 detik — akun tidak dilaporkan ke VPS.",
+            self._label,
+        )
+
     async def _keepalive(self, ws) -> None:
         """Kirim ping ke VPS setiap 30 detik supaya koneksi tidak putus."""
         while True:
@@ -913,14 +941,16 @@ class LocalWorker:
             await ws.send(json.dumps({
                 "type": "register",
                 "max_concurrent": self.max_concurrent,
+                "accounts": self.processor.pool.list_accounts(),  # mungkin [] saat pool belum siap
             }))
             logger.info(
                 "Worker#%s ✅ Terhubung ke VPS! (max_concurrent=%d)",
                 self._label, self.max_concurrent,
             )
 
-            keepalive_task = asyncio.create_task(self._keepalive(ws))
-            status_task    = asyncio.create_task(self._status_reporter())
+            keepalive_task  = asyncio.create_task(self._keepalive(ws))
+            status_task     = asyncio.create_task(self._status_reporter())
+            accounts_task   = asyncio.create_task(self._send_accounts_when_ready(ws))
 
             try:
                 async for raw in ws:
@@ -970,6 +1000,7 @@ class LocalWorker:
             finally:
                 keepalive_task.cancel()
                 status_task.cancel()
+                accounts_task.cancel()
 
     async def run(self) -> None:
         """Loop utama dengan auto-reconnect."""

@@ -76,8 +76,10 @@ class WorkerManager:
         self._session_worker: dict[str, str] = {}
         # request_id → Future
         self._pending: dict[str, asyncio.Future] = {}
+        # worker_id → list of account dicts reported on register
+        self._worker_accounts: dict[str, list[dict]] = {}
 
-    async def register(self, worker_id: str, ws: WebSocket, max_concurrent: int = 4) -> None:
+    async def register(self, worker_id: str, ws: WebSocket, max_concurrent: int = 4, accounts: list | None = None) -> None:
         async with self._lock:
             self._workers[worker_id] = {
                 "ws": ws,
@@ -86,14 +88,29 @@ class WorkerManager:
                 "connected_at": time.time(),
                 "sessions": set(),
             }
+            if accounts:
+                self._worker_accounts[worker_id] = accounts
         logger.info(
-            "✅ Worker terdaftar: %s (max_concurrent=%d, total workers: %d)",
-            worker_id[:8], max_concurrent, len(self._workers),
+            "✅ Worker terdaftar: %s (max_concurrent=%d, accounts=%d, total workers: %d)",
+            worker_id[:8], max_concurrent, len(accounts or []), len(self._workers),
         )
+
+    def list_all_accounts(self) -> list[dict]:
+        """Kembalikan semua akun dari semua worker yang terhubung (deduplicated by account name)."""
+        seen: set[str] = set()
+        result: list[dict] = []
+        for accounts in self._worker_accounts.values():
+            for a in accounts:
+                name = a.get("account", "")
+                if name and name not in seen:
+                    seen.add(name)
+                    result.append(a)
+        return result
 
     async def unregister(self, worker_id: str) -> None:
         async with self._lock:
             info = self._workers.pop(worker_id, None)
+            self._worker_accounts.pop(worker_id, None)
             if info:
                 # Hapus semua session binding milik worker ini
                 for sid in list(self._session_worker.keys()):
@@ -356,15 +373,17 @@ async def worker_endpoint(ws: WebSocket):
     # Worker mengirim {"type": "register", "max_concurrent": N}
     # Jika tidak ada, default ke 4
     max_concurrent = 4
+    accounts: list = []
     try:
         raw_reg = await asyncio.wait_for(ws.receive_text(), timeout=5.0)
         reg_msg = json.loads(raw_reg)
         if reg_msg.get("type") == "register":
             max_concurrent = int(reg_msg.get("max_concurrent", 4))
+            accounts = reg_msg.get("accounts", [])
     except (asyncio.TimeoutError, Exception):
         pass  # Tidak ada registrasi → pakai default
 
-    await workers.register(worker_id, ws, max_concurrent=max_concurrent)
+    await workers.register(worker_id, ws, max_concurrent=max_concurrent, accounts=accounts)
 
     try:
         while True:
@@ -393,6 +412,16 @@ async def worker_endpoint(ws: WebSocket):
                 logger.warning(
                     "✖ Error dari worker [req=%s]: %s",
                     request_id[:8], msg.get("message"),
+                )
+
+            elif msg_type == "update_accounts":
+                new_accounts = msg.get("accounts", [])
+                async with workers._lock:
+                    workers._worker_accounts[worker_id] = new_accounts
+                logger.info(
+                    "📋 Worker#%s update_accounts: %d akun — %s",
+                    worker_id[:8], len(new_accounts),
+                    [a["account"] + "(" + a.get("status", "?") + ")" for a in new_accounts],
                 )
 
             elif msg_type == "ping":
@@ -429,13 +458,28 @@ async def health():
 @app.get("/v1/models")
 async def list_models():
     now = int(time.time())
-    return {
-        "object": "list",
-        "data": [
-            {"id": "qwen", "object": "model", "created": now, "owned_by": "qwen-ai"},
-            {"id": "qwen-turbo", "object": "model", "created": now, "owned_by": "qwen-ai"},
-        ],
-    }
+    accounts = workers.list_all_accounts()
+
+    if accounts:
+        data = [
+            {
+                "id": a["account"],
+                "object": "model",
+                "created": now,
+                "owned_by": "qwen-ai",
+                "x_status": a.get("status", "unknown"),
+                "x_slot_id": a.get("slot_id"),
+                "x_no_headless": a.get("no_headless", False),
+            }
+            for a in accounts
+        ]
+    else:
+        # Fallback jika belum ada worker yang terhubung
+        data = [
+            {"id": "qwen", "object": "model", "created": now, "owned_by": "qwen-ai", "x_status": "no_worker"},
+        ]
+
+    return {"object": "list", "data": data}
 
 
 @app.post("/v1/chat/completions")
