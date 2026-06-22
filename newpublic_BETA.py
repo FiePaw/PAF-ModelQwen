@@ -365,10 +365,18 @@ class TaskProcessor:
         raw_attachments: list[dict] = payload.get("attachments") or []
         payload_preferred_cookie: str | None = payload.get("preferred_cookie")
 
-        user_msgs = [m["content"] for m in messages if m.get("role") == "user"]
-        prompt = user_msgs[-1] if user_msgs else ""
+        # ── Tool calling support ──────────────────────────────────────────────
+        # tools: list of {type, function:{name, description, parameters}}
+        tools: list[dict] | None = payload.get("tools")
 
-        if not prompt:
+        # Pisah messages berdasarkan role untuk routing logic
+        user_msgs  = [m["content"] for m in messages if m.get("role") == "user" and m.get("content")]
+        tool_msgs  = [m for m in messages if m.get("role") == "tool"]   # hasil eksekusi MCP
+        prompt     = user_msgs[-1] if user_msgs else ""
+
+        # Saat CONTINUE dengan tool_msgs, prompt boleh kosong
+        # (Qwen cukup terima tool result + "continue")
+        if not prompt and not tool_msgs:
             return {"success": False, "error": "Prompt kosong"}
 
         # ── Parse attachments dari payload ────────────────────────────────────
@@ -498,12 +506,35 @@ class TaskProcessor:
                         scraper._think_mode = think_mode
                         scraper._think_mode_applied = False
 
-                    # Teruskan max_tokens per-request (ikut di payload [USER REQUEST]
-                    # yang dibungkus QwenScraper._build_wrapped_prompt). None jika
-                    # client tidak mengirimnya → field dihilangkan dari payload.
+                    # Teruskan max_tokens per-request
                     scraper._max_tokens = max_tokens
 
-                    result = await scraper.scrape(prompt, mode=mode, attachments=attachments or None)
+                    # ── Tool calling: inject tools ke scraper ─────────────────
+                    scraper._tools = tools  # None jika request tidak punya tools
+
+                    # ── Routing berdasarkan mode + tool_msgs ─────────────────
+                    if mode == "continue" and tool_msgs:
+                        # TURN 2: CLI mengembalikan hasil eksekusi tool via MCP.
+                        # Cari next user message SETELAH tool messages (jika ada).
+                        last_tool_idx = max(
+                            i for i, m in enumerate(messages) if m.get("role") == "tool"
+                        )
+                        msgs_after_tools = messages[last_tool_idx + 1:]
+                        next_user = next(
+                            (m["content"] for m in msgs_after_tools if m.get("role") == "user" and m.get("content")),
+                            None,
+                        )
+                        logger.info(
+                            "Worker#%s TOOL_RESULT [%s] tools=%d next_user=%s",
+                            worker_label, request_id[:8],
+                            len(tool_msgs),
+                            repr(next_user[:40]) if next_user else "None",
+                        )
+                        result = await scraper.scrape_with_tool_result(tool_msgs, next_user)
+                    else:
+                        # TURN 1 (NEW) atau CONTINUE biasa tanpa tool result
+                        result = await scraper.scrape(prompt, mode=mode, attachments=attachments or None)
+
                     current_url: str = scraper._page.url
 
                 except asyncio.TimeoutError:
@@ -518,66 +549,66 @@ class TaskProcessor:
             if not result.get("success"):
                 return {"success": False, "error": result.get("error", "Unknown scraper error")}
 
-            response_text: str = result["response"]
-
-            # Resolusi cookie_file sebagai Path untuk disimpan di session:
-            # - CONTINUE: pakai Path yang sudah diketahui dari session sebelumnya
-            # - NEW: cari Path dari nama cookie yang dikembalikan pool
+            # Resolusi cookie_file sebagai Path untuk disimpan di session
             if session_cookie_file:
                 resolved_cookie_path = session_cookie_file
             else:
-                # Cari Path dari pool berdasarkan nama file
                 resolved_cookie_path = self.pool.get_cookie_path(cookie_name)
 
-            # ← FIX Bug #1: simpan Path ke session, bukan string
             session = await self.sessions.get_or_create(incoming_sid, resolved_cookie_path)
             if current_url and "chat.qwen.ai" in current_url:
                 session.conversation_url = current_url
             session.touch()
-            # Simpan perubahan (URL + last_used + turn_count) ke disk
             await self.sessions.update(session)
 
-            logger.info(
-                "Worker#%s ✅ [%s] %d chars | session=%s | cookie=%s | url=%s",
-                worker_label, request_id[:8], len(response_text),
-                session.session_id[:8], cookie_name,
-                session.conversation_url or "-",
-            )
-
             # ── Map internal result → OpenAI-compatible response ─────────────
-            ts = int(time.time())
+            ts           = int(time.time())
             account_stem = cookie_name.replace(".json", "") if cookie_name else "qwen"
-            openai_id = f"chatcmpl-qwen-{ts}-{account_stem}"
+            openai_id    = f"chatcmpl-qwen-{ts}-{account_stem}"
+            x_metadata   = result.get("x_metadata", {})
+            usage        = result.get("usage", {})
+            finish_reason = result.get("finish_reason", "stop")
 
-            # Ambil metadata yang di-inject QwenScraper (poin 4 & 5)
-            x_metadata = result.get("x_metadata", {})
-            usage = result.get("usage", {})
-
-            openai_response = {
-                "success": True,
-                "id": openai_id,
-                "object": "chat.completion",
-                "created": ts,
-                "model": account_stem,
-                "choices": [{
-                    "index": 0,
-                    "message": {
-                        "role": "assistant",
-                        "content": response_text,
-                    },
+            if finish_reason == "tool_calls":
+                # Qwen meminta pemanggilan tool → return tool_calls ke VPS/CLI
+                tool_calls_list = result.get("tool_calls", [])
+                logger.info(
+                    "Worker#%s TOOL_CALLS [%s] %d call(s) | session=%s",
+                    worker_label, request_id[:8], len(tool_calls_list),
+                    session.session_id[:8],
+                )
+                openai_response = {
+                    "success": True,
+                    "finish_reason": "tool_calls",
+                    "tool_calls": tool_calls_list,
+                    "session_id": session.session_id,
+                    "cookie_file": cookie_name,
+                    "conversation_url": session.conversation_url or "",
+                    "usage": usage,
+                    "x_metadata": x_metadata,
+                }
+            else:
+                # Jawaban final (stop)
+                response_text: str = result.get("response", "")
+                logger.info(
+                    "Worker#%s ✅ [%s] %d chars | session=%s | cookie=%s | url=%s",
+                    worker_label, request_id[:8], len(response_text),
+                    session.session_id[:8], cookie_name,
+                    session.conversation_url or "-",
+                )
+                openai_response = {
+                    "success": True,
                     "finish_reason": "stop",
-                }],
-                "usage": usage,
-                # Field internal tetap ada untuk backward-compat VPS
-                "response": response_text,
-                "session_id": session.session_id,
-                "cookie_file": cookie_name,
-                "conversation_url": session.conversation_url or "",
-                "account_used": cookie_name,
-                "x_metadata": x_metadata,
-            }
+                    "response": response_text,
+                    "session_id": session.session_id,
+                    "cookie_file": cookie_name,
+                    "conversation_url": session.conversation_url or "",
+                    "account_used": cookie_name,
+                    "usage": usage,
+                    "x_metadata": x_metadata,
+                }
             return openai_response
-            # ─────────────────────────────────────────────────────────────────
+            # ────────────────────────────────────────────────────────────────────────
 
         if lock:
             async with lock:
@@ -667,19 +698,27 @@ class LocalWorker:
             payload["preferred_cookie"] = payload["model"]
 
         # Pisah system message dari messages
+        # CATATAN: tools tetap ada di payload["tools"], tidak disentuh di sini
         system_messages = [m for m in messages if m.get("role") == "system"]
         non_system_messages = [m for m in messages if m.get("role") != "system"]
 
         if system_messages:
-            payload["system_prompt"] = "\n".join(m["content"] for m in system_messages)
+            # Jika tools ada, system_prompt akan di-merge ke [SYSTEM CONTEXT] oleh scraper
+            payload["system_prompt"] = "\n".join(
+                m["content"] for m in system_messages if m.get("content")
+            )
             payload["messages"] = non_system_messages
 
         # conversation_history: semua pesan kecuali yang terakhir (hanya untuk mode CONTINUE)
-        # Mode NEW → history tidak dikirim (skip), kecuali terjadi kegagalan (ditangani di processor)
         incoming_sid = payload.get("session_id")
         user_msgs = [m for m in payload.get("messages", []) if m.get("role") == "user"]
         if incoming_sid and len(user_msgs) > 1:
             payload["conversation_history"] = payload["messages"][:-1]
+
+        # Log tools count untuk debugging
+        tools = payload.get("tools")
+        if tools:
+            logger.info("Worker#%s Tools available: %d", self._label, len(tools))
         # ─────────────────────────────────────────────────────────────────────
 
         try:

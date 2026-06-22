@@ -170,6 +170,10 @@ class QwenScraper(BaseAIChatScraper):
         # max_tokens per-request, diisi dari luar (mis. newpublic_BETA.py) sebelum
         # scrape()/send_prompt() dipanggil — ikut dikirim di payload [USER REQUEST].
         self._max_tokens: int | None = None
+        # tools: list of OpenAI-compatible tool definitions, diisi dari luar.
+        # Jika None → mode chat biasa (tidak ada tool calling).
+        # Jika diisi → mode LLM API dengan tool calling.
+        self._tools: list[dict] | None = None
 
     # ── Context manager override ──────────────────────────────────────────────
 
@@ -1649,17 +1653,33 @@ class QwenScraper(BaseAIChatScraper):
     # ── Prompt wrapper [SYSTEM CONTEXT] / [USER REQUEST] ────────────────────────
     def _build_wrapped_prompt(self, prompt: str) -> str:
         """
-        Bungkus prompt user mentah ke format yang dikirim ke Qwen:
+        Bungkus prompt user ke format [SYSTEM CONTEXT] / [USER REQUEST].
 
+        Mode tanpa tools (chat biasa):
             [SYSTEM CONTEXT]
             You are operating in API mode. Respond ONLY in JSON format as specified.
 
             [USER REQUEST]
-            {"prompt": "...", "model": "...", "max_tokens": ...}
+            {"prompt": "...", "model": "account1"}
 
-        `model` diambil dari nama akun/cookie yang sedang aktif, `max_tokens`
-        dari self._max_tokens jika di-set (mis. oleh newpublic_BETA.py),
-        kalau tidak field tersebut dihilangkan dari payload.
+        Mode dengan tools (LLM API + tool calling):
+            [SYSTEM CONTEXT]
+            You are a strict JSON LLM API endpoint.
+
+            Available tools:
+            [{"type":"function","function":{"name":"write_file",...}}, ...]
+
+            RESPONSE FORMAT RULES:
+            Rule 1 — Jika perlu memanggil tool:
+            {"status":"tool_calls","tool_calls":[{"id":"call_<id>","type":"function",
+             "function":{"name":"<name>","arguments":{...}}}]}
+
+            Rule 2 — Jika sudah punya jawaban final:
+            {"status":"success","choices":[{"index":0,"message":{"role":"assistant",
+             "content":"<jawaban>"},"finish_reason":"stop"}]}
+
+            [USER REQUEST]
+            {"prompt": "...", "model": "account1", "max_tokens": 2000}
         """
         account_name = (
             self._current_cookie_file.stem if self._current_cookie_file else "qwen"
@@ -1668,15 +1688,102 @@ class QwenScraper(BaseAIChatScraper):
         if self._max_tokens is not None:
             user_request["max_tokens"] = self._max_tokens
 
-        payload_json = json.dumps(user_request, ensure_ascii=False)
+        parts = ["[SYSTEM CONTEXT]"]
 
-        return (
-            "[SYSTEM CONTEXT]\n"
-            "You are operating in API mode. Respond ONLY in JSON format as specified.\n"
-            "\n"
-            "[USER REQUEST]\n"
-            f"{payload_json}"
+        if self._tools:
+            # ── Mode: LLM API dengan tool calling ────────────────────────────
+            parts += [
+                "You are a strict JSON LLM API endpoint.",
+                "",
+                "Available tools:",
+                json.dumps(self._tools, ensure_ascii=False, indent=2),
+                "",
+                "RESPONSE FORMAT RULES (pilih SATU, tidak boleh campur):",
+                "",
+                "Rule 1 — Jika kamu perlu memanggil tool untuk menjawab, balas HANYA dengan:",
+                '{"status":"tool_calls","tool_calls":[{"id":"call_<unique_id>","type":"function","function":{"name":"<tool_name>","arguments":{<args_as_object>}}}]}',
+                "",
+                "Rule 2 — Jika kamu sudah punya jawaban final, balas HANYA dengan:",
+                '{"status":"success","choices":[{"index":0,"message":{"role":"assistant","content":"<jawaban_lengkap>"},"finish_reason":"stop"}]}',
+                "",
+                "PENTING:",
+                "- arguments HARUS berupa object/dict, BUKAN string.",
+                "- id HARUS unik per tool call, format: call_<angka_atau_huruf>.",
+                "- Jangan tambahkan field lain di luar schema di atas.",
+            ]
+        else:
+            # ── Mode: chat biasa tanpa tool calling ──────────────────────────
+            parts.append(
+                "You are operating in API mode. Respond ONLY in JSON format as specified."
+            )
+
+        parts += ["", "[USER REQUEST]", json.dumps(user_request, ensure_ascii=False)]
+        return "\n".join(parts)
+
+    def _build_tool_result_prompt(
+        self,
+        tool_messages: list[dict],
+        next_user_msg: str | None = None,
+    ) -> str:
+        """
+        Bangun prompt untuk Turn 2 (inject tool result ke conversation Qwen yang sama).
+
+        Format yang dikirim ke Qwen (CONTINUE mode):
+            [TOOL RESULT]
+            {"tool_call_id":"call_001","name":"write_file","result":{"success":true}}
+
+            [USER REQUEST]
+            {"continue":true,"model":"account1"}
+
+        Jika ada next_user_msg (user kirim pesan baru setelah tool result):
+            [USER REQUEST]
+            {"prompt":"sekarang jalankan","model":"account1"}
+        """
+        account_name = (
+            self._current_cookie_file.stem if self._current_cookie_file else "qwen"
         )
+        parts = ["[TOOL RESULT]"]
+
+        for tm in tool_messages:
+            entry = {
+                "tool_call_id": tm.get("tool_call_id"),
+                "name": tm.get("name"),
+                "result": tm.get("content"),
+            }
+            parts.append(json.dumps(entry, ensure_ascii=False))
+
+        user_request: dict = {"model": account_name}
+        if next_user_msg:
+            user_request["prompt"] = next_user_msg
+        else:
+            user_request["continue"] = True   # sinyal: tidak ada user message baru
+        if self._max_tokens is not None:
+            user_request["max_tokens"] = self._max_tokens
+
+        parts += ["", "[USER REQUEST]", json.dumps(user_request, ensure_ascii=False)]
+        return "\n".join(parts)
+
+    async def scrape_with_tool_result(
+        self,
+        tool_messages: list[dict],
+        next_user_msg: str | None = None,
+    ) -> dict:
+        """
+        Kirim tool result ke Qwen dalam CONTINUE session (Turn 2).
+        Dipanggil oleh newpublic_BETA.py setelah CLI mengeksekusi tool via MCP.
+
+        Args:
+            tool_messages: list of {role:tool, tool_call_id, name, content} dicts
+            next_user_msg: pesan user berikutnya (opsional), jika ada setelah tool result
+
+        Returns:
+            dict result dari base_scraper.scrape() dengan finish_reason dan
+            kemungkinan tool_calls (jika Qwen minta tool lagi) atau response (stop).
+        """
+        prompt = self._build_tool_result_prompt(tool_messages, next_user_msg)
+        # wrap_as_user_request=False karena prompt sudah berformat lengkap
+        # ([TOOL RESULT] / [USER REQUEST]) — tidak perlu dibungkus lagi.
+        return await self.send_prompt(prompt, wrap_as_user_request=False)
 
     async def send_prompt(
         self,

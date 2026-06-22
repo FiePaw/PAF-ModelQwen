@@ -206,8 +206,22 @@ workers = WorkerManager()
 # ─── Pydantic Models (OpenAI-compatible) ──────────────────────────────────────
 
 class ChatMessage(BaseModel):
-    role: Literal["system", "user", "assistant"] = "user"
-    content: str
+    role: Literal["system", "user", "assistant", "tool"] = "user"
+    content: Optional[str] = None        # None saat assistant return tool_calls
+    tool_calls: Optional[list] = None    # diisi saat role=assistant & ada tool_call
+    tool_call_id: Optional[str] = None   # diisi saat role=tool (hasil eksekusi MCP)
+    name: Optional[str] = None           # nama tool (untuk role=tool)
+
+
+class ToolFunctionDef(BaseModel):
+    name: str
+    description: Optional[str] = None
+    parameters: Optional[dict] = None
+
+
+class Tool(BaseModel):
+    type: Literal["function"] = "function"
+    function: ToolFunctionDef
 
 
 class AttachmentPayload(BaseModel):
@@ -235,11 +249,14 @@ class ChatCompletionRequest(BaseModel):
     max_tokens: Optional[int] = None
     top_p: Optional[float] = None
     think_mode: Optional[Literal["auto", "thinking", "fast"]] = None
-    attachments: Optional[list[AttachmentPayload]] = None   # ← NEW
+    attachments: Optional[list[AttachmentPayload]] = None
+    tools: Optional[list[Tool]] = None          # ← NEW: OpenAI-compatible tool calling
+    tool_choice: Optional[str] = "auto"         # ← NEW: auto | none | required
 
     @property
     def last_user_message(self) -> str:
-        msgs = [m.content for m in self.messages if m.role == "user"]
+        """Ambil pesan user terakhir dari messages (bukan tool/assistant)."""
+        msgs = [m.content for m in self.messages if m.role == "user" and m.content]
         return msgs[-1] if msgs else ""
 
 
@@ -434,10 +451,11 @@ async def chat_completions(req: ChatCompletionRequest, raw_req: Request):
     task_mode = "CONTINUE" if incoming_sid else "NEW"
 
     logger.info(
-        "📨 Request [%s] mode=%s prompt=%d chars session=%s attachments=%d",
+        "📨 Request [%s] mode=%s prompt=%d chars session=%s attachments=%d tools=%d",
         request_id[:8], task_mode, len(prompt),
         incoming_sid[:8] if incoming_sid else "-",
         len(req.attachments) if req.attachments else 0,
+        len(req.tools) if req.tools else 0,
     )
 
     # Pilih worker berdasarkan mode (NEW → slot kosong mana saja,
@@ -469,13 +487,20 @@ async def chat_completions(req: ChatCompletionRequest, raw_req: Request):
         "type": "task",
         "request_id": request_id,
         "payload": {
-            "messages": [{"role": m.role, "content": m.content} for m in req.messages],
+            # Full messages[] diteruskan (bukan hanya last user message)
+            # agar worker bisa detect role:tool dan role:assistant di dalamnya.
+            "messages": [
+                m.model_dump(exclude_none=True) for m in req.messages
+            ],
             "model": req.model,
             "stream": req.stream,
             "think_mode": req.think_mode,
             "session_id": incoming_sid,
+            "max_tokens": req.max_tokens,
+            # Tools: list of {type, function:{name, description, parameters}}
+            "tools": [t.model_dump() for t in req.tools] if req.tools else None,
+            "tool_choice": req.tool_choice if req.tools else None,
             # Attachments dikirim as-is (list of {filename, data, mime_type})
-            # Worker/TaskProcessor akan mengkonversi ke objek Attachment
             "attachments": [
                 {
                     "filename": a.filename,
@@ -506,16 +531,60 @@ async def chat_completions(req: ChatCompletionRequest, raw_req: Request):
     if not result.get("success"):
         raise HTTPException(status_code=502, detail=f"Scraper error: {result.get('error', 'Unknown')}")
 
-    response_text: str = result["response"]
-    session_id: str = result.get("session_id", request_id)
-    cookie_file: str = result.get("cookie_file", "")
-    conversation_url: str = result.get("conversation_url", "")
+    session_id: str    = result.get("session_id", request_id)
+    cookie_file: str   = result.get("cookie_file", "")
+    conv_url: str      = result.get("conversation_url", "")
+    finish_reason: str = result.get("finish_reason", "stop")
+    usage: dict        = result.get("usage", {})
+    x_metadata: dict   = result.get("x_metadata", {})
 
     extra_headers = {
         "X-Session-ID": session_id,
         "X-Cookie-File": cookie_file,
-        "X-Conversation-URL": conversation_url,
+        "X-Conversation-URL": conv_url,
     }
+
+    # ── tool_calls response ──────────────────────────────────────────────────
+    if finish_reason == "tool_calls":
+        tool_calls = result.get("tool_calls", [])
+        logger.info(
+            "✅ Done [%s] tool_calls=%d session=%s",
+            request_id[:8], len(tool_calls), session_id[:8],
+        )
+        pt = usage.get("prompt_tokens") or _token_estimate(prompt)
+        ct = usage.get("completion_tokens") or 0
+        return JSONResponse(
+            content={
+                "id": completion_id,
+                "object": "chat.completion",
+                "created": int(time.time()),
+                "model": req.model,
+                "choices": [{
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": None,             # wajib None saat tool_calls
+                        "tool_calls": tool_calls,
+                    },
+                    "finish_reason": "tool_calls",
+                }],
+                "usage": {
+                    "prompt_tokens": pt,
+                    "completion_tokens": ct,
+                    "total_tokens": pt + ct,
+                },
+                "x_meta": {
+                    "session_id": session_id,
+                    "cookie_file": cookie_file,
+                    "conversation_url": conv_url,
+                    **x_metadata,
+                },
+            },
+            headers=extra_headers,
+        )
+
+    # ── normal (stop) response ───────────────────────────────────────────────
+    response_text: str = result.get("response", "")
 
     logger.info(
         "✅ Done [%s] %d chars session=%s",
@@ -536,8 +605,8 @@ async def chat_completions(req: ChatCompletionRequest, raw_req: Request):
         )
 
     # Non-streaming
-    pt = _token_estimate(prompt)
-    ct = _token_estimate(response_text)
+    pt = usage.get("prompt_tokens") or _token_estimate(prompt)
+    ct = usage.get("completion_tokens") or _token_estimate(response_text)
     return JSONResponse(
         content={
             "id": completion_id,
@@ -557,8 +626,9 @@ async def chat_completions(req: ChatCompletionRequest, raw_req: Request):
             "x_meta": {
                 "session_id": session_id,
                 "cookie_file": cookie_file,
-                "conversation_url": conversation_url,
+                "conversation_url": conv_url,
                 "think_mode": req.think_mode or "auto",
+                **x_metadata,
             },
         },
         headers=extra_headers,

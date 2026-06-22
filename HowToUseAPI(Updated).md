@@ -18,6 +18,7 @@ Dokumen ini ditujukan untuk **pengguna API** — Anda tidak perlu mengetahui car
 - [Generate Gambar (Create Image)](#generate-gambar-create-image)
 - [Generate Video (Create Video)](#generate-video-create-video)
 - [Pencarian Web (Web Search)](#pencarian-web-web-search)
+- [Tool Calling (Function Calling)](#tool-calling-function-calling)
 - [Contoh Kode](#contoh-kode)
   - [curl](#curl)
   - [Python (requests)](#python-requests)
@@ -556,6 +557,385 @@ print(answer)
 
 ---
 
+---
+
+## Tool Calling (Function Calling)
+
+> **Fitur baru.** Qwen sekarang bertindak sebagai **LLM murni** yang bisa memutuskan
+> kapan harus memanggil tool eksternal. Format request/response **100% kompatibel
+> dengan OpenAI function calling API**.
+
+### Konsep
+
+Tanpa tool calling, server selalu kembalikan `finish_reason: "stop"` + teks jawaban.
+
+Dengan tool calling, ada dua kemungkinan response:
+
+| `finish_reason` | Artinya | Yang harus dilakukan |
+|---|---|---|
+| `"stop"` | Qwen sudah punya jawaban final | Baca `choices[0].message.content` |
+| `"tool_calls"` | Qwen minta eksekusi tool | Eksekusi tool, kirim hasilnya kembali |
+
+---
+
+### Alur Lengkap (2 Turn)
+
+```
+Turn 1:
+  Client ──► POST /v1/chat/completions
+              { messages, tools:[{write_file,...}] }
+
+  Server ──► Inject tool schema ke prompt Qwen
+  Qwen   ──► Respond: {"status":"tool_calls","tool_calls":[...]}
+  Server ──► Return ke client:
+              {
+                "choices": [{
+                  "message": {"role":"assistant","content":null,
+                              "tool_calls":[{"id":"call_001","type":"function",
+                                "function":{"name":"write_file",
+                                            "arguments":{"path":"test.py",
+                                                         "content":"..."}}}]},
+                  "finish_reason": "tool_calls"
+                }]
+              }
+              + header X-Session-ID: sess_abc123
+
+Client eksekusi tool (write_file) ← misalnya via MCP / lokal
+
+Turn 2:
+  Client ──► POST /v1/chat/completions
+              Header: X-Session-ID: sess_abc123
+              {
+                "messages": [
+                  {"role":"user",      "content":"Buat file test.py"},
+                  {"role":"assistant", "content":null,
+                   "tool_calls":[{"id":"call_001",...}]},
+                  {"role":"tool",      "tool_call_id":"call_001",
+                   "name":"write_file","content":"success: file created"}
+                ],
+                "tools": [...]
+              }
+
+  Server ──► Inject [TOOL RESULT] ke Qwen CONTINUE session
+  Qwen   ──► Respond: {"status":"success","choices":[...]}
+  Server ──► Return ke client:
+              {
+                "choices": [{
+                  "message": {"role":"assistant",
+                              "content":"File test.py berhasil dibuat!"},
+                  "finish_reason": "stop"
+                }]
+              }
+```
+
+---
+
+### Format Request (Turn 1)
+
+```json
+{
+  "model": "account1",
+  "messages": [
+    {"role": "user", "content": "Buat file test.py dengan kode hello world"}
+  ],
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "write_file",
+        "description": "Write content to a file",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "path":    {"type": "string", "description": "File path"},
+            "content": {"type": "string", "description": "File content"}
+          },
+          "required": ["path", "content"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "execute_shell",
+        "description": "Execute a shell command",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "command": {"type": "string"}
+          },
+          "required": ["command"]
+        }
+      }
+    }
+  ],
+  "max_tokens": 2000
+}
+```
+
+#### Field Tool Calling di Request Body
+
+| Field | Tipe | Default | Keterangan |
+|---|---|---|---|
+| `tools` | `array` | `null` | List tool definition. Jika `null` → mode chat biasa |
+| `tool_choice` | `string` | `"auto"` | `auto` (Qwen putuskan), `none` (jangan pakai tool), `required` (wajib pakai tool) |
+
+---
+
+### Format Response saat `finish_reason: "tool_calls"` (Turn 1)
+
+```json
+{
+  "id": "chatcmpl-qwen-1750000000-account1",
+  "object": "chat.completion",
+  "created": 1750000000,
+  "model": "account1",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          {
+            "id": "call_001",
+            "type": "function",
+            "function": {
+              "name": "write_file",
+              "arguments": {
+                "path": "test.py",
+                "content": "print(\'hello world\')"
+              }
+            }
+          }
+        ]
+      },
+      "finish_reason": "tool_calls"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 312,
+    "completion_tokens": 48,
+    "total_tokens": 360
+  }
+}
+```
+
+> **Catatan:** `content` **wajib `null`** saat `finish_reason` adalah `"tool_calls"`.
+> Jangan membaca `content` jika `finish_reason != "stop"`.
+
+---
+
+### Format Request Turn 2 (kirim tool result)
+
+Setelah mengeksekusi tool, kirim hasilnya kembali dengan menambah dua message
+ke array `messages`: role `assistant` (dari Turn 1) dan role `tool` (hasil eksekusi).
+
+```json
+{
+  "model": "account1",
+  "messages": [
+    {"role": "user",      "content": "Buat file test.py dengan kode hello world"},
+    {"role": "assistant", "content": null,
+     "tool_calls": [{"id":"call_001","type":"function",
+                     "function":{"name":"write_file",
+                                 "arguments":{"path":"test.py","content":"..."}}}]},
+    {"role": "tool",      "tool_call_id": "call_001",
+     "name": "write_file", "content": "success: file test.py created (23 bytes)"}
+  ],
+  "tools": [
+    {"type":"function","function":{"name":"write_file","description":"..."}}
+  ]
+}
+```
+
+**Header yang wajib disertakan di Turn 2:**
+
+```
+X-Session-ID: sess_abc123   ← dari response header Turn 1
+```
+
+#### Field `role: "tool"` di messages
+
+| Field | Tipe | Keterangan |
+|---|---|---|
+| `role` | `"tool"` | Wajib `"tool"` |
+| `tool_call_id` | string | Harus sama dengan `id` di `tool_calls` Turn 1 |
+| `name` | string | Nama tool yang dipanggil |
+| `content` | string | Hasil eksekusi tool (string, bisa JSON stringify) |
+
+---
+
+### Contoh Python — Tool Calling Lengkap (2 Turn)
+
+```python
+import json
+import requests
+
+BASE_URL = "http://16.79.2.204:9000"
+
+TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "write_file",
+            "description": "Write content to a file",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path":    {"type": "string"},
+                    "content": {"type": "string"},
+                },
+                "required": ["path", "content"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "execute_shell",
+            "description": "Execute a shell command and return output",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "command": {"type": "string"},
+                },
+                "required": ["command"],
+            },
+        },
+    },
+]
+
+
+def execute_tool(name: str, arguments: dict) -> str:
+    """Eksekusi tool secara lokal (implementasi di client)."""
+    if name == "write_file":
+        path    = arguments["path"]
+        content = arguments["content"]
+        with open(path, "w") as f:
+            f.write(content)
+        return f"success: file {path!r} created ({len(content)} bytes)"
+
+    elif name == "execute_shell":
+        import subprocess
+        result = subprocess.run(
+            arguments["command"], shell=True,
+            capture_output=True, text=True, timeout=30,
+        )
+        return result.stdout or result.stderr or "(no output)"
+
+    return f"error: unknown tool {name!r}"
+
+
+def chat_with_tools(user_message: str, account: str = "account1") -> str:
+    """
+    Agentic loop: kirim pesan, handle tool_calls, return jawaban final.
+    """
+    messages    = [{"role": "user", "content": user_message}]
+    session_id  = None
+
+    while True:
+        headers = {"Content-Type": "application/json"}
+        if session_id:
+            headers["X-Session-ID"] = session_id
+
+        resp = requests.post(
+            f"{BASE_URL}/v1/chat/completions",
+            headers=headers,
+            json={"model": account, "messages": messages, "tools": TOOLS},
+            timeout=180,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+
+        # Simpan session_id dari header
+        session_id = resp.headers.get("X-Session-ID", session_id)
+
+        choice        = data["choices"][0]
+        finish_reason = choice["finish_reason"]
+        message       = choice["message"]
+
+        if finish_reason == "stop":
+            # Jawaban final — selesai
+            return message["content"]
+
+        elif finish_reason == "tool_calls":
+            # Qwen minta eksekusi tool
+            tool_calls = message["tool_calls"]
+
+            # Tambah pesan assistant (dengan tool_calls) ke history
+            messages.append({
+                "role":       "assistant",
+                "content":    None,
+                "tool_calls": tool_calls,
+            })
+
+            # Eksekusi setiap tool dan tambah hasilnya ke messages
+            for tc in tool_calls:
+                fn_name = tc["function"]["name"]
+                fn_args = tc["function"]["arguments"]  # dict, bukan string
+
+                print(f"  → Executing tool: {fn_name}({fn_args})")
+                result = execute_tool(fn_name, fn_args)
+                print(f"  ← Result: {result[:80]}")
+
+                messages.append({
+                    "role":         "tool",
+                    "tool_call_id": tc["id"],
+                    "name":         fn_name,
+                    "content":      result,
+                })
+
+            # Loop lagi — kirim tool result ke server (Turn 2)
+            continue
+
+        else:
+            raise ValueError(f"Unexpected finish_reason: {finish_reason!r}")
+
+
+# ── Contoh pemakaian ──────────────────────────────────────────────────────────
+if __name__ == "__main__":
+    answer = chat_with_tools(
+        "Buat file hello.py berisi print(\'Hello World!\'), "
+        "lalu jalankan filenya dan tunjukkan outputnya.",
+        account="account1",
+    )
+    print("\nJawaban akhir:", answer)
+```
+
+**Output yang diharapkan:**
+```
+  → Executing tool: write_file({'path': 'hello.py', 'content': "print('Hello World!')"})
+  ← Result: success: file 'hello.py' created (22 bytes)
+  → Executing tool: execute_shell({'command': 'python hello.py'})
+  ← Result: Hello World!
+
+Jawaban akhir: File hello.py berhasil dibuat dan dijalankan. Output: Hello World!
+```
+
+---
+
+### Tips Penggunaan Tool Calling
+
+**Selalu cek `finish_reason` sebelum baca `content`** — Saat `finish_reason` adalah
+`"tool_calls"`, field `content` adalah `null`. Membacanya akan return `None`.
+
+**`arguments` sudah berupa dict** — Tidak perlu `json.loads()`. Server sudah
+memvalidasi bahwa Qwen mengembalikan `arguments` sebagai object, bukan string.
+
+**Simpan `X-Session-ID` dari Turn 1** — Wajib dikirim di Turn 2 agar server
+meneruskan tool result ke Qwen conversation yang sama (CONTINUE mode).
+
+**Qwen bisa minta multiple tool calls sekaligus** — Iterasi seluruh `tool_calls`
+array dan eksekusi semuanya sebelum kirim Turn 2.
+
+**Qwen bisa minta tool calls beberapa kali** — Loop `while True` di contoh di atas
+sudah handle kasus di mana Qwen meminta 3+ round tool calling sebelum jawaban final.
+
+**Tool calling tidak kompatibel dengan `task_type`** — Jangan kombinasikan `tools`
+dengan `task_type: "create_image"` atau `"web_search"`. Gunakan salah satu saja.
+
+
 ## Contoh Kode
 
 ### curl
@@ -809,6 +1189,47 @@ print(response.choices[0].message.content)
 | `attachments` | array | `[]` | File attachment. Setiap item: `{filename, data (base64), mime_type?}` |
 | `task_type` | string | `"chat"` | `"chat"`, `"create_image"`, `"create_video"`, `"web_search"` |
 
+### Response Body saat `finish_reason: "tool_calls"`
+
+```json
+{
+  "id": "chatcmpl-qwen-...",
+  "object": "chat.completion",
+  "created": 1750000000,
+  "model": "account1",
+  "choices": [{
+    "index": 0,
+    "message": {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [{
+        "id": "call_001",
+        "type": "function",
+        "function": {
+          "name": "<nama_tool>",
+          "arguments": { "<key>": "<value>" }
+        }
+      }]
+    },
+    "finish_reason": "tool_calls"
+  }],
+  "usage": {
+    "prompt_tokens": 312,
+    "completion_tokens": 48,
+    "total_tokens": 360
+  },
+  "x_meta": {
+    "session_id": "sess_abc123",
+    "cookie_file": "account1.json",
+    "conversation_url": "https://chat.qwen.ai/c/..."
+  }
+}
+```
+
+> `content` adalah `null` saat `finish_reason: "tool_calls"`. Wajib cek `finish_reason` sebelum membaca `content`.
+
+---
+
 ### Response Body (non-streaming)
 
 ```json
@@ -966,7 +1387,10 @@ def safe_chat(prompt: str, account: str = "account1", session_id: str = None) ->
 
 **Percakapan paralel** — Setiap sesi menggunakan slot browser tersendiri. Anda bisa membuat beberapa sesi paralel dengan `session_id` berbeda tanpa saling mengganggu.
 
-**Jangan kirim seluruh riwayat chat di `messages`** — Riwayat percakapan dikelola oleh server via session. Cukup kirim pesan `"user"` terbaru saja di setiap request.
+**Strategi pengiriman `messages[]` bergantung pada mode:**
+
+- **Mode chat biasa (tanpa `tools`)** — Cukup kirim pesan `"user"` terbaru. Riwayat dikelola server via session.
+- **Mode tool calling (dengan `tools`)** — Kirim *full* `messages[]` termasuk role `assistant` (dengan `tool_calls`) dan role `tool` (hasil eksekusi). Server butuh history ini untuk routing Turn 2 ke CONTINUE session yang tepat.
 
 **`task_type` tidak bisa dikombinasikan dengan session** — `create_image`, `create_video`, dan `web_search` selalu memulai sesi baru. Tidak perlu menyimpan `X-Session-ID` dari response-nya.
 

@@ -5,6 +5,285 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Unreleased] – 2026-06-22 — Feat: Tool Calling (OpenAI-compatible) + Stateful Session
+
+> Implementasi penuh **OpenAI-compatible tool calling** (function calling) di atas
+> infrastruktur PAF-ModelQwen yang sudah ada. Qwen bertindak murni sebagai **LLM
+> backend** — bukan chatbot — yang memutuskan kapan harus memanggil tool dan
+> mengembalikan `tool_calls` ke client dalam format identik OpenAI. Agentic loop
+> (eksekusi tool via MCP, feeding hasil kembali ke Qwen) sepenuhnya dikelola oleh
+> client/CLI. Server hanya jadi "LLM API" murni.
+
+### Latar Belakang
+
+Sebelum perubahan ini, PAF-ModelQwen hanya bisa menerima `messages` + `max_tokens`
+dan selalu mengembalikan `finish_reason: "stop"`. Field `tools` dari OpenAI API
+tidak dikenali — Pydantic diam-diam mendropnya, tidak ada error, tidak ada warning.
+
+Tujuan: membuat PAF bisa digunakan sebagai backend LLM untuk CLI Assistant
+(seperti Gemini CLI) yang menggunakan MCP (Model Context Protocol) sebagai
+layer eksekusi tool.
+
+**Pilihan arsitektur yang dipilih: Option B — Stateful Loop**
+
+```
+Turn 1:  CLI → PAF  : POST /chat { messages, tools }
+         PAF → Qwen : inject tool schema ke [SYSTEM CONTEXT]
+         Qwen → PAF : {"status":"tool_calls","tool_calls":[...]}
+         PAF → CLI  : { finish_reason:"tool_calls", tool_calls:[...] }
+                      + header X-Session-ID
+
+CLI eksekusi tool via MCP (write_file, execute_shell, dll.)
+
+Turn 2:  CLI → PAF  : POST /chat { messages+tool_result, X-Session-ID }
+         PAF → Qwen : [TOOL RESULT] + [USER REQUEST] (CONTINUE session)
+         Qwen → PAF : {"status":"success","choices":[...]}
+         PAF → CLI  : { finish_reason:"stop", content:"jawaban final" }
+```
+
+Keunggulan dibanding Option A (stateless full-history rebuild):
+- Lebih cepat per turn — pakai Qwen conversation yang sudah ada
+- Tidak perlu rebuild seluruh prompt history setiap request
+- Konsisten dengan session infrastructure yang sudah matang di PAF
+
+---
+
+### `PublicForward/ForVPS/vps_server.py` — Tambah: Model Tool + Field `tools` di Request
+
+#### Model baru
+
+```python
+class ToolFunctionDef(BaseModel):
+    name: str
+    description: Optional[str] = None
+    parameters: Optional[dict] = None
+
+class Tool(BaseModel):
+    type: Literal["function"] = "function"
+    function: ToolFunctionDef
+```
+
+#### `ChatMessage` — extend role + field baru
+
+```python
+# Sebelum
+class ChatMessage(BaseModel):
+    role: Literal["system", "user", "assistant"] = "user"
+    content: str
+
+# Sesudah
+class ChatMessage(BaseModel):
+    role: Literal["system", "user", "assistant", "tool"] = "user"
+    content: Optional[str] = None        # None saat assistant return tool_calls
+    tool_calls: Optional[list] = None    # diisi saat role=assistant & ada tool_call
+    tool_call_id: Optional[str] = None   # diisi saat role=tool (hasil eksekusi MCP)
+    name: Optional[str] = None           # nama tool untuk role=tool
+```
+
+#### `ChatCompletionRequest` — tambah `tools` + `tool_choice`
+
+```python
+# Field baru
+tools: Optional[list[Tool]] = None
+tool_choice: Optional[str] = "auto"    # auto | none | required
+```
+
+#### `task_payload` — forward full `messages[]` + `tools`
+
+```python
+# Sebelum: hanya last user message
+"messages": [{"role": m.role, "content": m.content} for m in req.messages],
+
+# Sesudah: full messages[] termasuk role:tool, role:assistant
+"messages": [m.model_dump(exclude_none=True) for m in req.messages],
+"tools":    [t.model_dump() for t in req.tools] if req.tools else None,
+"max_tokens": req.max_tokens,
+```
+
+#### Response handler — branch `tool_calls` vs `stop`
+
+```python
+if finish_reason == "tool_calls":
+    return JSONResponse({
+        "choices": [{
+            "message": {
+                "role": "assistant",
+                "content": None,             # wajib None saat tool_calls
+                "tool_calls": tool_calls,
+            },
+            "finish_reason": "tool_calls",
+        }]
+    }, headers={"X-Session-ID": session_id, ...})
+```
+
+---
+
+### `newpublic_BETA.py` — Tambah: Routing Tool Result + Response Branch
+
+#### Deteksi tool messages dari `messages[]`
+
+```python
+tools     = payload.get("tools")
+tool_msgs = [m for m in messages if m.get("role") == "tool"]
+```
+
+#### Routing di `_run()`
+
+```python
+scraper._tools = tools   # inject ke scraper sebelum scrape
+
+if mode == "continue" and tool_msgs:
+    # Turn 2: ada tool result dari client — inject ke Qwen CONTINUE session
+    result = await scraper.scrape_with_tool_result(tool_msgs, next_user)
+else:
+    # Turn 1 (NEW) atau CONTINUE biasa tanpa tool result
+    result = await scraper.scrape(prompt, mode=mode, ...)
+```
+
+#### Response mapping — branch tool_calls vs stop
+
+```python
+if result.get("finish_reason") == "tool_calls":
+    return {
+        "success": True,
+        "finish_reason": "tool_calls",
+        "tool_calls": result["tool_calls"],
+        "session_id": ..., "usage": ...,
+    }
+else:
+    return {
+        "success": True,
+        "finish_reason": "stop",
+        "response": result["response"],
+        ...
+    }
+```
+
+---
+
+### `scrapers/qwen_scraper.py` — Tambah: Tool Schema Injection + Tool Result Prompt
+
+#### Field baru di `__init__`
+
+```python
+self._tools: list[dict] | None = None
+# None → mode chat biasa
+# Diisi → mode LLM API dengan tool calling
+```
+
+#### `_build_wrapped_prompt()` — inject tools ke `[SYSTEM CONTEXT]`
+
+```python
+# Sebelum (selalu sama)
+"[SYSTEM CONTEXT]
+"
+"You are operating in API mode. Respond ONLY in JSON format as specified.
+"
+
+# Sesudah — conditional berdasarkan self._tools
+if self._tools:
+    # Inject tool schema + response rules
+    "[SYSTEM CONTEXT]
+"
+    "You are a strict JSON LLM API endpoint.
+
+"
+    "Available tools:
+"
+    f"{json.dumps(self._tools, indent=2)}
+
+"
+    "RESPONSE FORMAT RULES:
+"
+    "Rule 1 — Jika perlu tool: {"status":"tool_calls","tool_calls":[...]}
+"
+    "Rule 2 — Jika final answer: {"status":"success","choices":[...]}
+"
+else:
+    # Mode chat biasa — tidak berubah
+    "[SYSTEM CONTEXT]
+"
+    "You are operating in API mode. Respond ONLY in JSON format as specified.
+"
+```
+
+#### Method baru: `_build_tool_result_prompt()`
+
+```python
+def _build_tool_result_prompt(self, tool_messages, next_user_msg=None) -> str:
+    """
+    Format prompt untuk Turn 2:
+      [TOOL RESULT]
+      {"tool_call_id":"call_001","name":"write_file","result":"file created"}
+
+      [USER REQUEST]
+      {"continue":true,"model":"account1"}
+    """
+```
+
+#### Method baru: `scrape_with_tool_result()`
+
+```python
+async def scrape_with_tool_result(self, tool_messages, next_user_msg=None) -> dict:
+    """Entry point untuk Turn 2 — inject tool result ke CONTINUE session."""
+    prompt = self._build_tool_result_prompt(tool_messages, next_user_msg)
+    return await self.send_prompt(prompt, wrap_as_user_request=False)
+```
+
+---
+
+### `scrapers/base_scraper.py` — Extend: Validasi `tool_calls` Schema
+
+#### `_validate_qwen_response()` — tambah schema `tool_calls`
+
+```python
+# Sebelum: hanya accept status "success" | "error"
+if data.get("status") not in ("success", "error"):
+    return False, None, f"Field 'status' tidak valid: ..."
+
+# Sesudah: tambah "tool_calls"
+if status == "tool_calls":
+    # Validasi: tool_calls list, setiap item punya function.name
+    # arguments harus dict (bukan string)
+    return True, data, ""
+
+# Validasi "success"/"error" tetap sama
+```
+
+#### `scrape()` — early return saat `tool_calls`
+
+```python
+# Setelah _validate_qwen_response, sebelum extract content_str
+if parsed.get("status") == "tool_calls":
+    return {
+        "success": True,
+        "finish_reason": "tool_calls",
+        "tool_calls": parsed.get("tool_calls", []),
+        "response": None,
+        "usage": {}, "x_metadata": {},
+    }
+
+# Normal path (success) — tambah finish_reason: stop
+result = {
+    "success": True,
+    "finish_reason": "stop",    # ← baru
+    "response": content_str,
+    ...
+}
+```
+
+---
+
+### Catatan Penting untuk Pengguna
+
+> **Custom Instructions Qwen harus dikosongkan** setelah update ini.
+> Seluruh instruksi (format response, tool rules) sekarang di-inject
+> dinamis via `[SYSTEM CONTEXT]` per-request. Custom Instructions lama
+> yang tersisa bisa konflik dengan format tool_calls baru.
+
+---
+
+
 ## [Unreleased] – 2026-06-22 — Feat: Prompt Wrapper `[SYSTEM CONTEXT]`/`[USER REQUEST]`, Repair-Fallback JSON, `max_tokens` Passthrough, Sinkronisasi `vps_server.py`
 
 > Lanjutan dari commit `73ee2b3` ("New Schema (ALPHA)") yang menambahkan request

@@ -643,8 +643,33 @@ class BaseAIChatScraper(ABC):
                 return False, None, f"JSON parse error: {e}"
         if not isinstance(data, dict):
             return False, None, "Response bukan JSON object"
-        if data.get("status") not in ("success", "error"):
-            return False, None, f"Field 'status' tidak valid: {data.get('status')!r}"
+
+        status = data.get("status")
+
+        # ── Schema 1: tool_calls — Qwen meminta pemanggilan tool ─────────────
+        if status == "tool_calls":
+            tool_calls = data.get("tool_calls")
+            if not isinstance(tool_calls, list) or len(tool_calls) == 0:
+                return False, None, "tool_calls kosong atau bukan list"
+            for i, tc in enumerate(tool_calls):
+                if not isinstance(tc, dict):
+                    return False, None, f"tool_calls[{i}] bukan dict"
+                fn = tc.get("function", {})
+                if not fn.get("name"):
+                    return False, None, f"tool_calls[{i}].function.name kosong"
+                args = fn.get("arguments")
+                if args is not None and not isinstance(args, dict):
+                    return False, None, (
+                        f"tool_calls[{i}].function.arguments harus dict/object, "
+                        f"bukan {type(args).__name__}. "
+                        f"Qwen mungkin mengembalikan arguments sebagai JSON string."
+                    )
+            return True, data, ""
+
+        # ── Schema 2: success / error — jawaban final ─────────────────────────
+        if status not in ("success", "error"):
+            return False, None, f"Field 'status' tidak valid: {status!r}"
+
         choices = data.get("choices")
         if not isinstance(choices, list) or len(choices) == 0:
             return False, None, "Field 'choices' kosong atau tidak ada"
@@ -883,7 +908,23 @@ class BaseAIChatScraper(ABC):
                     self.logger.info("Corrective berhasil – response valid setelah feedback")
                 # ─────────────────────────────────────────────────────────────────
 
-                # ── Extract content dari parsed JSON (poin 6) ────────────────────
+                # ─────────────────────────────────────────────────────────────────
+
+                # ── Extract content atau tool_calls dari parsed JSON ──────────────────
+                # Jika status "tool_calls" → Qwen minta panggil tool, return sekarang.
+                if parsed.get("status") == "tool_calls":
+                    tool_calls_list = parsed.get("tool_calls", [])
+                    self.logger.info(
+                        "Qwen response: tool_calls (%d call(s))", len(tool_calls_list)
+                    )
+                    return {
+                        "success":       True,
+                        "finish_reason": "tool_calls",
+                        "tool_calls":    tool_calls_list,
+                        "response":      None,
+                        "usage":         {},
+                        "x_metadata":    {},
+                    }
                 content_str = parsed["choices"][0]["message"]["content"]
 
                 # ── tiktoken usage (poin 5) ──────────────────────────────────────
@@ -932,6 +973,7 @@ class BaseAIChatScraper(ABC):
                     "account_used":     account_name,
                     "timestamp":        datetime.now().isoformat(),
                     "success":          True,
+                    "finish_reason":    "stop",
                     "error":            None,
                     "usage": {
                         "prompt_tokens":     prompt_tokens,
