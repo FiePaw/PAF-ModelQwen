@@ -267,6 +267,7 @@ class ChatCompletionRequest(BaseModel):
     top_p: Optional[float] = None
     think_mode: Optional[Literal["auto", "thinking", "fast"]] = None
     attachments: Optional[list[AttachmentPayload]] = None
+    task_type: Optional[str] = None              # ← FIX: create_image | create_video | web_search | chat
     tools: Optional[list[Tool]] = None          # ← NEW: OpenAI-compatible tool calling
     tool_choice: Optional[str] = "auto"         # ← NEW: auto | none | required
 
@@ -542,6 +543,7 @@ async def chat_completions(req: ChatCompletionRequest, raw_req: Request):
             "session_id": incoming_sid,
             "max_tokens": req.max_tokens,
             # Tools: list of {type, function:{name, description, parameters}}
+            "task_type": req.task_type or "chat",
             "tools": [t.model_dump() for t in req.tools] if req.tools else None,
             "tool_choice": req.tool_choice if req.tools else None,
             # Attachments dikirim as-is (list of {filename, data, mime_type})
@@ -627,6 +629,10 @@ async def chat_completions(req: ChatCompletionRequest, raw_req: Request):
             headers=extra_headers,
         )
 
+    # ── extract media/task_type fields from worker result ──────────────────────
+    result_task_type: str = result.get("task_type", req.task_type or "chat")
+    media_urls: list = result.get("urls", [])
+
     # ── normal (stop) response ───────────────────────────────────────────────
     response_text: str = result.get("response", "")
 
@@ -667,10 +673,13 @@ async def chat_completions(req: ChatCompletionRequest, raw_req: Request):
                 "completion_tokens": ct,
                 "total_tokens": pt + ct,
             },
+            "urls": media_urls,
             "x_meta": {
                 "session_id": session_id,
                 "cookie_file": cookie_file,
                 "conversation_url": conv_url,
+                "task_type": result_task_type,
+                "url_count": len(media_urls),
                 "think_mode": req.think_mode or "auto",
                 **x_metadata,
             },

@@ -1374,7 +1374,13 @@ class QwenScraper(BaseAIChatScraper):
                     els = await self._page.query_selector_all(sel)
                     for el in els:
                         src = await el.get_attribute("src")
-                        if src and src.startswith("http") and src not in urls:
+                        if (
+                            src
+                            and src.startswith("http")
+                            and src not in urls
+                            and "assets.alicdn.com" not in src
+                            and "image-generating-icon" not in src
+                        ):
                             urls.append(src)
                 except Exception:
                     continue
@@ -1388,7 +1394,11 @@ class QwenScraper(BaseAIChatScraper):
                             const imgs = Array.from(document.querySelectorAll(
                                 '.qwen-chat-response-control-card img[src], .qwen-image img[src]'
                             ));
-                            return imgs.map(i => i.src).filter(s => s && s.startsWith('http'));
+                            return imgs.map(i => i.src).filter(s =>
+                                s && s.startsWith('http')
+                                && !s.includes('assets.alicdn.com')
+                                && !s.includes('image-generating-icon')
+                            );
                         }
                         """)
                     else:
@@ -1557,7 +1567,8 @@ class QwenScraper(BaseAIChatScraper):
 
     async def _count_media_elements(self) -> int:
         """
-        Hitung elemen media hasil generate di DOM.
+        Hitung elemen media HASIL JADI generate di DOM.
+        Abaikan placeholder/loading icon (assets.alicdn.com, image-generating-icon).
 
         Struktur DOM Qwen untuk hasil generate:
           .qwen-chat-response-control-card   ← container card hasil
@@ -1567,19 +1578,22 @@ class QwenScraper(BaseAIChatScraper):
         """
         return await self._page.evaluate("""
         () => {
-            // Prioritas: card hasil generate Qwen
-            const cards = document.querySelectorAll(
-                '.qwen-chat-response-control-card, .qwen-image'
-            );
-            if (cards.length > 0) return cards.length;
+            function isPlaceholder(src) {
+                return !src
+                    || src.includes('assets.alicdn.com')
+                    || src.includes('image-generating-icon');
+            }
 
-            // Fallback: img/video di dalam card
-            const imgs = document.querySelectorAll(
+            // Hitung img yang src-nya bukan placeholder
+            const imgs = Array.from(document.querySelectorAll(
                 '.qwen-chat-response-control-card img[src], .qwen-image img[src]'
-            );
+            )).filter(i => !isPlaceholder(i.src));
+
+            // Hitung video elements
             const vids = document.querySelectorAll(
                 '.qwen-chat-response-control-card video, .qwen-image video'
             );
+
             return imgs.length + vids.length;
         }
         """)

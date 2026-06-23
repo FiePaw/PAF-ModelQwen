@@ -365,6 +365,9 @@ class TaskProcessor:
         raw_attachments: list[dict] = payload.get("attachments") or []
         payload_preferred_cookie: str | None = payload.get("preferred_cookie")
 
+        # ── Task type support (create_image / create_video / web_search) ──
+        task_type: str = payload.get("task_type", "chat")
+
         # ── Tool calling support ──────────────────────────────────────────────
         # tools: list of {type, function:{name, description, parameters}}
         tools: list[dict] | None = payload.get("tools")
@@ -512,10 +515,30 @@ class TaskProcessor:
                     # ── Tool calling: inject tools ke scraper ─────────────────
                     scraper._tools = tools  # None jika request tidak punya tools
 
-                    # ── Routing berdasarkan mode + tool_msgs ─────────────────
-                    if mode == "continue" and tool_msgs:
+                    # ── Routing berdasarkan task_type + mode + tool_msgs ─────────
+                    if task_type == "create_image":
+                        # Media task: create image via Qwen "Create Image" button
+                        logger.info(
+                            "Worker#%s CREATE_IMAGE [%s] prompt='%s'",
+                            worker_label, request_id[:8], prompt[:60],
+                        )
+                        result = await scraper.create_image(prompt)
+                    elif task_type == "create_video":
+                        # Media task: create video via Qwen "Create Video" button
+                        logger.info(
+                            "Worker#%s CREATE_VIDEO [%s] prompt='%s'",
+                            worker_label, request_id[:8], prompt[:60],
+                        )
+                        result = await scraper.create_video(prompt)
+                    elif task_type == "web_search":
+                        # Web search: use Qwen "Web search" button
+                        logger.info(
+                            "Worker#%s WEB_SEARCH [%s] prompt='%s'",
+                            worker_label, request_id[:8], prompt[:60],
+                        )
+                        result = await scraper.web_search(prompt)
+                    elif mode == "continue" and tool_msgs:
                         # TURN 2: CLI mengembalikan hasil eksekusi tool via MCP.
-                        # Cari next user message SETELAH tool messages (jika ada).
                         last_tool_idx = max(
                             i for i, m in enumerate(messages) if m.get("role") == "tool"
                         )
@@ -532,7 +555,7 @@ class TaskProcessor:
                         )
                         result = await scraper.scrape_with_tool_result(tool_msgs, next_user)
                     else:
-                        # TURN 1 (NEW) atau CONTINUE biasa tanpa tool result
+                        # TURN 1 (NEW) atau CONTINUE biasa tanpa tool result (chat)
                         result = await scraper.scrape(prompt, mode=mode, attachments=attachments or None)
 
                     current_url: str = scraper._page.url
@@ -596,10 +619,15 @@ class TaskProcessor:
                     session.session_id[:8], cookie_name,
                     session.conversation_url or "-",
                 )
+                # Extract media URLs for create_image/create_video tasks
+                media_urls = result.get("urls", [])
+
                 openai_response = {
                     "success": True,
                     "finish_reason": "stop",
                     "response": response_text,
+                    "urls": media_urls,
+                    "task_type": task_type,
                     "session_id": session.session_id,
                     "cookie_file": cookie_name,
                     "conversation_url": session.conversation_url or "",
