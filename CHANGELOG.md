@@ -5,6 +5,99 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Unreleased] – 2026-06-26 — Fix: Tool Calling — Qwen Membalas Teks Biasa karena Keyword "tool" Trigger Internal Registry
+
+> Lanjutan bugfix tool calling. Setelah fix sebelumnya, Qwen masih membalas
+> dengan teks biasa `"Tool %namatool% does not exists."` alih-alih JSON `tool_calls`.
+
+### Latar Belakang
+
+`[SYSTEM CONTEXT]` sudah ter-inject dengan benar (dikonfirmasi dari log), namun
+Qwen tetap mengabaikan instruksi format JSON dan membalas seperti chatbot biasa.
+
+Root cause ditemukan dua lapis:
+
+1. **Keyword "tool" / "Available tools"** di `[SYSTEM CONTEXT]` men-trigger
+   mekanisme tool calling **internal Qwen UI** (registry Alibaba), yang kemudian
+   mencoba mencocokkan nama tool dari instruksi ke registry built-in-nya —
+   tidak ketemu → output `"Tool run_command does not exists."` sebagai teks biasa.
+
+2. **Custom Instruction lama** hanya mendefinisikan format `success` dan `error`,
+   tidak menyebut `tool_calls` sama sekali. Ketika ada konflik antara Custom
+   Instruction dan `[SYSTEM CONTEXT]`, Qwen fallback ke Custom Instruction dan
+   mengabaikan format baru.
+
+---
+
+### `scrapers/qwen_scraper.py` — Fix: Reframe Terminologi di `_build_wrapped_prompt()`
+
+Kata `"tool"`, `"Available tools"`, dan `"OVERRIDE DIRECTIVE"` dihapus dari
+`[SYSTEM CONTEXT]` mode tool calling — diganti dengan terminologi yang tidak
+men-trigger internal registry Qwen:
+
+```python
+# Sebelum — menggunakan kata "tool" → trigger internal Qwen
+"OVERRIDE DIRECTIVE (highest priority ...):"
+"- DISABLE and IGNORE all built-in tools ..."
+"Available tools:"
+json.dumps(self._tools, ...)
+"Rule 1 — Jika kamu perlu memanggil tool ..."
+
+# Sesudah — reframe ke "function" dan "client-side executor"
+"You are a pure JSON API endpoint. You do NOT have any built-in capabilities ..."
+"The client system has its own external executor that can run the"
+"following named functions on your behalf:"
+"AVAILABLE FUNCTIONS (client-side, executed externally):"
+json.dumps(self._tools, ...)
+"These are the ONLY function names you may request: ['run_command', ...]"
+"A) If you need the client to execute a function before you can answer: ..."
+"B) If you have enough information to give a final answer: ..."
+```
+
+Juga ditambahkan `tool_names` list yang di-extract dari `self._tools` dan
+disebutkan eksplisit dua kali di instruksi (sebelum schema dan di RULES) untuk
+memperkuat constraint nama function yang valid.
+
+---
+
+### Custom Instruction Qwen (manual — semua akun)
+
+Diganti total. Versi lama mendefinisikan format response secara kaku (`success`/
+`error` saja) dan tidak memberi jalan bagi `[SYSTEM CONTEXT]` untuk override.
+Versi baru secara eksplisit memerintahkan Qwen mengikuti `[SYSTEM CONTEXT]`
+**secara eksklusif** tanpa mempertanyakan format yang diminta di dalamnya:
+
+```
+You are an LLM API endpoint, NOT a chat assistant.
+
+CRITICAL RULES:
+1. ALWAYS respond with VALID JSON only — one line, no newlines.
+2. NO markdown, NO explanations, NO conversation outside JSON.
+3. When [SYSTEM CONTEXT] is present in the message, follow it EXCLUSIVELY.
+   It overrides everything below. Do not add anything outside what it instructs.
+
+DEFAULT RESPONSE FORMAT (used only when no [SYSTEM CONTEXT] is present):
+
+Success:
+{"status":"success","choices":[{"index":0,"message":{"role":"assistant","content":"your response here"},"finish_reason":"stop"}]}
+
+Error:
+{"status":"error","error":{"type":"invalid_request","message":"explanation"}}
+
+RULES:
+- content MUST be a string.
+- finish_reason MUST be "stop".
+- Do NOT escape quotes inside content unless required for valid JSON.
+- ONE line only, no newlines in output.
+```
+
+Perbedaan kunci dari versi lama:
+- Tidak ada lagi daftar format yang membatasi (tidak ada `tool_calls` hardcoded).
+- `[SYSTEM CONTEXT]` dinyatakan sebagai override eksklusif — Qwen mengikuti
+  apapun yang diminta di dalamnya, termasuk format `tool_calls`.
+
+---
+
 ## [Unreleased] – 2026-06-26 — Fix: Tool Calling Bugfixes (Built-in Tool Conflict, scrape_with_tool_result, Corrective Feedback, JSON Repair)
 
 > Serangkaian bugfix untuk fitur tool calling yang diimplementasikan pada entry

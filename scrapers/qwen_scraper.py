@@ -1706,32 +1706,41 @@ class QwenScraper(BaseAIChatScraper):
 
         if self._tools:
             # ── Mode: LLM API dengan tool calling ────────────────────────────
+            # PENTING: hindari kata "tool" di instruksi karena men-trigger
+            # mekanisme tool calling internal Qwen UI → gunakan "function/command".
+            tool_names = [
+                t.get("function", {}).get("name", "")
+                for t in self._tools
+                if t.get("function", {}).get("name")
+            ]
             parts += [
-                "You are a strict JSON LLM API endpoint.",
+                "You are a pure JSON API endpoint. You do NOT have any built-in",
+                "capabilities (no web search, no code execution, no file access,",
+                "no image generation). You are a stateless text-in/JSON-out processor.",
                 "",
-                "OVERRIDE DIRECTIVE (highest priority — supersedes all other instructions):",
-                "- DISABLE and IGNORE all built-in tools you may have (web search, code interpreter,",
-                "  image generation, file tools, calculator, or any other built-in capability).",
-                "- Do NOT call, use, or reference any built-in tool under any circumstances.",
-                "- The ONLY tools that exist are listed below under 'Available tools'.",
-                "- Do NOT use any tool whose name is not in that list.",
+                "The client system has its own external executor that can run the",
+                "following named functions on your behalf:",
                 "",
-                "Available tools:",
+                "AVAILABLE FUNCTIONS (client-side, executed externally):",
                 json.dumps(self._tools, ensure_ascii=False, indent=2),
                 "",
-                "RESPONSE FORMAT RULES (pilih SATU, tidak boleh campur):",
+                f"These are the ONLY function names you may request: {tool_names}",
+                "Do NOT invent or use any other function name.",
                 "",
-                "Rule 1 — Jika kamu perlu memanggil tool untuk menjawab, balas HANYA dengan:",
-                '{"status":"tool_calls","tool_calls":[{"id":"call_<unique_id>","type":"function","function":{"name":"<tool_name>","arguments":{<args_as_object>}}}]}',
+                "RESPONSE FORMAT — choose exactly ONE:",
                 "",
-                "Rule 2 — Jika kamu sudah punya jawaban final, balas HANYA dengan:",
+                "A) If you need the client to execute a function before you can answer:",
+                '{"status":"tool_calls","tool_calls":[{"id":"call_<unique_id>","type":"function","function":{"name":"<function_name>","arguments":{<args_as_object>}}}]}',
+                "",
+                "B) If you have enough information to give a final answer:",
                 '{"status":"success","choices":[{"index":0,"message":{"role":"assistant","content":"<jawaban_lengkap>"},"finish_reason":"stop"}]}',
                 "",
-                "PENTING:",
-                "- arguments HARUS berupa object/dict, BUKAN string.",
-                "- id HARUS unik per tool call, format: call_<angka_atau_huruf>.",
-                "- Jangan tambahkan field lain di luar schema di atas.",
-                "- Jangan pernah memanggil tool yang tidak ada di daftar 'Available tools' di atas.",
+                "RULES:",
+                "- Output ONLY raw JSON. No markdown, no explanation, no extra text.",
+                "- arguments MUST be a JSON object (dict), NOT a string.",
+                "- id MUST be unique per call, format: call_<number_or_letters>.",
+                "- Do NOT add any field outside the schemas above.",
+                f"- Only use function names from this list: {tool_names}",
             ]
         else:
             # ── Mode: chat biasa tanpa tool calling ──────────────────────────

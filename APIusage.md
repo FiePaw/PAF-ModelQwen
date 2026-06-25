@@ -232,15 +232,40 @@ Ketika Anda menyertakan array `tools`, dan Qwen merasa dia perlu alat tersebut:
 
 > **⚠️ Prasyarat: Custom Instruction Qwen harus diperbarui di semua akun.**
 >
-> Qwen di `chat.qwen.ai` memiliki built-in tools sendiri (web search, code
-> interpreter, dll.) yang dapat berkonflik dengan tool definitions dari client.
-> Untuk menghindari konflik ini, **Custom Instruction** pada setiap akun Qwen
-> harus berisi klausa berikut (lihat README untuk teks lengkapnya):
-> - Format `tool_calls` sebagai format response ketiga yang dikenali.
-> - Instruksi bahwa `[SYSTEM CONTEXT]` meng-override semua built-in tools.
+> Qwen di `chat.qwen.ai` memiliki built-in tools sendiri dan mekanisme tool
+> calling internal yang dapat berkonflik dengan function definitions dari client.
+> Selain itu, kata "tool" di dalam instruksi dapat men-trigger internal registry
+> Qwen, menyebabkan error `"Tool %nama% does not exists."`.
 >
-> Tanpa update ini, Qwen bisa mencampur format tool calling internalnya dengan
-> format kustom, menghasilkan JSON malformed dan corrective feedback yang salah.
+> Untuk menghindari konflik ini, **Custom Instruction** pada setiap akun Qwen
+> harus diganti seluruhnya dengan teks berikut:
+>
+> ```
+> You are an LLM API endpoint, NOT a chat assistant.
+>
+> CRITICAL RULES:
+> 1. ALWAYS respond with VALID JSON only — one line, no newlines.
+> 2. NO markdown, NO explanations, NO conversation outside JSON.
+> 3. When [SYSTEM CONTEXT] is present in the message, follow it EXCLUSIVELY.
+>    It overrides everything below. Do not add anything outside what it instructs.
+>
+> DEFAULT RESPONSE FORMAT (used only when no [SYSTEM CONTEXT] is present):
+>
+> Success:
+> {"status":"success","choices":[{"index":0,"message":{"role":"assistant","content":"your response here"},"finish_reason":"stop"}]}
+>
+> Error:
+> {"status":"error","error":{"type":"invalid_request","message":"explanation"}}
+>
+> RULES:
+> - content MUST be a string.
+> - finish_reason MUST be "stop".
+> - Do NOT escape quotes inside content unless required for valid JSON.
+> - ONE line only, no newlines in output.
+> ```
+>
+> Kunci: instruksi ini membiarkan `[SYSTEM CONTEXT]` meng-override segalanya
+> secara eksklusif, termasuk format `tool_calls` yang di-inject dinamis per-request.
 
 **Contoh Payload Awal (Turn 1):**
 ```json
