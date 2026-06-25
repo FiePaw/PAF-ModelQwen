@@ -230,6 +230,18 @@ Ketika Anda menyertakan array `tools`, dan Qwen merasa dia perlu alat tersebut:
 2. Anda bertugas **mengeksekusi tool** tersebut di lokal.
 3. Kirim kembali hasil eksekusinya menggunakan Header `X-Session-ID` dari Turn 1, menambahkan role `tool` pada pesannya.
 
+> **⚠️ Prasyarat: Custom Instruction Qwen harus diperbarui di semua akun.**
+>
+> Qwen di `chat.qwen.ai` memiliki built-in tools sendiri (web search, code
+> interpreter, dll.) yang dapat berkonflik dengan tool definitions dari client.
+> Untuk menghindari konflik ini, **Custom Instruction** pada setiap akun Qwen
+> harus berisi klausa berikut (lihat README untuk teks lengkapnya):
+> - Format `tool_calls` sebagai format response ketiga yang dikenali.
+> - Instruksi bahwa `[SYSTEM CONTEXT]` meng-override semua built-in tools.
+>
+> Tanpa update ini, Qwen bisa mencampur format tool calling internalnya dengan
+> format kustom, menghasilkan JSON malformed dan corrective feedback yang salah.
+
 **Contoh Payload Awal (Turn 1):**
 ```json
 {
@@ -249,6 +261,28 @@ Ketika Anda menyertakan array `tools`, dan Qwen merasa dia perlu alat tersebut:
   }]
 }
 ```
+
+**Contoh Turn 2 — kirim hasil eksekusi tool:**
+```json
+{
+  "model": "account1",
+  "messages": [
+    {"role": "user", "content": "Buat file test.py"},
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [{"id": "call_1", "type": "function", "function": {"name": "write_file", "arguments": {"path": "test.py", "content": "print('hello')"}}}]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_1",
+      "name": "write_file",
+      "content": "{\"success\": true}"
+    }
+  ]
+}
+```
+Header: `X-Session-ID: <session_id dari Turn 1>`
 
 ---
 

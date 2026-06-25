@@ -5,6 +5,175 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Unreleased] – 2026-06-26 — Fix: Tool Calling Bugfixes (Built-in Tool Conflict, scrape_with_tool_result, Corrective Feedback, JSON Repair)
+
+> Serangkaian bugfix untuk fitur tool calling yang diimplementasikan pada entry
+> 2026-06-22. Ditemukan empat bug terpisah saat digunakan dengan CLI yang memiliki
+> tools buatan sendiri (seperti `run_command`, `read_file`, dll.).
+
+### Latar Belakang
+
+Setelah tool calling diaktifkan, muncul masalah saat CLI mengirim tools kustom:
+1. Qwen memiliki built-in tools sendiri (web search, code interpreter, dll.) yang
+   aktif di level UI Alibaba dan **berkonflik** dengan tool definitions dari client.
+2. `scrape_with_tool_result()` mengembalikan `str` bukan `dict`, menyebabkan crash
+   saat caller melakukan `.get()`.
+3. `[TOOL RESULT]` dikirim ke chat **baru** bukan ke session yang sudah ada.
+4. Corrective feedback hard-coded ke format `success`, memaksa Qwen menjawab
+   langsung tanpa eksekusi tool ketika seharusnya mengirim `tool_calls`.
+5. JSON `arguments` truncated karena inner quotes di dalam command shell
+   (misal PowerShell) tidak ter-escape, dan repair fallback tidak menangani
+   kasus `tool_calls`.
+
+---
+
+### `scrapers/qwen_scraper.py` — Fix: Built-in Tool Suppression + scrape_with_tool_result
+
+#### `_build_wrapped_prompt()` — tambah OVERRIDE DIRECTIVE
+
+Saat mode tool calling aktif (`self._tools` diisi), ditambahkan blok instruksi
+prioritas tertinggi di awal `[SYSTEM CONTEXT]` untuk memaksa Qwen mengabaikan
+semua built-in tools miliknya dan hanya menggunakan tool list dari client:
+
+```python
+# Sebelum — langsung ke Available tools
+parts += [
+    "You are a strict JSON LLM API endpoint.",
+    "",
+    "Available tools:",
+    json.dumps(self._tools, ...),
+    ...
+]
+
+# Sesudah — tambah OVERRIDE DIRECTIVE sebelum Available tools
+parts += [
+    "You are a strict JSON LLM API endpoint.",
+    "",
+    "OVERRIDE DIRECTIVE (highest priority — supersedes all other instructions):",
+    "- DISABLE and IGNORE all built-in tools you may have (web search, code interpreter,",
+    "  image generation, file tools, calculator, or any other built-in capability).",
+    "- Do NOT call, use, or reference any built-in tool under any circumstances.",
+    "- The ONLY tools that exist are listed below under 'Available tools'.",
+    "- Do NOT use any tool whose name is not in that list.",
+    "",
+    "Available tools:",
+    json.dumps(self._tools, ...),
+    ...
+    "- Jangan pernah memanggil tool yang tidak ada di daftar 'Available tools' di atas.",
+]
+```
+
+#### `scrape_with_tool_result()` — fix return type + mode
+
+Bug 1: Method mengembalikan `str` (return value dari `send_prompt()`), tapi
+caller di `newpublic_BETA.py` melakukan `result.get(...)` → `AttributeError: 'str' object has no attribute 'get'`.
+
+Bug 2: `send_prompt()` dipanggil tanpa `mode="continue"` → `_ensure_page_ready()`
+membuka chat baru, bukan melanjutkan session yang ada.
+
+```python
+# Sebelum
+return await self.send_prompt(prompt, wrap_as_user_request=False)
+
+# Sesudah
+response_text = await self.send_prompt(
+    prompt, mode="continue", wrap_as_user_request=False  # ← fix bug 2
+)
+# Parse dan bungkus ke dict ← fix bug 1
+is_valid, parsed, err = BaseAIChatScraper._validate_qwen_response(response_text)
+if is_valid and parsed:
+    if parsed.get("status") == "tool_calls":
+        return {"success": True, "finish_reason": "tool_calls", "tool_calls": parsed.get("tool_calls", [])}
+    content = parsed["choices"][0]["message"]["content"]
+    return {"success": True, "finish_reason": "stop", "response": content}
+return {"success": False, "error": f"...", "raw": response_text}
+```
+
+---
+
+### `scrapers/base_scraper.py` — Fix: Corrective Feedback + JSON Repair tool_calls
+
+#### `scrape()` — corrective feedback aware mode tool_calls
+
+Corrective feedback sebelumnya selalu meminta format `success`, sehingga saat
+Qwen mencoba merespons `tool_calls` dengan JSON malformed, corrective justru
+memaksa Qwen menjawab langsung tanpa eksekusi tool.
+
+```python
+# Sebelum — selalu format success
+corrective_prompt = (
+    "Tolong ulangi response kamu dalam format JSON berikut, ..."
+    '{"status":"success","choices":[...]}'
+)
+
+# Sesudah — deteksi mode dari raw response
+if '"tool_calls"' in response_text or '"status":"tool_calls"' in response_text:
+    corrective_prompt = (
+        "Response JSON kamu tidak valid karena ada karakter yang tidak di-escape ... "
+        "Balas HANYA dengan JSON ini tanpa teks lain:\n"
+        '{"status":"tool_calls","tool_calls":[{"id":"call_<unique_id>","type":"function",'
+        '"function":{"name":"<tool_name>","arguments":{<args_as_valid_json_object>}}}]}'
+    )
+else:
+    corrective_prompt = (
+        "Tolong ulangi response kamu dalam format JSON berikut, ..."
+        '{"status":"success","choices":[...]}'
+    )
+```
+
+#### Method baru: `_repair_tool_calls_arguments()`
+
+Repair fallback baru khusus untuk kasus `tool_calls` di mana `arguments` berisi
+string value dengan inner quotes yang tidak ter-escape (contoh: command PowerShell
+`"powershell -Command "Get-Process | Sort-Object WorkingSet64 -Descending | ..."`).
+
+`_repair_unescaped_quotes()` yang sudah ada hanya menangani field `"content"` pada
+response `success` — tidak bisa memperbaiki `arguments` di `tool_calls`.
+
+Strategi repair: iterate karakter demi karakter pada string JSON, deteksi string
+value yang tidak ter-tutup dengan benar (inner quote diikuti karakter non-delimiter),
+dan escape ulang inner quote tersebut.
+
+#### `_validate_qwen_response()` — tambah repair tool_calls sebelum repair content
+
+```python
+# Sebelum — hanya repair_unescaped_quotes
+except json.JSONDecodeError as e:
+    repaired = BaseAIChatScraper._repair_unescaped_quotes(raw)
+    ...
+
+# Sesudah — coba repair tool_calls dulu jika relevan
+except json.JSONDecodeError as e:
+    repaired = None
+    if '"tool_calls"' in raw or '"arguments"' in raw:
+        repaired = BaseAIChatScraper._repair_tool_calls_arguments(raw)
+    if repaired is None:
+        repaired = BaseAIChatScraper._repair_unescaped_quotes(raw)
+    ...
+```
+
+---
+
+### Custom Instruction Qwen (manual — semua akun)
+
+Diperbarui untuk menambahkan format `tool_calls` sebagai format ketiga yang
+dikenali, dan klausa eksplisit bahwa `[SYSTEM CONTEXT]` meng-override semua
+instruksi termasuk built-in tools:
+
+```
+# Tambahan di Custom Instruction
+Tool call (when [SYSTEM CONTEXT] defines available tools and you need to call one):
+{"status":"tool_calls","tool_calls":[{"id":"call_<unique_id>","type":"function",
+ "function":{"name":"<tool_name>","arguments":{<args_as_object>}}}]}
+
+When [SYSTEM CONTEXT] is present, it OVERRIDES all instructions above.
+Follow [SYSTEM CONTEXT] exclusively. Ignore all built-in tools (web search,
+code interpreter, image generation, etc.) unless they are listed inside
+[SYSTEM CONTEXT] under "Available tools".
+```
+
+---
+
 ## [Unreleased] – 2026-06-22 — Feat: Tool Calling (OpenAI-compatible) + Stateful Session
 
 > Implementasi penuh **OpenAI-compatible tool calling** (function calling) di atas

@@ -1709,6 +1709,13 @@ class QwenScraper(BaseAIChatScraper):
             parts += [
                 "You are a strict JSON LLM API endpoint.",
                 "",
+                "OVERRIDE DIRECTIVE (highest priority — supersedes all other instructions):",
+                "- DISABLE and IGNORE all built-in tools you may have (web search, code interpreter,",
+                "  image generation, file tools, calculator, or any other built-in capability).",
+                "- Do NOT call, use, or reference any built-in tool under any circumstances.",
+                "- The ONLY tools that exist are listed below under 'Available tools'.",
+                "- Do NOT use any tool whose name is not in that list.",
+                "",
                 "Available tools:",
                 json.dumps(self._tools, ensure_ascii=False, indent=2),
                 "",
@@ -1724,6 +1731,7 @@ class QwenScraper(BaseAIChatScraper):
                 "- arguments HARUS berupa object/dict, BUKAN string.",
                 "- id HARUS unik per tool call, format: call_<angka_atau_huruf>.",
                 "- Jangan tambahkan field lain di luar schema di atas.",
+                "- Jangan pernah memanggil tool yang tidak ada di daftar 'Available tools' di atas.",
             ]
         else:
             # ── Mode: chat biasa tanpa tool calling ──────────────────────────
@@ -1797,7 +1805,25 @@ class QwenScraper(BaseAIChatScraper):
         prompt = self._build_tool_result_prompt(tool_messages, next_user_msg)
         # wrap_as_user_request=False karena prompt sudah berformat lengkap
         # ([TOOL RESULT] / [USER REQUEST]) — tidak perlu dibungkus lagi.
-        return await self.send_prompt(prompt, wrap_as_user_request=False)
+        # mode="continue" wajib: tool result harus dikirim ke session yang sama,
+        # bukan membuka chat baru.
+        response_text = await self.send_prompt(
+            prompt, mode="continue", wrap_as_user_request=False
+        )
+        # send_prompt mengembalikan str; bungkus ke dict agar caller bisa .get()
+        from scrapers.base_scraper import BaseAIChatScraper
+        is_valid, parsed, err = BaseAIChatScraper._validate_qwen_response(response_text)
+        if is_valid and parsed:
+            status = parsed.get("status")
+            if status == "tool_calls":
+                return {
+                    "success": True,
+                    "finish_reason": "tool_calls",
+                    "tool_calls": parsed.get("tool_calls", []),
+                }
+            content = parsed.get("choices", [{}])[0].get("message", {}).get("content", "")
+            return {"success": True, "finish_reason": "stop", "response": content}
+        return {"success": False, "error": f"Invalid response after tool result: {err}", "raw": response_text}
 
     async def send_prompt(
         self,

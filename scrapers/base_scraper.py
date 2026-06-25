@@ -617,6 +617,92 @@ class BaseAIChatScraper(ABC):
         return repaired
 
     @staticmethod
+    def _repair_tool_calls_arguments(raw: str) -> "str | None":
+        """
+        Repair kasus tool_calls di mana arguments berisi inner quotes yang tidak
+        di-escape, sehingga menyebabkan JSON truncated/malformed.
+
+        Contoh kasus:
+          {"status":"tool_calls","tool_calls":[{"id":"call_5","type":"function",
+           "function":{"name":"run_command","arguments":{"command":"powershell -Command "Get-Process...
+                                                                                      ^^
+           quote literal di dalam value string arguments.
+
+        Strategi: untuk setiap string value di dalam arguments, escape semua
+        inner quotes dan karakter kontrol yang tidak ter-escape.
+        """
+        import re
+        # Temukan blok arguments: setelah `"arguments":{`
+        # Cari semua string value di dalam arguments dan escape isinya
+        args_marker = '"arguments":{'
+        start = raw.find(args_marker)
+        if start == -1:
+            return None
+        args_start = start + len(args_marker) - 1  # posisi `{`
+
+        # Temukan key-value pairs di dalam arguments
+        # Strategy: untuk tiap `"key":"value"`, escape inner quotes di value
+        def escape_string_values(s: str) -> str:
+            """Escape unescaped quotes dan newline di dalam string JSON values."""
+            result = []
+            i = 0
+            while i < len(s):
+                if s[i] == '"':
+                    # Mulai string — cari penutupnya
+                    result.append('"')
+                    i += 1
+                    while i < len(s):
+                        if s[i] == '\\' and i + 1 < len(s):
+                            # Already escaped — lewati dua karakter
+                            result.append(s[i])
+                            result.append(s[i + 1])
+                            i += 2
+                        elif s[i] == '"':
+                            # Cek apakah ini penutup string yang valid:
+                            # penutup valid diikuti `:`, `,`, `}`, `]`, atau whitespace+penutup
+                            rest = s[i + 1:].lstrip()
+                            if rest and rest[0] in (':', ',', '}', ']'):
+                                result.append('"')
+                                i += 1
+                                break
+                            else:
+                                # Inner quote — escape
+                                result.append('\\"')
+                                i += 1
+                        elif s[i] in ('\n', '\r', '\t'):
+                            result.append('\\n' if s[i] == '\n' else ('\\r' if s[i] == '\r' else '\\t'))
+                            i += 1
+                        else:
+                            result.append(s[i])
+                            i += 1
+                else:
+                    result.append(s[i])
+                    i += 1
+            return ''.join(result)
+
+        # Ambil sisa string dari args_start, repair, dan rebuild
+        try:
+            # Coba parse dulu — jika sudah valid tidak perlu repair
+            import json as _json
+            _json.loads(raw)
+            return None  # tidak perlu repair
+        except Exception:
+            pass
+
+        # Ambil segmen arguments dan coba escape inner quotes
+        tail = raw[args_start:]
+        repaired_tail = escape_string_values(tail)
+        repaired = raw[:args_start] + repaired_tail
+
+        # Pastikan JSON tertutup dengan benar
+        try:
+            import json as _json
+            _json.loads(repaired)
+            return repaired
+        except Exception:
+            return None
+
+    @staticmethod
     def _validate_qwen_response(raw: str) -> "tuple[bool, dict | None, str]":
         """
         Validasi bahwa response Qwen adalah JSON dengan schema minimal:
@@ -631,7 +717,13 @@ class BaseAIChatScraper(ABC):
         try:
             data = json.loads(raw)
         except json.JSONDecodeError as e:
-            repaired = BaseAIChatScraper._repair_unescaped_quotes(raw)
+            # Coba repair tool_calls arguments dulu jika raw mengandung tool_calls
+            repaired = None
+            if '"tool_calls"' in raw or '"arguments"' in raw:
+                repaired = BaseAIChatScraper._repair_tool_calls_arguments(raw)
+            # Fallback ke repair unescaped quotes untuk success/error response
+            if repaired is None:
+                repaired = BaseAIChatScraper._repair_unescaped_quotes(raw)
             if repaired is not None:
                 try:
                     data = json.loads(repaired)
@@ -862,13 +954,28 @@ class BaseAIChatScraper(ABC):
                         continue
 
                     # Kirim corrective feedback dalam session yang SAMA
-                    corrective_prompt = (
-                        "Tolong ulangi response kamu dalam format JSON berikut, "
-                        "tanpa teks lain di luar JSON:\n"
-                        '{"status":"success","choices":[{"index":0,'
-                        '"message":{"role":"assistant","content":"<isi jawaban kamu>"},'
-                        '"finish_reason":"stop"}]}'
-                    )
+                    # Deteksi mode berdasarkan raw response: jika mengandung
+                    # "tool_calls" berarti Qwen mencoba call tool tapi JSON-nya
+                    # malformed → minta ulang format tool_calls, bukan success.
+                    if '"tool_calls"' in response_text or '"status":"tool_calls"' in response_text:
+                        corrective_prompt = (
+                            "Response JSON kamu tidak valid karena ada karakter yang tidak di-escape "
+                            "di dalam string (misalnya tanda kutip di dalam command). "
+                            "Tolong ulangi response tool_calls kamu dengan memastikan semua "
+                            "karakter spesial di dalam string value di-escape dengan benar "
+                            "(gunakan \\\" untuk tanda kutip, \\n untuk newline). "
+                            "Balas HANYA dengan JSON ini tanpa teks lain:\n"
+                            '{"status":"tool_calls","tool_calls":[{"id":"call_<unique_id>","type":"function",'
+                            '"function":{"name":"<tool_name>","arguments":{<args_as_valid_json_object>}}}]}'
+                        )
+                    else:
+                        corrective_prompt = (
+                            "Tolong ulangi response kamu dalam format JSON berikut, "
+                            "tanpa teks lain di luar JSON:\n"
+                            '{"status":"success","choices":[{"index":0,'
+                            '"message":{"role":"assistant","content":"<isi jawaban kamu>"},'
+                            '"finish_reason":"stop"}]}'
+                        )
                     self.logger.info(
                         "Mengirim corrective feedback (retry %d/%d) dalam session yang sama",
                         total_retries, HARD_CAP_RETRIES,
