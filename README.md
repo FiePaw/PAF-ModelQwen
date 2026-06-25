@@ -1,332 +1,166 @@
-# AIChatScraper – Qwen AI
+# AIChatScraper – Qwen AI Scraper & API Bridge
 
-Async Python scraper untuk Qwen AI (`chat.qwen.ai`) menggunakan **Playwright** dengan arsitektur class-based, persistent browser profile, cookie persistence, dan rotasi akun otomatis.
+Async Python scraper untuk Qwen AI (`chat.qwen.ai`) menggunakan **Playwright** dengan arsitektur class-based, persistent browser profile, pre-warmed browser pool, cookie persistence, rotasi akun otomatis, dan model distributed worker.
 
 ---
 
-## Fitur
+## ⚡ Fitur Utama
 
 | Fitur | Keterangan |
-|---|---|
-| ⚡ Async/await | Performa tinggi dengan `asyncio` + Playwright async |
-| 🧠 Think mode | Pilih mode berpikir Qwen: `auto`, `thinking`, atau `fast` |
-| 🔄 Multi-account rotation | Rotasi cookie otomatis saat rate-limit / session expired |
-| 🍪 Cookie persistence | Export dari Cookie-Editor, simpan di `cookies/*.json` |
-| 💾 Persistent browser profile | State browser (cookies, localStorage) bertahan antar sesi |
-| 🔁 Concurrent scraping | Jalankan banyak prompt sekaligus (`--concurrent N`) |
-| 📦 Output terstruktur | JSON + ekstrak code block ke file terpisah |
-| 📋 Logging | Console + rotating file log di `logs/scraper.log` |
-| 🔧 Error recovery | Retry otomatis + fallback antar akun |
-| 🔍 Debug selector | Scan DOM otomatis saat think mode gagal diterapkan |
-| 🌐 Distributed worker | `public.py` + `browser_pool.py` untuk mode worker VPS |
+| :--- | :--- |
+| **Async & Playwright** | Performa tinggi dengan `asyncio` + Playwright Async Chromium. |
+| **Think Mode Selection** | Pilih mode berpikir Qwen: `auto` (otomatis), `thinking` (reasoning mendalam), atau `fast` (respons cepat). |
+| **Multi-Account Rotation** | Rotasi cookie otomatis saat mendeteksi rate-limit, session expired, atau kuota harian habis. |
+| **Persistent Browser Profile** | Browser profiles tersimpan di `profiles/` untuk menyimpan cookies dan session state agar tidak perlu login ulang. |
+| **BrowserPool (Pre-warmed)** | Menghilangkan *cold-start* browser. Browser dibuka dan di-login sejak startup dan siap menerima task. |
+| **Attachment Paste via CDP** | Mengunggah gambar, PDF, dokumen, audio/video menggunakan injeksi clipboard lewat Chrome DevTools Protocol (CDP) + `Ctrl+V`. |
+| **Penanganan Error Tangguh** | Auto-restart browser saat terjadi page crash, perbaikan otomatis untuk tanda kutip JSON yang tidak di-escape (`unescaped quotes`), serta mekanisme *corrective feedback*. |
+| **Distributed Worker** | Dapat dihubungkan ke VPS server (`vps_server.py`) via WebSocket untuk mengekspos endpoint API OpenAI-compatible secara terdistribusi. |
+| **Fitur Media & Pencarian Bawaan** | Mendukung generasi gambar (`create_image`), video (`create_video`), dan pencarian web (`web_search`) melalui interaksi tombol UI Qwen. |
 
 ---
 
-## Struktur Folder
+## 📁 Struktur Folder
 
 ```
-aichat-scraper/
+PAF-ModelQwen-main/
 ├── scrapers/
 │   ├── __init__.py
-│   ├── base_scraper.py     # BaseAIChatScraper – abstract base class
-│   ├── qwen_scraper.py     # QwenScraper – implementasi Qwen AI
-│   └── utils.py            # Helper functions
-├── config.py               # Konfigurasi & path
-├── main.py                 # CLI entry point (standalone)
-├── public.py               # Local worker – konek ke VPS via WebSocket
-├── browser_pool.py         # BrowserPool – pre-warmed browser slot management
-├── vps_server.py           # VPS server – menerima request dari luar
-├── requirements.txt
-├── cookies/                # Simpan file cookie di sini  ← BUAT FOLDER INI
-│   ├── account1.json
-│   ├── account2.json
-│   └── ...
-├── profiles/               # Persistent browser profiles (otomatis dibuat)
-│   ├── account1/
-│   └── account2/
-├── output/                 # Hasil scraping (JSON)
-│   └── code/               # Code block yang diekstrak
-└── logs/                   # Log file
+│   ├── base_scraper.py      # BaseAIChatScraper – ABC untuk siklus browser & rotasi cookie
+│   ├── qwen_scraper.py      # QwenScraper – implementasi interaksi UI Qwen, upload, & media
+│   └── utils.py             # Helper functions (pretty logging, JSON helper, token counter)
+├── config.py                # File konfigurasi utama (timeout, selector, phrase rate limit)
+├── main.py                  # CLI entry point untuk eksekusi standalone (single/batch)
+├── browser_pool.py          # BrowserPool – manajemen slot browser pre-warmed (idle/busy/dead)
+├── public.py                # Local worker – terhubung ke VPS server via WebSocket
+├── newpublic_BETA.py        # Local worker (Beta) – dengan optimalisasi dan penanganan session
+├── PublicForward/
+│   └── ForVPS/
+│       ├── start.sh
+│       └── vps_server.py    # Server WebSocket di VPS untuk menerima request & mendelegasikan task
+├── cookies/                 # Penyimpanan file cookie JSON dari browser
+├── profiles/                # Penyimpanan persistent browser profiles per akun (dibuat otomatis)
+├── dataSession/             # Penyimpanan cache data session lokal (dibuat otomatis)
+├── output/                  # Hasil output scraping JSON
+│   └── code/                # Potongan kode yang berhasil diekstrak
+└── logs/                    # Log aktivitas scraping
 ```
 
 ---
 
-## Instalasi
+## 🚀 Instalasi & Setup
 
+### 1. Kloning dan Konfigurasi Environment
 ```bash
-# 1. Clone / download project
-cd aichat-scraper
-
-# 2. Buat virtual environment
+# Buat virtual environment
 python -m venv .venv
 source .venv/bin/activate        # Linux/macOS
 .venv\Scripts\activate           # Windows
 
-# 3. Install dependencies
+# Install dependencies
 pip install -r requirements.txt
+pip install -r requirements_api.txt   # Jika menggunakan mode worker/vps
 
-# 4. Install browser Chromium untuk Playwright
+# Install browser Chromium untuk Playwright
 playwright install chromium
 ```
 
----
-
-## Setup Cookie
-
-Qwen AI menggunakan autentikasi berbasis cookie. Ikuti langkah berikut:
-
-### Ekspor Cookie dari Browser
-
-1. Install ekstensi **Cookie-Editor** di Chrome/Firefox
-2. Buka `https://chat.qwen.ai` dan **login**
-3. Klik ekstensi Cookie-Editor → **Export** → **Export as JSON**
-4. Simpan file di folder `cookies/`, misal: `cookies/account1.json`
-
-### Multi-Account
-
-Untuk mendukung rotasi akun, simpan beberapa file cookie:
-
-```
-cookies/
-├── account1.json   # akun utama
-├── account2.json   # akun cadangan 1
-└── account3.json   # akun cadangan 2
-```
-
-Sistem akan **otomatis merotasi** ke akun berikutnya jika mendeteksi:
-- Rate limit / too many requests
-- Session expired / login required
-- Quota / usage limit exceeded
-
-> Setiap akun mendapat folder profile browser tersendiri di `profiles/`. Pada run pertama cookie disuntikkan ke profile; run berikutnya browser langsung memakai state yang sudah tersimpan — tidak perlu inject ulang.
+### 2. Ekspor Cookie Akun
+Qwen AI menggunakan cookie untuk autentikasi sesi.
+1. Pasang ekstensi **Cookie-Editor** di Google Chrome atau Firefox.
+2. Buka `https://chat.qwen.ai` dan lakukan **login**.
+3. Buka ekstensi Cookie-Editor → klik **Export** → **Export as JSON**.
+4. Simpan file di dalam folder `cookies/` dengan nama bebas (contoh: `cookies/akun_utama.json`).
+5. Untuk mendukung rotasi otomatis, Anda dapat meletakkan beberapa file cookie (misal: `account1.json`, `account2.json`, dll.) di folder tersebut.
 
 ---
 
-## Think Mode
+## 💻 Cara Penggunaan (Mode Standalone)
 
-Qwen AI memiliki tiga mode berpikir yang dapat dipilih:
+Mode standalone menggunakan berkas `main.py` untuk menjalankan prompt secara lokal tanpa melalui server perantara.
 
-| Mode | Keterangan |
-|---|---|
-| `auto` | Qwen memilih sendiri apakah perlu berpikir dalam atau tidak |
-| `thinking` | Mode berpikir mendalam — respons lebih lambat tapi lebih akurat |
-| `fast` | Mode cepat tanpa proses reasoning panjang |
-
-Default mode dikonfigurasi di `config.py` (`QWEN_CONFIG.default_think_mode`, default: `"fast"`).
-
-### Cara Penggunaan
-
-**Via CLI:**
-
+### 1. Menjalankan Single Prompt
 ```bash
-# Gunakan mode thinking (mendalam)
-python main.py --prompt "Jelaskan konsep monad" --think-mode thinking
+# Membuka sesi percakapan baru dengan Qwen berpikir mendalam
+python main.py --prompt "Jelaskan konsep monad di fungsional programming" --think-mode thinking
 
-# Gunakan mode fast (cepat)
-python main.py --prompt "Apa itu list?" --think-mode fast
+# Menjalankan browser secara visual (non-headless) untuk memantau proses
+python main.py --prompt "Halo Qwen" --no-headless
 
-# Gunakan mode auto (Qwen yang memilih)
-python main.py --prompt "Buat REST API dengan FastAPI" --think-mode auto
+# Menyimpan potongan kode yang dihasilkan di response secara terpisah
+python main.py --prompt "Buat FastAPI REST API sederhana" --save-code
 ```
 
-**Via Library:**
-
-```python
-import asyncio
-from scrapers.qwen_scraper import QwenScraper
-
-async def main():
-    async with QwenScraper(headless=True, think_mode="thinking") as q:
-        result = await q.scrape("Jelaskan algoritma Dijkstra")
-    print(result["response"])
-
-asyncio.run(main())
-```
-
----
-
-## Mode Worker VPS (public.py + browser_pool.py)
-
-Selain mode standalone (`main.py`), AIChatScraper mendukung arsitektur **distributed worker** di mana:
-
-- **`vps_server.py`** berjalan di VPS — menerima request dari client luar
-- **`public.py`** berjalan di mesin lokal (Windows/Linux) — konek ke VPS via WebSocket dan memproses task menggunakan **BrowserPool**
-
-### Arsitektur BrowserPool
-
-```
-Startup (sekali):
-  BrowserPool.start()
-    ├── Slot #0  → browser warm, cookie: account1.json  [IDLE]
-    ├── Slot #1  → browser warm, cookie: account2.json  [IDLE]
-    ├── ...
-    └── Slot #N  → browser warm, cookie: accountN.json  [IDLE]
-
-Task masuk:
-  mode NEW      → acquire slot idle mana saja
-  mode CONTINUE → acquire slot dengan cookie yang SAMA dengan session awal
-                  (tunggu slot itu idle, tidak fallback ke cookie lain)
-
-Setelah task selesai:
-  → slot kembali IDLE, siap task berikutnya (tanpa cold-start)
-
-Slot crash:
-  → auto-respawn di background dengan cookie yang sama (maks 3x)
-```
-
-Keuntungan utama dibanding versi lama (spawn browser per task):
-
-| | Versi lama | BrowserPool |
-|---|---|---|
-| Cold-start per task | ~5–15 detik | ~0 detik |
-| Browser launch | Setiap task | Sekali saat startup |
-| Overhead per request | Tinggi | Minimal |
-| Konsistensi akun CONTINUE | ❌ Bisa salah slot | ✅ Cookie-pinned |
-
-### Menjalankan Worker
-
+### 2. Melanjutkan Percakapan (Mode Continue)
+Sistem dapat melanjutkan sesi percakapan sebelumnya dengan menggunakan bendera `--mode continue`.
 ```bash
-# Jalankan worker lokal, konek ke VPS
-python public.py --vps ws://YOUR_VPS_IP:9000/ws/worker --workers 20 --token YOUR_TOKEN
-
-# Tampilkan jendela browser (debug)
-python public.py --vps ws://... --workers 4 --no-headless
-
-# Set session TTL 2 jam
-python public.py --vps ws://... --workers 10 --session-ttl 7200
-
-# Override think mode default untuk semua slot
-python public.py --vps ws://... --workers 10 --think-mode fast
+python main.py --prompt "Tambahkan unit test untuk kode sebelumnya" --mode continue
 ```
 
-### Referensi CLI public.py
-
-| Argumen | Default | Keterangan |
-|---|---|---|
-| `--vps` | *(wajib)* | WebSocket URL VPS, contoh: `ws://1.2.3.4:9000/ws/worker` |
-| `--token` | `None` | Token autentikasi (harus sama dengan VPS) |
-| `--workers` | `4` | Jumlah slot browser di pool |
-| `--no-headless` | `False` | Tampilkan jendela browser |
-| `--cookies-dir` | `./cookies` | Folder file cookie JSON |
-| `--session-ttl` | `3600` | Session TTL dalam detik |
-| `--reconnect-delay` | `5.0` | Jeda sebelum reconnect ke VPS (detik) |
-| `--think-mode` | dari config | Default think mode: `auto`, `thinking`, atau `fast` |
-
-### Session & Continue Mode (Worker)
-
-Session dikelola oleh `SessionStore` di `public.py`. Setiap session menyimpan:
-
-- `session_id` — pengenal unik
-- `cookie_file` — `Path` lengkap ke cookie file yang dipakai (dikunci sejak request NEW pertama)
-- `conversation_url` — URL conversation Qwen yang aktif
-
-Saat request CONTINUE datang, pool **hanya** akan memilihkan slot dengan `cookie_file` yang sama — bukan slot sembarang — sehingga akun Qwen konsisten dengan history percakapan yang tersimpan di `conversation_url`.
-
-### Cookie per Slot
-
-Jumlah cookie file yang tersedia vs `--workers`:
-
-```
-# Cookie = 3, workers = 6 → wrap round-robin
-Slot #0 → account1.json
-Slot #1 → account2.json
-Slot #2 → account3.json
-Slot #3 → account1.json   ← wrap
-Slot #4 → account2.json
-Slot #5 → account3.json
-
-# Artinya 2 slot per akun; request CONTINUE ke akun tertentu
-# menunggu salah satu dari 2 slot tersebut idle.
-```
-
----
-
-## Penggunaan CLI (Standalone)
-
-### Prompt Tunggal
-
+### 3. Menjalankan Batch Prompt Secara Concurrent
+Jika Anda memiliki daftar pertanyaan dalam sebuah berkas teks (satu baris per prompt), Anda dapat menjalankannya secara paralel.
 ```bash
-# Mode baru (percakapan baru)
-python main.py --prompt "Jelaskan async/await di Python" --mode new
-
-# Lanjutkan percakapan sebelumnya
-python main.py --prompt "Beri contoh kodenya" --mode continue
-
-# Tampilkan browser (non-headless, untuk debug)
-python main.py --prompt "Hello" --no-headless
-
-# Simpan code block yang ditemukan di response
-python main.py --prompt "Buat REST API dengan FastAPI" --save-code
-
-# Gunakan satu cookie file spesifik
-python main.py --prompt "Hi" --cookie cookies/account1.json
-
-# Pilih think mode
-python main.py --prompt "Jelaskan monad" --think-mode thinking
-python main.py --prompt "Apa itu list?" --think-mode fast
-```
-
-### Multi-Prompt Concurrent
-
-```bash
-# Jalankan semua prompt secara bersamaan (maks 3 browser)
+# Menjalankan prompt dari file prompts.txt dengan 3 browser sekaligus
 python main.py --prompts-file prompts.txt --concurrent 3
-
-# Dengan think mode thinking untuk semua prompt
-python main.py --prompts-file prompts.txt --concurrent 2 --think-mode thinking
 ```
 
 ---
 
-## Konfigurasi
+## 🌐 Mode Distributed Worker (API Bridge)
 
-Edit `config.py` untuk menyesuaikan:
+Arsitektur distributed worker dirancang agar Anda dapat mengakses kapasitas scraping Qwen Anda lewat endpoint API yang di-host di VPS publik.
 
-| Parameter | Default | Keterangan |
-|---|---|---|
-| `BROWSER_CONFIG.headless` | `False` | Jalankan browser tanpa UI |
-| `BROWSER_CONFIG.slow_mo` | `25` | Delay antar aksi (ms) |
-| `PERSISTENT_CONTEXT_CONFIG.enabled` | `True` | Pakai persistent browser profile |
-| `QWEN_CONFIG.default_think_mode` | `"fast"` | Think mode default (`auto`/`thinking`/`fast`) |
-| `QWEN_CONFIG.timeouts.response_wait` | `300000` | Timeout respons AI (ms) |
-| `ROTATION_CONFIG.max_retries_per_account` | `2` | Max retry per akun |
-| `ROTATION_CONFIG.retry_delay` | `5` | Jeda antar retry (detik) |
+```
+[External Client] ─── HTTP REST ───> [vps_server.py] 
+                                            │ (WebSocket)
+                                            v
+                                    [public.py (Local Worker)]
+                                            │ (BrowserPool)
+                                            v
+                                    [Playwright Chromium]
+                                            │
+                                            v
+                                     [chat.qwen.ai]
+```
+
+### 1. Jalankan WebSocket Server di VPS
+Jalankan server penerima di mesin VPS Anda. Server ini akan mendengarkan koneksi WebSocket dari worker lokal dan menyediakan API REST HTTP yang kompatibel dengan format OpenAI Chat Completions.
+```bash
+python PublicForward/ForVPS/vps_server.py --port 9000 --token TOKEN_KEAMANAN_ANDA
+```
+
+### 2. Jalankan Worker Lokal (Mesin Desktop)
+Jalankan worker di PC lokal Anda agar terhubung ke VPS. Worker ini akan membuka slot browser di latar belakang dan menunggu instruksi tugas.
+```bash
+# Menjalankan worker lokal terhubung ke VPS dengan 4 browser pre-warmed
+python public.py --vps ws://IP_VPS_ANDA:9000/ws/worker --workers 4 --token TOKEN_KEAMANAN_ANDA
+```
+*Catatan:* Anda juga dapat menggunakan berkas `newpublic_BETA.py` yang memiliki penanganan manajemen sesi (`SessionStore`) yang lebih optimal untuk menyimpan status percakapan di disk (`dataSession/`).
 
 ---
 
-## Troubleshooting
+## 🛠️ Konfigurasi Lanjutan
 
-**Browser tidak muncul / crash**
+Anda dapat menyesuaikan parameter operasi scraper di dalam berkas [config.py](file:///C:/Users/SPIN/Desktop/PAF-ModelQwen-main/config.py):
+* **`BROWSER_CONFIG`**: Mengatur resolusi viewport, user agent, lambatnya simulasi aksi (`slow_mo`), dan mode visual.
+* **`QWEN_CONFIG`**: Berisi selector DOM elemen input, tombol kirim, indikator typing, serta pilihan default think mode (`fast`/`thinking`/`auto`).
+* **`ROTATION_CONFIG`**: Mengatur frasa-frasa pendeteksi rate limit dan session expired, jumlah maksimum coba ulang sebelum berpindah akun (`max_retries_per_account`), dan waktu jeda antar-rotasi.
+
+---
+
+## 🔍 Troubleshooting & Penanganan Masalah
+
+### 1. JSON Parse Error (Tanda Kutip Tidak Di-escape)
+Qwen terkadang membalas dengan JSON yang cacat karena adanya kutip ganda literal di tengah teks. Sistem ini otomatis mendeteksinya dan menggunakan modul reparasi regex di `base_scraper.py` untuk meng-escape tanda kutip tersebut sebelum diparsing ulang oleh Python.
+
+### 2. Rate Limit & Pengurangan Kuota
+Jika log menampilkan *warning* rate limit, disarankan untuk:
+* Menambahkan lebih banyak file cookie akun di folder `cookies/`.
+* Mengurangi jumlah konkurensi (`--concurrent` atau `--workers`).
+* Meningkatkan nilai `retry_delay` di `config.py` agar memberi jeda nafas pada browser.
+
+### 3. Chromium Crash atau Hilang
+Pastikan browser biner Playwright telah terinstal sempurna dengan menjalankan:
 ```bash
 playwright install chromium --with-deps
 ```
-
-**Cookie tidak terbaca**
-- Pastikan format export adalah JSON (bukan Netscape)
-- Gunakan Cookie-Editor versi terbaru
-- Cek apakah `domain` pada cookie adalah `.qwen.ai`
-
-**Think mode tidak berubah**
-- Jalankan dengan `--no-headless` untuk observasi visual
-- Cek `logs/scraper.log` — cari entri `Think-mode debug scan`
-- Perbarui `QWEN_CONFIG.selectors.think_mode_trigger` di `config.py` sesuai hasil scan
-
-**Rate limit terus-menerus**
-- Tambah lebih banyak akun di folder `cookies/`
-- Naikkan `ROTATION_CONFIG.retry_delay`
-- Kurangi `--concurrent` / `--workers`
-
-**Worker tidak bisa konek ke VPS**
-- Cek token — harus sama antara `public.py --token` dan `vps_server.py --token`
-- Pastikan port VPS terbuka dan URL WebSocket benar (`ws://` bukan `http://`)
-- Worker akan auto-reconnect setiap `--reconnect-delay` detik
-
-**Slot browser di pool crash / dead**
-- Worker akan otomatis respawn slot tersebut di background (maks 3 percobaan)
-- Status pool ter-log setiap 60 detik — cek `logs/scraper.log` untuk entri `Pool status`
-- Jika semua slot dead, restart worker
-
-**Mode CONTINUE tidak nyambung ke percakapan sebelumnya**
-- Pastikan `X-Session-ID` (atau `session_id`) dari response pertama disimpan dan dikirim kembali
-- Cek apakah session belum expired (default TTL: 1 jam, ubah via `--session-ttl`)
-- Worker menjamin slot yang sama (per cookie) dipakai untuk CONTINUE — tapi jika semua slot dengan cookie tersebut dead, request akan fallback ke slot lain

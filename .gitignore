@@ -3,3 +3,6 @@ profiles/*
 _pycache_/
 logs/*
 dataSession/*
+output/*
+debug/*
+.venv/
